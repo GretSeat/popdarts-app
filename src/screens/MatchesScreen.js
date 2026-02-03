@@ -11,39 +11,39 @@ export default function MatchesScreen() {
   const matches = [];
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-        <Text variant="headlineMedium" style={styles.title}>
-          Match History
-        </Text>
-      </View>
+          <Text variant="headlineMedium" style={styles.title}>
+            Match History
+          </Text>
+        </View>
 
-      {matches.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text variant="headlineSmall" style={styles.emptyIcon}>
-            🎯
-          </Text>
-          <Text variant="titleLarge" style={styles.emptyTitle}>
-            No matches yet
-          </Text>
-          <Text variant="bodyMedium" style={styles.emptyDescription}>
-            Start your first match to see it here
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.list}>
-          {matches.map((match) => (
-            <List.Item
-              key={match.id}
-              title={`${match.player1_name} vs ${match.player2_name}`}
-              description={`${match.player1_score} - ${match.player2_score}`}
-              left={(props) => <List.Icon {...props} icon="trophy" />}
-            />
-          ))}
-        </View>
-      )}
-    </ScrollView>
+        {matches.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text variant="headlineSmall" style={styles.emptyIcon}>
+              🎯
+            </Text>
+            <Text variant="titleLarge" style={styles.emptyTitle}>
+              No matches yet
+            </Text>
+            <Text variant="bodyMedium" style={styles.emptyDescription}>
+              Start your first match to see it here
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {matches.map((match) => (
+              <List.Item
+                key={match.id}
+                title={`${match.player1_name} vs ${match.player2_name}`}
+                description={`${match.player1_score} - ${match.player2_score}`}
+                left={(props) => <List.Icon {...props} icon="trophy" />}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

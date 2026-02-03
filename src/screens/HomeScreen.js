@@ -44,170 +44,170 @@ export default function HomeScreen({ navigation }) {
   const shouldShowCard = (cardId) => !dismissedCards.includes(cardId);
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
       <ScrollView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-        <Text variant="headlineSmall" style={styles.greeting}>
-          Hey {displayName} 👋
-        </Text>
-      </View>
-
-      {/* PRIMARY ACTION - Always Visible */}
-      <Card style={styles.primaryCard} mode="elevated">
-        <Card.Content>
-          <Text variant="headlineMedium" style={styles.primaryTitle}>
-            {playStyle === "competitive" ? "🏆 Start Match" : "🎯 Quick Play"}
+          <Text variant="headlineSmall" style={styles.greeting}>
+            Hey {displayName} 👋
           </Text>
-          <Text variant="bodyMedium" style={styles.primarySubtitle}>
-            {playStyle === "competitive"
-              ? "Track your stats and compete"
-              : "Jump into a casual 1v1 game"}
-          </Text>
-        </Card.Content>
-        <Card.Actions>
-          <Button
-            mode="contained"
-            onPress={() => {
-              if (playStyle === "competitive") {
-                navigation.navigate("Play");
-              } else {
-                // Quick Play: Go directly to 1v1 casual lobby
-                navigation.navigate("Play", {
-                  quickPlay: true,
-                  gameFormat: "1v1",
-                  edition: "classic",
-                  matchType: "casual",
-                });
-              }
-            }}
-            style={styles.primaryButton}
-            contentStyle={styles.primaryButtonContent}
-            labelStyle={styles.primaryButtonLabel}
-          >
-            {playStyle === "competitive" ? "Start New Game" : "Quick Play"}
-          </Button>
-        </Card.Actions>
-      </Card>
+        </View>
 
-      {/* APL Promo Card */}
-      {shouldShowCard("apl_promo") && (
-        <Card style={styles.contextCard} mode="elevated">
-          <TouchableOpacity
-            style={styles.dismissButton}
-            onPress={() => dismissCard("apl_promo")}
-          >
-            <IconButton icon="close" size={16} />
-          </TouchableOpacity>
-          <Card.Cover
-            source={require("../../assets/APL_Hero_2.0_Banner.jpg")}
-            style={{ height: 120, resizeMode: "cover" }}
-          />
+        {/* PRIMARY ACTION - Always Visible */}
+        <Card style={styles.primaryCard} mode="elevated">
           <Card.Content>
-            <Text variant="titleMedium" style={styles.contextTitle}>
-              🏆 Join the APL!
+            <Text variant="headlineMedium" style={styles.primaryTitle}>
+              {playStyle === "competitive" ? "🏆 Start Match" : "🎯 Quick Play"}
             </Text>
-            <Text variant="bodyMedium" style={styles.contextDescription}>
-              Track your stats, compete officially, and see your global ranking.
-              Registration is free!
+            <Text variant="bodyMedium" style={styles.primarySubtitle}>
+              {playStyle === "competitive"
+                ? "Track your stats and compete"
+                : "Jump into a casual 1v1 game"}
             </Text>
           </Card.Content>
           <Card.Actions>
             <Button
               mode="contained"
               onPress={() => {
-                // Open APL website
-                Linking.openURL("https://www.iplayapl.com");
+                if (playStyle === "competitive") {
+                  navigation.navigate("Play");
+                } else {
+                  // Quick Play: Go directly to 1v1 casual lobby
+                  navigation.navigate("Play", {
+                    quickPlay: true,
+                    gameFormat: "1v1",
+                    edition: "classic",
+                    matchType: "casual",
+                  });
+                }
               }}
+              style={styles.primaryButton}
+              contentStyle={styles.primaryButtonContent}
+              labelStyle={styles.primaryButtonLabel}
             >
-              Register at iplayapl.com
+              {playStyle === "competitive" ? "Start New Game" : "Quick Play"}
             </Button>
           </Card.Actions>
         </Card>
-      )}
 
-      {/* Stats Unlock Prompt - Show after 5 games */}
-      {gamesPlayed >= 5 && shouldShowCard("stats_unlock") && (
-        <Card style={styles.contextCard} mode="elevated">
-          <TouchableOpacity
-            style={styles.dismissButton}
-            onPress={() => dismissCard("stats_unlock")}
-          >
-            <IconButton icon="close" size={16} />
-          </TouchableOpacity>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.contextTitle}>
-              📊 You've played {gamesPlayed} games!
-            </Text>
-            <Text variant="bodyMedium" style={styles.contextDescription}>
-              View your stats, track your progress, and see how you stack up.
-            </Text>
-          </Card.Content>
-          <Card.Actions>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.navigate("Profile")}
-            >
-              View Stats
-            </Button>
-          </Card.Actions>
-        </Card>
-      )}
-
-      {/* League Discovery - Show for competitive or after 10 games */}
-      {(playStyle === "competitive" || gamesPlayed >= 10) &&
-        shouldShowCard("league_discovery") && (
+        {/* APL Promo Card */}
+        {shouldShowCard("apl_promo") && (
           <Card style={styles.contextCard} mode="elevated">
             <TouchableOpacity
               style={styles.dismissButton}
-              onPress={() => dismissCard("league_discovery")}
+              onPress={() => dismissCard("apl_promo")}
+            >
+              <IconButton icon="close" size={16} />
+            </TouchableOpacity>
+            <Card.Cover
+              source={require("../../assets/APL_Hero_2.0_Banner.jpg")}
+              style={{ height: 120, resizeMode: "cover" }}
+            />
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.contextTitle}>
+                🏆 Join the APL!
+              </Text>
+              <Text variant="bodyMedium" style={styles.contextDescription}>
+                Track your stats, compete officially, and see your global
+                ranking. Registration is free!
+              </Text>
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="contained"
+                onPress={() => {
+                  // Open APL website
+                  Linking.openURL("https://www.iplayapl.com");
+                }}
+              >
+                Register at iplayapl.com
+              </Button>
+            </Card.Actions>
+          </Card>
+        )}
+
+        {/* Stats Unlock Prompt - Show after 5 games */}
+        {gamesPlayed >= 5 && shouldShowCard("stats_unlock") && (
+          <Card style={styles.contextCard} mode="elevated">
+            <TouchableOpacity
+              style={styles.dismissButton}
+              onPress={() => dismissCard("stats_unlock")}
             >
               <IconButton icon="close" size={16} />
             </TouchableOpacity>
             <Card.Content>
               <Text variant="titleMedium" style={styles.contextTitle}>
-                🎯 Local League Nights
+                📊 You've played {gamesPlayed} games!
               </Text>
               <Text variant="bodyMedium" style={styles.contextDescription}>
-                Find Popdarts leagues and tournaments near you.
-              </Text>
-              <Text variant="bodySmall" style={styles.comingSoonBadge}>
-                Coming Soon
+                View your stats, track your progress, and see how you stack up.
               </Text>
             </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.navigate("Profile")}
+              >
+                View Stats
+              </Button>
+            </Card.Actions>
           </Card>
         )}
 
-      {/* Guest Account Upgrade */}
-      {isGuest && shouldShowCard("guest_upgrade") && (
-        <Card style={styles.contextCard} mode="elevated">
-          <TouchableOpacity
-            style={styles.dismissButton}
-            onPress={() => dismissCard("guest_upgrade")}
-          >
-            <IconButton icon="close" size={16} />
-          </TouchableOpacity>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.contextTitle}>
-              ⭐ Save Your Progress
-            </Text>
-            <Text variant="bodyMedium" style={styles.contextDescription}>
-              Create an account to save matches across devices.
-            </Text>
-          </Card.Content>
-          <Card.Actions>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.navigate("Profile")}
-            >
-              Create Account
-            </Button>
-          </Card.Actions>
-        </Card>
-      )}
+        {/* League Discovery - Show for competitive or after 10 games */}
+        {(playStyle === "competitive" || gamesPlayed >= 10) &&
+          shouldShowCard("league_discovery") && (
+            <Card style={styles.contextCard} mode="elevated">
+              <TouchableOpacity
+                style={styles.dismissButton}
+                onPress={() => dismissCard("league_discovery")}
+              >
+                <IconButton icon="close" size={16} />
+              </TouchableOpacity>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.contextTitle}>
+                  🎯 Local League Nights
+                </Text>
+                <Text variant="bodyMedium" style={styles.contextDescription}>
+                  Find Popdarts leagues and tournaments near you.
+                </Text>
+                <Text variant="bodySmall" style={styles.comingSoonBadge}>
+                  Coming Soon
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
 
-      <View style={styles.spacer} />
-    </ScrollView>
+        {/* Guest Account Upgrade */}
+        {isGuest && shouldShowCard("guest_upgrade") && (
+          <Card style={styles.contextCard} mode="elevated">
+            <TouchableOpacity
+              style={styles.dismissButton}
+              onPress={() => dismissCard("guest_upgrade")}
+            >
+              <IconButton icon="close" size={16} />
+            </TouchableOpacity>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.contextTitle}>
+                ⭐ Save Your Progress
+              </Text>
+              <Text variant="bodyMedium" style={styles.contextDescription}>
+                Create an account to save matches across devices.
+              </Text>
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.navigate("Profile")}
+              >
+                Create Account
+              </Button>
+            </Card.Actions>
+          </Card>
+        )}
+
+        <View style={styles.spacer} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
