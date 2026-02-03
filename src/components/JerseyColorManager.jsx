@@ -15,77 +15,77 @@ import { Text, Button, IconButton } from "react-native-paper";
  * Maps to image files in assets/jerseys/
  */
 const JERSEY_DESIGNS = [
-  { 
-    id: 0, 
-    name: "Bleen", 
+  {
+    id: 0,
+    name: "Bleen",
     image: require("../../assets/jerseys/bleenjersey.png"),
-    backgroundColor: "#0000FF" // Blue
+    backgroundColor: "#0000FF", // Blue
   },
-  { 
-    id: 1, 
-    name: "Explore", 
+  {
+    id: 1,
+    name: "Explore",
     image: require("../../assets/jerseys/explorejersey.png"),
-    backgroundColor: "#4A90E2" // Light Blue
+    backgroundColor: "#4A90E2", // Light Blue
   },
-  { 
-    id: 2, 
-    name: "Fire & Ice", 
+  {
+    id: 2,
+    name: "Fire & Ice",
     image: require("../../assets/jerseys/fireicejersey.png"),
-    backgroundColor: "#F04B25" // Fire Red
+    backgroundColor: "#F04B25", // Fire Red
   },
-  { 
-    id: 3, 
-    name: "FRDi", 
+  {
+    id: 3,
+    name: "FRDi",
     image: require("../../assets/jerseys/FRDijersey.png"),
-    backgroundColor: "#225879" // Dark Blue
+    backgroundColor: "#225879", // Dark Blue
   },
-  { 
-    id: 4, 
-    name: "Halloween", 
+  {
+    id: 4,
+    name: "Halloween",
     image: require("../../assets/jerseys/halloweenjersey.png"),
-    backgroundColor: "#FF6B35" // Orange
+    backgroundColor: "#FF6B35", // Orange
   },
-  { 
-    id: 5, 
-    name: "Neon", 
+  {
+    id: 5,
+    name: "Neon",
     image: require("../../assets/jerseys/neonjersey.png"),
-    backgroundColor: "#00FF00" // Neon Green
+    backgroundColor: "#00FF00", // Neon Green
   },
-  { 
-    id: 6, 
-    name: "Pink Grey", 
+  {
+    id: 6,
+    name: "Pink Grey",
     image: require("../../assets/jerseys/pinkgreyjersey.png"),
-    backgroundColor: "#FFAAD8" // Pink
+    backgroundColor: "#FFAAD8", // Pink
   },
-  { 
-    id: 7, 
-    name: "Red Black", 
+  {
+    id: 7,
+    name: "Red Black",
     image: require("../../assets/jerseys/redblackjersey.png"),
-    backgroundColor: "#CF2740" // Red
+    backgroundColor: "#CF2740", // Red
   },
-  { 
-    id: 8, 
-    name: "Retro", 
+  {
+    id: 8,
+    name: "Retro",
     image: require("../../assets/jerseys/retrojersey.png"),
-    backgroundColor: "#4ACCC7" // Teal
+    backgroundColor: "#4ACCC7", // Teal
   },
-  { 
-    id: 9, 
-    name: "Rizzle", 
+  {
+    id: 9,
+    name: "Rizzle",
     image: require("../../assets/jerseys/rizzlejersey.png"),
-    backgroundColor: "#FE509D" // Pink
+    backgroundColor: "#FE509D", // Pink
   },
-  { 
-    id: 10, 
-    name: "USA", 
+  {
+    id: 10,
+    name: "USA",
     image: require("../../assets/jerseys/usajersey.png"),
-    backgroundColor: "#0000FF" // Blue
+    backgroundColor: "#0000FF", // Blue
   },
-  { 
-    id: 11, 
-    name: "Yurple", 
+  {
+    id: 11,
+    name: "Yurple",
     image: require("../../assets/jerseys/yurplejersey.png"),
-    backgroundColor: "#800080" // Purple
+    backgroundColor: "#800080", // Purple
   },
 ];
 
@@ -95,7 +95,7 @@ const JERSEY_DESIGNS = [
  * @returns {object} Jersey design object
  */
 export const getJerseyById = (jerseyId) => {
-  return JERSEY_DESIGNS.find(j => j.id === jerseyId) || JERSEY_DESIGNS[0];
+  return JERSEY_DESIGNS.find((j) => j.id === jerseyId) || JERSEY_DESIGNS[0];
 };
 
 /**
@@ -188,12 +188,14 @@ export default function JerseyColorManager({
           <View style={styles.instructions}>
             {mode === "ownership" && (
               <Text variant="bodySmall" style={styles.instructionText}>
-                Tap jerseys you own. Your favorite will be displayed on your profile.
+                Tap jerseys you own. Your favorite will be displayed on your
+                profile.
               </Text>
             )}
             {mode === "favorite" && (
               <Text variant="bodySmall" style={styles.instructionText}>
-                Select your favorite jersey. It will be displayed on your profile banner.
+                Select your favorite jersey. It will be displayed on your
+                profile banner.
               </Text>
             )}
           </View>

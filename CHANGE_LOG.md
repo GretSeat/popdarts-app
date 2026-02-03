@@ -5,25 +5,29 @@
 ### ✅ Gradient Progress Bar - ACTUALLY FIXED NOW
 
 **Issue:**
+
 - At 1 point: Only seeing black (first color), no blue (second color) visible
 - At 7 points: Mostly black, tiny bit of blue showing
 - At 21 points: Finally seeing the full bright blue
 - User wanted: Both colors visible at ALL score levels (1, 7, 21, etc.)
 
 **Root Cause (REAL ONE):**
+
 - The gradient was set to full screen width
 - The clip container was only showing score percentage of that full-width gradient
 - At 1 point (4.76% of screen), you only saw the leftmost 4.76% of the gradient
 - This leftmost slice was almost entirely the first color - explaining why only black showed
 
 **What User Actually Wanted:**
+
 - Gradient should **fill the progress bar** (the scored area), not span the full screen
 - At 1 point: small bar = 50% black, 50% blue
-- At 11 points: medium bar = 50% black, 50% blue  
+- At 11 points: medium bar = 50% black, 50% blue
 - At 21 points: full bar = 50% black, 50% blue
 - The bar grows, showing the full gradient at every size
 
 **Solution:**
+
 - Removed fixed width from gradient completely
 - Set `gradientFull` style to use `right: 0` instead of `width`
 - Now gradient fills its parent container (`gradientClipContainer`)
@@ -31,6 +35,7 @@
 - Result: Gradient adapts to whatever size the scored area is = always 50/50 colors
 
 **Files Updated:**
+
 - `src/screens/NewMatchScreen.js`:
   - Removed Dimensions import (not needed)
   - Removed screenWidth constant (not needed)
@@ -119,14 +124,12 @@
 **Match Setup Screen Redesign:**
 
 - **Match Type Selection** (Casual/Official):
-
   - Large buttons now take up ~50% of screen height each
   - Image placeholders added (📸 Image Coming Soon)
   - Vertically stacked for easy selection
   - Official mode shows "Coming Soon"
 
 - **Edition Selection** (Classic/Board):
-
   - Same large button layout (~50% each)
   - Image placeholders for future product images
   - Board edition shows "Coming Soon"
@@ -175,12 +178,10 @@
 ### ✅ Quick Score Improvements & Pre-Game Flow
 
 - **Fixed Quick Score Labels**:
-
   - Changed "Darts on board:" → "Darts Landed:"
   - Changed "Closest to bullseye:" → "Closest to Target Marker:"
 
 - **Implemented Cancellation Scoring**:
-
   - Closest dart now worth 3 points total (1 for landing + 2 bonus)
   - Other darts worth 1 point each
   - Only winner gets net points (winner's score - loser's score)
@@ -188,18 +189,15 @@
   - If tied, no points awarded, first thrower stays same
 
 - **Added Validation**:
-
   - Closest player buttons disabled/grayed out when that player has 0 darts landed
   - Prevents invalid closest selection
 
 - **Added Stat Tracker Button**:
-
   - "Stat Tracker" button in Quick Score modal
   - Currently disabled with "COMING SOON" text
   - Will connect to Stat Track modal in future update
 
 - **First Thrower Indication**:
-
   - Gold (#FFD700) border highlights current first thrower's half of screen
   - Updates after each round based on who won
   - Persists throughout match
@@ -257,7 +255,6 @@
 ### ✅ Color Picker Behavior Updates
 
 - **Player 1 (You)**:
-
   - Sees ALL 26 colors (not limited to owned)
   - Owned colors display green border and appear at top of list
   - Can select any color (owned or not)
@@ -265,7 +262,6 @@
   - Taken colors show dark overlay + "TAKEN" (disabled)
 
 - **Player 2 (Opponent)**:
-
   - Sees ALL 26 colors
   - NO green borders (doesn't show your ownership)
   - Can select any color except taken ones
@@ -273,7 +269,6 @@
   - Taken colors show dark overlay + "TAKEN" (disabled)
 
 - **Border System**:
-
   - Gray (#888888): Default unselected
   - Green (#4CAF50, 3px): Owned by you (Player 1 only)
   - Blue (#007AFF, 4px): Currently selected

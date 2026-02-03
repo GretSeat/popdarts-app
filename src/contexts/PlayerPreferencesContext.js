@@ -15,7 +15,7 @@ export const usePlayerPreferences = () => {
   const context = useContext(PlayerPreferencesContext);
   if (!context) {
     throw new Error(
-      "usePlayerPreferences must be used within PlayerPreferencesProvider"
+      "usePlayerPreferences must be used within PlayerPreferencesProvider",
     );
   }
   return context;
@@ -77,7 +77,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.OWNED_COLORS,
-        JSON.stringify(colors)
+        JSON.stringify(colors),
       );
       setOwnedColors(colors);
     } catch (error) {
@@ -92,7 +92,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.FAVORITE_HOME,
-        JSON.stringify(colorIndex)
+        JSON.stringify(colorIndex),
       );
       setFavoriteHomeColor(colorIndex);
     } catch (error) {
@@ -107,7 +107,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.FAVORITE_AWAY,
-        JSON.stringify(colorIndex)
+        JSON.stringify(colorIndex),
       );
       setFavoriteAwayColor(colorIndex);
     } catch (error) {
@@ -122,7 +122,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.OWNED_JERSEYS,
-        JSON.stringify(jerseys)
+        JSON.stringify(jerseys),
       );
       setOwnedJerseys(jerseys);
     } catch (error) {
@@ -137,7 +137,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.FAVORITE_JERSEY,
-        JSON.stringify(jerseyId)
+        JSON.stringify(jerseyId),
       );
       setFavoriteJersey(jerseyId);
     } catch (error) {

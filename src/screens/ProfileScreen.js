@@ -22,7 +22,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 
 import DartColorManager from "../components/DartColorManager";
-import JerseyColorManager, { getJerseyById } from "../components/JerseyColorManager";
+import JerseyColorManager, {
+  getJerseyById,
+} from "../components/JerseyColorManager";
 import { LineChart } from "react-native-chart-kit";
 import { POPDARTS_COLORS } from "../constants/colors";
 
@@ -51,13 +53,14 @@ export default function ProfileScreen() {
       : (typeof favoriteHomeColor === "string" &&
           POPDARTS_COLORS.find((c) => c.name === favoriteHomeColor)) ||
         POPDARTS_COLORS[0];
-  
+
   // Get jersey background color if favorite jersey is set
-  const selectedJersey = favoriteJersey !== null ? getJerseyById(favoriteJersey) : null;
-  const jerseyBackgroundColor = selectedJersey 
-    ? selectedJersey.backgroundColor 
+  const selectedJersey =
+    favoriteJersey !== null ? getJerseyById(favoriteJersey) : null;
+  const jerseyBackgroundColor = selectedJersey
+    ? selectedJersey.backgroundColor
     : POPDARTS_COLORS[0].colors[0]; // Default to black if no jersey selected
-  
+
   // Use favorite away color as jersey color preview (fallback to blue)
   const jerseyColorObj =
     typeof favoriteAwayColor === "number" && POPDARTS_COLORS[favoriteAwayColor]
@@ -143,9 +146,7 @@ export default function ProfileScreen() {
   const renderProfileTab = () => (
     <ScrollView>
       {/* Header with Avatar, Name, Club, Dart/Jersey Colors */}
-      <View
-        style={[styles.header, { backgroundColor: jerseyBackgroundColor }]}
-      >
+      <View style={[styles.header, { backgroundColor: jerseyBackgroundColor }]}>
         <View style={{ alignItems: "center", marginBottom: 8 }}>
           {/* Avatar with favorite home dart color */}
           <View style={styles.avatarPreviewBox}>
@@ -226,8 +227,11 @@ export default function ProfileScreen() {
               />
             )}
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.colorPreviewBox, { minWidth: selectedJersey ? 80 : 36 }]}
+          <TouchableOpacity
+            style={[
+              styles.colorPreviewBox,
+              { minWidth: selectedJersey ? 80 : 36 },
+            ]}
             onPress={() => setJerseyManagerVisible(true)}
           >
             {selectedJersey ? (
