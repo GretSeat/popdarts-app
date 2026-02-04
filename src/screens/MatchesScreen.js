@@ -1,18 +1,22 @@
 import React from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, List } from "react-native-paper";
 
 /**
  * Matches screen - Display match history
  */
 export default function MatchesScreen() {
+  const insets = useSafeAreaInsets();
   // TODO: Fetch matches from Supabase
   const matches = [];
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-      <ScrollView style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingTop: insets.top }}
+      >
         <View style={styles.header}>
           <Text variant="headlineMedium" style={styles.title}>
             Match History
@@ -44,7 +48,7 @@ export default function MatchesScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

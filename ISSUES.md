@@ -6,6 +6,59 @@ This document tracks bugs, UI issues, and features that need improvement but are
 
 ## ✅ Recently Resolved
 
+### Tournament Setup - Quick Bracket Size Selector
+
+**Priority:** Medium  
+**Status:** RESOLVED ✅  
+**Date Added:** February 4, 2026  
+**Date Resolved:** February 4, 2026
+
+**Problem:**  
+Tournament setup required manually adding players one-by-one using "Add Player" button. For standard bracket sizes (4, 8, 16 players), this was repetitive and time-consuming.
+
+**User Request:**  
+Add a quick selection option (dropdown) at the top of tournament setup to instantly fill the player list with the correct number of empty slots for standard bracket sizes (4, 8, 16, 32, 64, 128 players).
+
+**Solution Implemented:**
+
+1. **Added state management:**
+   - `quickBracketMenuVisible` - Controls dropdown menu visibility
+   - `selectedBracketSize` - Tracks currently selected bracket size
+
+2. **Created auto-populate function:**
+   - `autoPopulateTournamentPlayers(size)` - Automatically adjusts player list to match selected size
+   - Handles expanding (adds empty slots) and trimming (removes excess players)
+   - Preserves existing player data when expanding
+   - Auto-assigns colors from POPDARTS_COLORS palette
+
+3. **Added UI dropdown component:**
+   - "Quick Fill" section at top of Tournament Setup screen
+   - Menu with standard bracket sizes: 4, 8, 16, 32, 64, 128 players
+   - First 3 sizes active (4, 8, 16), larger sizes disabled for future expansion
+   - Button displays current selection or "Select Bracket Size"
+
+4. **Fixed Menu interaction bug:**
+   - Added 100ms setTimeout to separate menu close from function execution
+   - Ensures Menu component properly resets state between selections
+   - Allows repeated bracket size changes without UI freezing
+
+**Technical Details:**
+
+- Used React Native Paper's `Menu` component for dropdown
+- Added custom styles: `quickBracketSurface`, `quickBracketLabel`, `quickBracketButton`
+- Menu closes before auto-populate to prevent state conflicts
+- Function handles three scenarios: expand list, trim list, or maintain current size
+
+**Result:**  
+✅ One-click bracket size selection (4, 8, 16 players)  
+✅ Instantly populates player list with correct number of slots  
+✅ Can freely switch between sizes (expands/trims list accordingly)  
+✅ Preserves existing player names when expanding  
+✅ Works seamlessly with manual "Add Player" functionality  
+✅ Menu properly resets for multiple selections
+
+---
+
 ### Gradient Colors Not Visible at Low Score Values
 
 **Priority:** High  
@@ -21,6 +74,7 @@ Both colors should be visible at ALL score levels (1, 7, 21, etc.) with a 50/50 
 
 **Root Cause:**  
 The gradient was configured to fill its container, but the container had no proper width constraint. This caused the gradient to either:
+
 1. Use a fixed width (1000px) showing only a tiny slice at low scores
 2. Span the full screen showing only a cross-section at low scores
 
@@ -35,7 +89,7 @@ Neither approach made the gradient fill the progress bar itself.
 
 **Technical Details:**
 
-- `gradientClipContainer` sets width based on score: `{ width: \`\${(playerScore / 21) * 100}%\` }`
+- `gradientClipContainer` sets width based on score: `{ width: \`\${(playerScore / 21) \* 100}%\` }`
 - `gradientFull` now uses `position: absolute` with `left: 0` and `right: 0`
 - Gradient fills whatever size the container is (1 point = small bar, 21 points = full bar)
 - Both colors always display in 50/50 proportion

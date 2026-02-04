@@ -9,7 +9,7 @@ import {
   ImageBackground,
   Animated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Text,
   TextInput,
@@ -20,6 +20,7 @@ import {
   Chip,
   Dialog,
   Divider,
+  Menu,
 } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
@@ -36,6 +37,7 @@ export default function NewMatchScreen({ navigation, route }) {
   const { user, isGuest, guestName } = useAuth();
   const { ownedColors, favoriteHomeColor, favoriteAwayColor } =
     usePlayerPreferences();
+  const insets = useSafeAreaInsets();
 
   const currentUserName =
     user?.user_metadata?.display_name || guestName || "You";
@@ -117,6 +119,8 @@ export default function NewMatchScreen({ navigation, route }) {
   const [matchPositions, setMatchPositions] = useState({});
   const [roundXOffsets, setRoundXOffsets] = useState({});
   const [calculatedYPositions, setCalculatedYPositions] = useState({}); // Store measured positions for SVG lines
+  const [quickBracketMenuVisible, setQuickBracketMenuVisible] = useState(false);
+  const [selectedBracketSize, setSelectedBracketSize] = useState(null);
 
   // Win dialog
   const [winner, setWinner] = useState(null);
@@ -445,6 +449,33 @@ export default function NewMatchScreen({ navigation, route }) {
     setClosestPlayer(null);
     setWinner(null);
     setShowSimplifiedOverlay(false);
+  };
+
+  /**
+   * Auto-populate tournament players to reach the selected bracket size
+   * @param {number} size - Target bracket size (4, 8, 16, 32, 64, 128)
+   */
+  const autoPopulateTournamentPlayers = (size) => {
+    setSelectedBracketSize(size);
+
+    const currentPlayers = [...tournamentPlayers];
+
+    // If new size is smaller, trim the list
+    if (currentPlayers.length > size) {
+      setTournamentPlayers(currentPlayers.slice(0, size));
+    }
+    // If new size is larger, add more players
+    else if (currentPlayers.length < size) {
+      const newPlayers = [];
+      for (let i = currentPlayers.length; i < size; i++) {
+        newPlayers.push({
+          name: "",
+          color: POPDARTS_COLORS[i % POPDARTS_COLORS.length],
+        });
+      }
+      setTournamentPlayers([...currentPlayers, ...newPlayers]);
+    }
+    // If same size, do nothing (just update selectedBracketSize)
   };
 
   const saveMatch = async () => {
@@ -1073,8 +1104,10 @@ export default function NewMatchScreen({ navigation, route }) {
     // Step 1: Match Type Selection (Casual vs Official)
     if (!matchType) {
       return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-          <View style={styles.largeButtonContainer}>
+        <View style={styles.container}>
+          <View
+            style={[styles.largeButtonContainer, { paddingTop: insets.top }]}
+          >
             <Text variant="headlineLarge" style={styles.titleCentered}>
               Select Match Type
             </Text>
@@ -1119,20 +1152,22 @@ export default function NewMatchScreen({ navigation, route }) {
             </Button>
           </View>
           {renderPreGameModal()}
-        </SafeAreaView>
+        </View>
       );
     }
 
     // Step 2: Edition Selection (Classic vs Board)
     if (!editionType) {
       return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-          <View style={styles.largeButtonContainer}>
+        <View style={styles.container}>
+          <View
+            style={[styles.largeButtonContainer, { paddingTop: insets.top }]}
+          >
             <IconButton
               icon="arrow-left"
               size={24}
               onPress={() => setMatchType(null)}
-              style={styles.backButtonAbsolute}
+              style={[styles.backButtonAbsolute, { top: 10 + insets.top }]}
             />
             <Text variant="headlineLarge" style={styles.titleCentered}>
               Select Edition
@@ -1161,20 +1196,22 @@ export default function NewMatchScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
           {renderPreGameModal()}
-        </SafeAreaView>
+        </View>
       );
     }
 
     // Step 3: Game Format Selection (Single Match vs Tournament)
     if (!gameFormat) {
       return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-          <View style={styles.largeButtonContainer}>
+        <View style={styles.container}>
+          <View
+            style={[styles.largeButtonContainer, { paddingTop: insets.top }]}
+          >
             <IconButton
               icon="arrow-left"
               size={24}
               onPress={() => setEditionType(null)}
-              style={styles.backButtonAbsolute}
+              style={[styles.backButtonAbsolute, { top: 10 + insets.top }]}
             />
             <Text variant="headlineLarge" style={styles.titleCentered}>
               Select Game Format
@@ -1211,20 +1248,22 @@ export default function NewMatchScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
           {renderPreGameModal()}
-        </SafeAreaView>
+        </View>
       );
     }
 
     // Step 4: Match Mode Selection (1v1, 2v2, Party) - Only for single matches
     if (gameFormat === "single" && !matchMode) {
       return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-          <View style={styles.largeButtonContainer}>
+        <View style={styles.container}>
+          <View
+            style={[styles.largeButtonContainer, { paddingTop: insets.top }]}
+          >
             <IconButton
               icon="arrow-left"
               size={24}
               onPress={() => setGameFormat(null)}
-              style={styles.backButtonAbsolute}
+              style={[styles.backButtonAbsolute, { top: 10 + insets.top }]}
             />
             <Text variant="headlineLarge" style={styles.titleCentered}>
               Select Match Mode
@@ -1281,7 +1320,7 @@ export default function NewMatchScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
           {renderPreGameModal()}
-        </SafeAreaView>
+        </View>
       );
     }
 
@@ -1292,9 +1331,9 @@ export default function NewMatchScreen({ navigation, route }) {
         const rounds = convertToSeedsFormat();
 
         return (
-          <SafeAreaView style={styles.container} edges={['top']}>
+          <View style={styles.container}>
             {/* Header */}
-            <View style={styles.bracketHeader}>
+            <View style={[styles.bracketHeader, { paddingTop: insets.top }]}>
               <IconButton
                 icon="arrow-left"
                 size={24}
@@ -1353,10 +1392,16 @@ export default function NewMatchScreen({ navigation, route }) {
                       }}
                       onLayout={(event) => {
                         const { x } = event.nativeEvent.layout;
-                        setRoundXOffsets((prev) => ({
-                          ...prev,
-                          [roundIndex]: x,
-                        }));
+                        setRoundXOffsets((prev) => {
+                          // Only update if value actually changed
+                          if (prev[roundIndex] !== x) {
+                            return {
+                              ...prev,
+                              [roundIndex]: x,
+                            };
+                          }
+                          return prev;
+                        });
                       }}
                     >
                       {/* Round Title */}
@@ -1466,17 +1511,30 @@ export default function NewMatchScreen({ navigation, route }) {
                                 // Calculate round X position: Round 0 = 0, Round 1 = 300, Round 2 = 600, etc.
                                 const calculatedRoundX =
                                   roundIndex * (cardWidth + connectorWidth);
-                                setMatchPositions((prev) => ({
-                                  ...prev,
-                                  [seed.id]: {
-                                    x: calculatedRoundX,
-                                    y,
-                                    width,
-                                    height,
-                                    centerY: y + height / 2,
-                                    roundIndex,
-                                  },
-                                }));
+                                setMatchPositions((prev) => {
+                                  const existingPos = prev[seed.id];
+                                  // Only update if position actually changed
+                                  if (
+                                    !existingPos ||
+                                    existingPos.x !== calculatedRoundX ||
+                                    existingPos.y !== y ||
+                                    existingPos.width !== width ||
+                                    existingPos.height !== height
+                                  ) {
+                                    return {
+                                      ...prev,
+                                      [seed.id]: {
+                                        x: calculatedRoundX,
+                                        y,
+                                        width,
+                                        height,
+                                        centerY: y + height / 2,
+                                        roundIndex,
+                                      },
+                                    };
+                                  }
+                                  return prev;
+                                });
                               }}
                             >
                               <TouchableOpacity
@@ -1653,13 +1711,13 @@ export default function NewMatchScreen({ navigation, route }) {
                   }}
                 >
                   {(() => {
-                    console.log("=== SVG RENDERING ===");
-                    console.log(
-                      "Total match positions tracked:",
-                      Object.keys(matchPositions).length,
-                    );
-                    console.log("Match positions:", matchPositions);
-                    console.log("Round X offsets:", roundXOffsets);
+                    // console.log("=== SVG RENDERING ===");
+                    // console.log(
+                    //   "Total match positions tracked:",
+                    //   Object.keys(matchPositions).length,
+                    // );
+                    // console.log("Match positions:", matchPositions);
+                    // console.log("Round X offsets:", roundXOffsets);
                     return null;
                   })()}
                   {rounds.map((round, roundIndex) => {
@@ -1673,25 +1731,25 @@ export default function NewMatchScreen({ navigation, route }) {
                       const sourceMatch1 = round.seeds[nextMatchIndex * 2];
                       const sourceMatch2 = round.seeds[nextMatchIndex * 2 + 1];
 
-                      console.log(
-                        `\n--- Round ${roundIndex} → ${
-                          roundIndex + 1
-                        }, Match ${nextMatchIndex} ---`,
-                      );
-                      console.log(
-                        "Source Match 1:",
-                        sourceMatch1?.id,
-                        sourceMatch1?.teams[0]?.name,
-                      );
-                      console.log(
-                        "Source Match 2:",
-                        sourceMatch2?.id,
-                        sourceMatch2?.teams[0]?.name,
-                      );
-                      console.log("Next Match:", nextSeed?.id);
+                      // console.log(
+                      //   `\n--- Round ${roundIndex} → ${
+                      //     roundIndex + 1
+                      //   }, Match ${nextMatchIndex} ---`,
+                      // );
+                      // console.log(
+                      //   "Source Match 1:",
+                      //   sourceMatch1?.id,
+                      //   sourceMatch1?.teams[0]?.name,
+                      // );
+                      // console.log(
+                      //   "Source Match 2:",
+                      //   sourceMatch2?.id,
+                      //   sourceMatch2?.teams[0]?.name,
+                      // );
+                      // console.log("Next Match:", nextSeed?.id);
 
                       if (!sourceMatch1 || !sourceMatch2) {
-                        console.log("❌ Missing source match(es)");
+                        // console.log("❌ Missing source match(es)");
                         return;
                       }
 
@@ -1699,12 +1757,12 @@ export default function NewMatchScreen({ navigation, route }) {
                       const pos2 = matchPositions[sourceMatch2.id];
                       const posNext = matchPositions[nextSeed.id];
 
-                      console.log("Position 1:", pos1);
-                      console.log("Position 2:", pos2);
-                      console.log("Position Next:", posNext);
+                      // console.log("Position 1:", pos1);
+                      // console.log("Position 2:", pos2);
+                      // console.log("Position Next:", posNext);
 
                       if (!pos1 || !pos2 || !posNext) {
-                        console.log("❌ Missing position data");
+                        // console.log("❌ Missing position data");
                         return;
                       }
 
@@ -1732,11 +1790,11 @@ export default function NewMatchScreen({ navigation, route }) {
                       // Vertical line X position (midpoint between rounds)
                       const verticalX = (match1RightX + nextLeftX) / 2;
 
-                      console.log(
-                        `Junction at Y=${junctionMidY}, Next match at Y=${nextCenterY}, Diff=${Math.abs(
-                          junctionMidY - nextCenterY,
-                        )}`,
-                      );
+                      // console.log(
+                      //   `Junction at Y=${junctionMidY}, Next match at Y=${nextCenterY}, Diff=${Math.abs(
+                      //     junctionMidY - nextCenterY,
+                      //   )}`,
+                      // );
 
                       // Determine line color based on completion
                       const bothCompleted =
@@ -1795,20 +1853,20 @@ export default function NewMatchScreen({ navigation, route }) {
                         />,
                       );
 
-                      console.log(
-                        `Round ${roundIndex} Match ${nextMatchIndex}:`,
-                        {
-                          match1: { x: match1RightX, y: match1CenterY },
-                          match2: { x: match2RightX, y: match2CenterY },
-                          next: { x: nextLeftX, y: nextCenterY },
-                          verticalX,
-                          junctionMidY,
-                          distances: {
-                            match1ToJunction: verticalX - match1RightX,
-                            junctionToNext: nextLeftX - verticalX,
-                          },
-                        },
-                      );
+                      // console.log(
+                      //   `Round ${roundIndex} Match ${nextMatchIndex}:`,
+                      //   {
+                      //     match1: { x: match1RightX, y: match1CenterY },
+                      //     match2: { x: match2RightX, y: match2CenterY },
+                      //     next: { x: nextLeftX, y: nextCenterY },
+                      //     verticalX,
+                      //     junctionMidY,
+                      //     distances: {
+                      //       match1ToJunction: verticalX - match1RightX,
+                      //       junctionToNext: nextLeftX - verticalX,
+                      //     },
+                      //   },
+                      // );
                     });
 
                     return paths;
@@ -1819,14 +1877,19 @@ export default function NewMatchScreen({ navigation, route }) {
 
             {/* Match Results Modal */}
             {renderMatchResultsModal()}
-          </SafeAreaView>
+          </View>
         );
       }
 
       // Tournament player setup
       return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-          <ScrollView contentContainerStyle={styles.setupContainer}>
+        <View style={styles.container}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.setupContainer,
+              { paddingTop: insets.top },
+            ]}
+          >
             <IconButton
               icon="arrow-left"
               size={24}
@@ -1839,6 +1902,79 @@ export default function NewMatchScreen({ navigation, route }) {
             <Text variant="bodyMedium" style={styles.subtitleCentered}>
               Add 4-16 players (min 4 to start)
             </Text>
+
+            {/* Quick Bracket Size Selector */}
+            <Surface style={styles.quickBracketSurface}>
+              <Text variant="labelLarge" style={styles.quickBracketLabel}>
+                Quick Fill:
+              </Text>
+              <Menu
+                visible={quickBracketMenuVisible}
+                onDismiss={() => setQuickBracketMenuVisible(false)}
+                anchor={
+                  <Button
+                    mode="outlined"
+                    onPress={() => setQuickBracketMenuVisible(true)}
+                    icon="account-multiple-plus"
+                    style={styles.quickBracketButton}
+                  >
+                    {selectedBracketSize
+                      ? `${selectedBracketSize} Players`
+                      : "Select Bracket Size"}
+                  </Button>
+                }
+              >
+                <Menu.Item
+                  onPress={() => {
+                    setQuickBracketMenuVisible(false);
+                    setTimeout(() => autoPopulateTournamentPlayers(4), 100);
+                  }}
+                  title="4 Players"
+                />
+                <Menu.Item
+                  onPress={() => {
+                    setQuickBracketMenuVisible(false);
+                    setTimeout(() => autoPopulateTournamentPlayers(8), 100);
+                  }}
+                  title="8 Players"
+                />
+                <Menu.Item
+                  onPress={() => {
+                    setQuickBracketMenuVisible(false);
+                    setTimeout(() => autoPopulateTournamentPlayers(16), 100);
+                  }}
+                  title="16 Players"
+                />
+                <Divider />
+                <Menu.Item
+                  onPress={() => {
+                    setQuickBracketMenuVisible(false);
+                    setTimeout(() => autoPopulateTournamentPlayers(32), 100);
+                  }}
+                  title="32 Players"
+                  disabled={true}
+                  titleStyle={{ color: "#999" }}
+                />
+                <Menu.Item
+                  onPress={() => {
+                    setQuickBracketMenuVisible(false);
+                    setTimeout(() => autoPopulateTournamentPlayers(64), 100);
+                  }}
+                  title="64 Players"
+                  disabled={true}
+                  titleStyle={{ color: "#999" }}
+                />
+                <Menu.Item
+                  onPress={() => {
+                    setQuickBracketMenuVisible(false);
+                    setTimeout(() => autoPopulateTournamentPlayers(128), 100);
+                  }}
+                  title="128 Players"
+                  disabled={true}
+                  titleStyle={{ color: "#999" }}
+                />
+              </Menu>
+            </Surface>
 
             {/* Player List */}
             {tournamentPlayers.map((player, index) => (
@@ -1992,14 +2128,19 @@ export default function NewMatchScreen({ navigation, route }) {
               Close
             </Button>
           </Modal>
-        </SafeAreaView>
+        </View>
       );
     }
 
     // Step 5: Lobby (Player Setup)
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.lobbyCenteredContainer}>
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.lobbyCenteredContainer,
+            { paddingTop: insets.top },
+          ]}
+        >
           <IconButton
             icon="arrow-left"
             size={24}
@@ -2008,7 +2149,7 @@ export default function NewMatchScreen({ navigation, route }) {
               setPlayers([]);
               setTeams([]);
             }}
-            style={styles.backButtonAbsolute}
+            style={[styles.backButtonAbsolute, { top: 10 + insets.top }]}
           />
           <Text variant="headlineMedium" style={styles.titleCentered}>
             {matchMode === "1v1"
@@ -2489,7 +2630,7 @@ export default function NewMatchScreen({ navigation, route }) {
           </Button>
         </ScrollView>
         {renderPreGameModal()}
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -2507,7 +2648,7 @@ export default function NewMatchScreen({ navigation, route }) {
         style={[
           styles.topPlayerSection,
           firstThrower === 1 && styles.playerSectionHighlighted,
-        ]}>
+        ]}
       >
         <View style={styles.whiteBackground}>
           {/* Progressive Gradient Reveal - Width Only */}
@@ -2529,7 +2670,9 @@ export default function NewMatchScreen({ navigation, route }) {
               <View
                 style={[
                   styles.gradientFull,
-                  { backgroundColor: player1ColorObj?.colors?.[0] || "#2A2A2A" },
+                  {
+                    backgroundColor: player1ColorObj?.colors?.[0] || "#2A2A2A",
+                  },
                 ]}
               />
             )}
@@ -2538,7 +2681,7 @@ export default function NewMatchScreen({ navigation, route }) {
           {/* Back Button */}
           <TouchableOpacity
             onPress={() => setShowBackConfirmation(true)}
-            style={styles.backButtonCircle}
+            style={[styles.backButtonCircle, { top: 40 + insets.top }]}
           >
             <IconButton icon="arrow-left" size={24} iconColor="#333" />
           </TouchableOpacity>
@@ -2547,7 +2690,7 @@ export default function NewMatchScreen({ navigation, route }) {
           <TouchableOpacity
             onPress={() => setShowSimplifiedOverlay(true)}
             disabled={winner !== null}
-            style={styles.simpleScoreButton}
+            style={[styles.simpleScoreButton, { top: 40 + insets.top }]}
           >
             <Text style={styles.simpleScoreButtonText}>QUICK</Text>
             <Text style={styles.simpleScoreButtonText}>SCORE</Text>
@@ -2640,7 +2783,9 @@ export default function NewMatchScreen({ navigation, route }) {
               <View
                 style={[
                   styles.gradientFull,
-                  { backgroundColor: player2ColorObj?.colors?.[0] || "#CF2740" },
+                  {
+                    backgroundColor: player2ColorObj?.colors?.[0] || "#CF2740",
+                  },
                 ]}
               />
             )}
@@ -3309,7 +3454,7 @@ export default function NewMatchScreen({ navigation, route }) {
         </Dialog.Content>
         <Dialog.Actions style={styles.victoryActions}>
           {gameFormat === "tournament" ? (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <Button
                 mode="contained"
                 onPress={() => {
@@ -3336,7 +3481,7 @@ export default function NewMatchScreen({ navigation, route }) {
               </Button>
             </View>
           ) : (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <Button
                 mode="contained"
                 onPress={saveMatch}
@@ -3405,7 +3550,7 @@ const styles = StyleSheet.create({
   },
   backButtonCircle: {
     position: "absolute",
-    top: 60,
+    top: 40,
     left: 20,
     width: 50,
     height: 50,
@@ -3417,7 +3562,7 @@ const styles = StyleSheet.create({
   },
   simpleScoreButton: {
     position: "absolute",
-    top: 60,
+    top: 40,
     right: 20,
     width: 70,
     height: 70,
@@ -3726,6 +3871,24 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     elevation: 2,
+  },
+  quickBracketSurface: {
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+    elevation: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  quickBracketLabel: {
+    fontWeight: "600",
+    color: "#333",
+  },
+  quickBracketButton: {
+    flex: 1,
+    marginLeft: 12,
   },
   playerSetupRow: {
     flexDirection: "row",

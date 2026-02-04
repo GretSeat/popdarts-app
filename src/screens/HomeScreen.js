@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, Button, Card, IconButton } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../contexts/AuthContext";
@@ -11,6 +11,7 @@ import { useAuth } from "../contexts/AuthContext";
  */
 export default function HomeScreen({ navigation }) {
   const { user, isGuest, guestName } = useAuth();
+  const insets = useSafeAreaInsets();
   const [playStyle, setPlayStyle] = useState("casual");
   const [gamesPlayed, setGamesPlayed] = useState(0);
   const [dismissedCards, setDismissedCards] = useState([]);
@@ -44,8 +45,11 @@ export default function HomeScreen({ navigation }) {
   const shouldShowCard = (cardId) => !dismissedCards.includes(cardId);
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-      <ScrollView style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingTop: insets.top }}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text variant="headlineSmall" style={styles.greeting}>
@@ -208,7 +212,7 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.spacer} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
