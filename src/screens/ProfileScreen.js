@@ -25,13 +25,14 @@ import DartColorManager from "../components/DartColorManager";
 import JerseyColorManager, {
   getJerseyById,
 } from "../components/JerseyColorManager";
+import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-chart-kit";
 import { POPDARTS_COLORS } from "../constants/colors";
 
 /**
  * Profile screen - User profile, rankings, practice, and settings
  */
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen() {
   const { user, isGuest, guestName, signOut } = useAuth();
   const {
     ownedColors,
@@ -79,6 +80,8 @@ export default function ProfileScreen({ navigation }) {
   const [statsSubTab, setStatsSubTab] = useState("casual");
   // User setting for casual match tracking: 'all', 'recent', 'none'
   const [casualTracking, setCasualTracking] = useState("all");
+  // Chart container width for responsive chart
+  const [chartContainerWidth, setChartContainerWidth] = useState(300);
 
   const displayName =
     user?.user_metadata?.display_name || guestName || "Player";
@@ -104,6 +107,51 @@ export default function ProfileScreen({ navigation }) {
     clubName: "Downtown Darts Club",
     clubRank: 3,
   };
+
+  // Mock ranking data (placeholder for ELO system)
+  const mockRankingData = {
+    currentRank: "Pro II",
+    mmr: 1788,
+    globalRank: 47,
+    totalPlayers: 400,
+    percentile: 12,
+    divisionColor: "#9D4EDD",
+    nextTierName: "Elite",
+    nextTierMMR: 1900,
+    mmrToNextTier: 112,
+  };
+
+  // Mock leaderboard data (top 10 shown, Elite = top 20)
+  const mockLeaderboard = [
+    { rank: 1, name: "TheDartKing", mmr: 2156, tier: "Elite" },
+    { rank: 2, name: "BullseyeQueen", mmr: 2098, tier: "Elite" },
+    { rank: 3, name: "PrecisionMaster", mmr: 2044, tier: "Elite" },
+    { rank: 4, name: "DartNinja", mmr: 1998, tier: "Elite" },
+    { rank: 5, name: "TargetLock", mmr: 1945, tier: "Elite" },
+    { rank: 6, name: "ThrowMaster", mmr: 1922, tier: "Elite" },
+    { rank: 7, name: "BullseyeBoss", mmr: 1910, tier: "Elite" },
+    { rank: 8, name: "AimAssist", mmr: 1905, tier: "Elite" },
+    { rank: 9, name: "SharpShooter", mmr: 1899, tier: "Elite" },
+    { rank: 10, name: "LocalLegend", mmr: 1894, tier: "Elite" },
+    { rank: 11, name: "BullseyeBandit", mmr: 1889, tier: "Elite" },
+    { rank: 12, name: "DartDemon", mmr: 1885, tier: "Elite" },
+    { rank: 13, name: "PrecisionPro", mmr: 1880, tier: "Elite" },
+    { rank: 14, name: "TargetTerror", mmr: 1876, tier: "Elite" },
+    { rank: 15, name: "AceAimer", mmr: 1872, tier: "Elite" },
+    { rank: 16, name: "ThrowGod", mmr: 1868, tier: "Elite" },
+    { rank: 17, name: "DartMaestro", mmr: 1864, tier: "Elite" },
+    { rank: 18, name: "BullseyeBeast", mmr: 1860, tier: "Elite" },
+    { rank: 19, name: "SniperShot", mmr: 1856, tier: "Elite" },
+    { rank: 20, name: "EliteEnder", mmr: 1852, tier: "Elite" },
+  ];
+
+  // Mock seasonal badges (achieved ranks from previous seasons)
+  const mockSeasonalBadges = [
+    { season: 1, rank: "Gold I", mmr: 1320, color: "#FFD700" },
+    { season: 2, rank: "Platinum III", mmr: 1380, color: "#E5E4E2" },
+    { season: 3, rank: "Diamond II", mmr: 1600, color: "#B9F2FF" },
+    { season: 4, rank: "Pro II", mmr: 1788, color: "#9D4EDD" },
+  ];
 
   // Mock recent play history
   const recentMatches = [
@@ -202,27 +250,24 @@ export default function ProfileScreen({ navigation }) {
             style={[styles.colorPreviewBox, { marginRight: 8 }]}
             onPress={() => setColorManagerVisible(true)}
           >
-            <View
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 9,
-                backgroundColor: favoriteHomeColorObj.colors[0],
-                marginHorizontal: 2,
-                borderWidth: 1,
-                borderColor: "#fff",
-              }}
-            />
-            {favoriteHomeColorObj.colors[1] && (
+            {favoriteHomeColorObj.isGradient ? (
+              <LinearGradient
+                colors={favoriteHomeColorObj.colors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  width: 40,
+                  height: 20,
+                  borderRadius: 10,
+                }}
+              />
+            ) : (
               <View
                 style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 9,
-                  backgroundColor: favoriteHomeColorObj.colors[1],
-                  marginHorizontal: 2,
-                  borderWidth: 1,
-                  borderColor: "#fff",
+                  width: 40,
+                  height: 20,
+                  borderRadius: 10,
+                  backgroundColor: favoriteHomeColorObj.colors[0],
                 }}
               />
             )}
@@ -284,87 +329,255 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Combined General Stats - now smaller */}
-      <Surface style={styles.sectionSmall}>
-        <Text variant="titleSmall" style={styles.sectionTitleSmall}>
-          Summary Stats
-        </Text>
-        <View style={styles.statsGridSmall}>
-          <View style={styles.statItemSmall}>
-            <Text style={styles.statNumberSmall}>{mockStats.roundsWon}</Text>
-            <Text style={styles.statItemLabelSmall}>Rounds Won</Text>
-          </View>
-          <View style={styles.statItemSmall}>
-            <Text style={styles.statNumberSmall}>{mockStats.tNobbers}</Text>
-            <Text style={styles.statItemLabelSmall}>T-Nobbers</Text>
-          </View>
-          <View style={styles.statItemSmall}>
-            <Text style={styles.statNumberSmall}>
-              {mockStats.wiggleNobbers}
-            </Text>
-            <Text style={styles.statItemLabelSmall}>Wiggle Nobbers</Text>
-          </View>
-          <View style={styles.statItemSmall}>
-            <Text style={styles.statNumberSmall}>{mockStats.lippies}</Text>
-            <Text style={styles.statItemLabelSmall}>Lippies</Text>
-          </View>
-          <View style={styles.statItemSmall}>
-            <Text style={styles.statNumberSmall}>
-              {mockStats.fenderBenders}
-            </Text>
-            <Text style={styles.statItemLabelSmall}>Fender Benders</Text>
-          </View>
-          <View style={styles.statItemSmall}>
-            <Text style={styles.statNumberSmall}>{mockStats.inchWorms}</Text>
-            <Text style={styles.statItemLabelSmall}>Inch Worms</Text>
-          </View>
-        </View>
-      </Surface>
-
-      {/* Improvement Chart */}
-      <Surface style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Win Rate Trend
-        </Text>
-        <LineChart
-          data={improvementData}
-          width={Dimensions.get("window").width - 48}
-          height={180}
-          chartConfig={{
-            backgroundColor: "#ffffff",
-            backgroundGradientFrom: "#ffffff",
-            backgroundGradientTo: "#ffffff",
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-            propsForDots: {
-              r: "6",
-              strokeWidth: "2",
-              stroke: "#2196F3",
-            },
-          }}
-          bezier
-          style={styles.chart}
-        />
-      </Surface>
-
-      {/* Trophy Room Preview */}
-      <Surface style={styles.section}>
-        <View style={styles.sectionHeader}>
+      {/* Responsive row for stats and chart */}
+      <View style={styles.responsiveRow}>
+        {/* Combined General Stats - now smaller */}
+        <Surface style={styles.cardHalf}>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            Trophy Room
+            Summary Stats
           </Text>
-          <Chip mode="outlined" compact>
-            Coming Soon
-          </Chip>
-        </View>
-        <Text variant="bodyMedium" style={styles.placeholderText}>
-          Your tournament wins and achievements will appear here
-        </Text>
-      </Surface>
+          <View style={styles.statsGridFull}>
+            <View style={styles.statItemSmall}>
+              <Text style={styles.statNumberSmall}>{mockStats.roundsWon}</Text>
+              <Text style={styles.statItemLabelSmall}>Rounds Won</Text>
+            </View>
+            <View style={styles.statItemSmall}>
+              <Text style={styles.statNumberSmall}>{mockStats.tNobbers}</Text>
+              <Text style={styles.statItemLabelSmall}>T-Nobbers</Text>
+            </View>
+            <View style={styles.statItemSmall}>
+              <Text style={styles.statNumberSmall}>
+                {mockStats.wiggleNobbers}
+              </Text>
+              <Text style={styles.statItemLabelSmall}>Wiggle Nobbers</Text>
+            </View>
+            <View style={styles.statItemSmall}>
+              <Text style={styles.statNumberSmall}>{mockStats.lippies}</Text>
+              <Text style={styles.statItemLabelSmall}>Lippies</Text>
+            </View>
+            <View style={styles.statItemSmall}>
+              <Text style={styles.statNumberSmall}>
+                {mockStats.fenderBenders}
+              </Text>
+              <Text style={styles.statItemLabelSmall}>Fender Benders</Text>
+            </View>
+            <View style={styles.statItemSmall}>
+              <Text style={styles.statNumberSmall}>{mockStats.inchWorms}</Text>
+              <Text style={styles.statItemLabelSmall}>Inch Worms</Text>
+            </View>
+          </View>
+        </Surface>
+
+        {/* Improvement Chart */}
+        <Surface
+          style={styles.cardHalf}
+          onLayout={(event) => {
+            const { width } = event.nativeEvent.layout;
+            setChartContainerWidth(width - 32); // Account for padding
+          }}
+        >
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Win Rate Trend
+          </Text>
+          <LineChart
+            data={improvementData}
+            width={chartContainerWidth}
+            height={200}
+            chartConfig={{
+              backgroundColor: "#ffffff",
+              backgroundGradientFrom: "#ffffff",
+              backgroundGradientTo: "#ffffff",
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              style: {
+                borderRadius: 16,
+              },
+              propsForDots: {
+                r: "6",
+                strokeWidth: "2",
+                stroke: "#2196F3",
+              },
+            }}
+            bezier
+            style={styles.chart}
+          />
+        </Surface>
+      </View>
+
+      {/* Responsive row container for ranking and trophy sections */}
+      <View style={styles.responsiveRow}>
+        {/* Ranking Preview */}
+        <Surface style={styles.cardHalf}>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Competitive Ranking
+            </Text>
+            <Chip mode="outlined" compact>
+              Preview
+            </Chip>
+          </View>
+          <View style={styles.rankingPreviewContainer}>
+            <View style={styles.currentRankCard}>
+              <Text style={styles.currentRankLabel}>Current Rank</Text>
+              <View
+                style={[
+                  styles.rankBadge,
+                  { backgroundColor: mockRankingData.divisionColor },
+                ]}
+              >
+                <Text style={styles.rankBadgeText}>
+                  {mockRankingData.currentRank}
+                </Text>
+              </View>
+              <Text style={styles.mmrText}>{mockRankingData.mmr} MMR</Text>
+              <Text style={styles.globalRankText}>
+                #{mockRankingData.globalRank} of {mockRankingData.totalPlayers}{" "}
+                (Top {mockRankingData.percentile}%)
+              </Text>
+              <View style={styles.progressToNextTier}>
+                <Text style={styles.progressLabel}>
+                  {mockRankingData.mmrToNextTier} MMR to{" "}
+                  {mockRankingData.nextTierName}
+                </Text>
+                <ProgressBar
+                  progress={
+                    (mockRankingData.mmr - 1700) /
+                    (mockRankingData.nextTierMMR - 1700)
+                  }
+                  color={mockRankingData.divisionColor}
+                  style={styles.progressBarRank}
+                />
+              </View>
+            </View>
+          </View>
+        </Surface>
+
+        {/* Leaderboard Preview */}
+        <Surface style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Global Leaderboard
+            </Text>
+            <Chip mode="outlined" compact>
+              Top 20
+            </Chip>
+          </View>
+          <View style={styles.leaderboardContainer}>
+            {mockLeaderboard.map((player, index) => (
+              <View
+                key={player.rank}
+                style={[
+                  styles.leaderboardRow,
+                  index % 2 === 0 && styles.leaderboardRowAlt,
+                  player.name === displayName && styles.leaderboardRowHighlight,
+                ]}
+              >
+                <View style={styles.leaderboardRankCol}>
+                  {player.rank <= 3 ? (
+                    <Text style={styles.leaderboardRankMedal}>
+                      {player.rank === 1
+                        ? "🥇"
+                        : player.rank === 2
+                          ? "🥈"
+                          : "🥉"}
+                    </Text>
+                  ) : (
+                    <Text style={styles.leaderboardRankText}>
+                      {player.rank}
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.leaderboardName} numberOfLines={1}>
+                  {player.name}
+                </Text>
+                <Text style={styles.leaderboardMMR}>{player.mmr}</Text>
+                <View
+                  style={[
+                    styles.leaderboardTierBadge,
+                    {
+                      backgroundColor:
+                        player.tier === "Elite" ? "#FFD60A" : "#9D4EDD",
+                    },
+                  ]}
+                >
+                  <Text style={styles.leaderboardTierText}>{player.tier}</Text>
+                </View>
+              </View>
+            ))}
+            {mockRankingData.globalRank > 10 && (
+              <View style={styles.leaderboardEllipsis}>
+                <Text style={styles.leaderboardEllipsisText}>...</Text>
+              </View>
+            )}
+            {mockRankingData.globalRank > 10 && (
+              <View
+                style={[styles.leaderboardRow, styles.leaderboardRowHighlight]}
+              >
+                <View style={styles.leaderboardRankCol}>
+                  <Text style={styles.leaderboardRankText}>
+                    {mockRankingData.globalRank}
+                  </Text>
+                </View>
+                <Text style={styles.leaderboardName} numberOfLines={1}>
+                  {displayName}
+                </Text>
+                <Text style={styles.leaderboardMMR}>{mockRankingData.mmr}</Text>
+                <View
+                  style={[
+                    styles.leaderboardTierBadge,
+                    { backgroundColor: mockRankingData.divisionColor },
+                  ]}
+                >
+                  <Text style={styles.leaderboardTierText}>
+                    {mockRankingData.currentRank}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+          <Text style={styles.leaderboardNote}>
+            This is a preview of the competitive ranking system. Full rankings
+            will be available when official matches are enabled.
+          </Text>
+        </Surface>
+
+        {/* Trophy Room - Seasonal Badges */}
+        <Surface style={styles.cardHalf}>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Trophy Room
+            </Text>
+            <Chip mode="outlined" compact>
+              Preview
+            </Chip>
+          </View>
+          <Text variant="bodySmall" style={styles.trophyRoomSubtitle}>
+            Seasonal Achievement Badges
+          </Text>
+          <View style={styles.seasonalBadgesContainer}>
+            {mockSeasonalBadges.map((badge) => (
+              <View key={badge.season} style={styles.seasonalBadgeCard}>
+                <View
+                  style={[
+                    styles.seasonalBadge,
+                    { backgroundColor: badge.color },
+                  ]}
+                >
+                  <Text style={styles.seasonalBadgeRank}>{badge.rank}</Text>
+                </View>
+                <Text style={styles.seasonalBadgeSeason}>
+                  Season {badge.season}
+                </Text>
+                <Text style={styles.seasonalBadgeMMR}>{badge.mmr} MMR</Text>
+              </View>
+            ))}
+          </View>
+          <Text variant="bodyMedium" style={styles.placeholderText}>
+            Tournament trophies and special achievements will also appear here
+          </Text>
+        </Surface>
+      </View>
 
       {isGuest && (
         <View style={[styles.section, styles.upgradeSection]}>
@@ -374,11 +587,7 @@ export default function ProfileScreen({ navigation }) {
           <Text variant="bodyMedium" style={styles.upgradeDescription}>
             Save your progress and unlock competitive features
           </Text>
-          <Button
-            mode="contained"
-            style={styles.upgradeButton}
-            onPress={handleSignOut}
-          >
+          <Button mode="contained" style={styles.upgradeButton}>
             Sign Up
           </Button>
         </View>
@@ -874,19 +1083,19 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#fff",
+    backgroundColor: "#f5f5f5",
     marginBottom: 4,
-    borderWidth: 2,
-    borderColor: "#eee",
+    borderWidth: 1,
+    borderColor: "#ddd",
   },
   colorPreviewBox: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 2,
+    padding: 4,
     borderRadius: 8,
-    backgroundColor: "#fff",
+    backgroundColor: "#e8e8e8",
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#ccc",
     minWidth: 36,
     minHeight: 20,
     justifyContent: "center",
@@ -1000,6 +1209,23 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 12,
+  },
+  responsiveRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: 8,
+    marginTop: 0,
+  },
+  cardHalf: {
+    flex: 1,
+    minWidth: 320,
+    maxWidth: "100%",
+    margin: 8,
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    paddingVertical: 12,
+    elevation: 2,
   },
   sectionTitle: {
     paddingVertical: 12,
@@ -1127,6 +1353,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     paddingVertical: 2,
   },
+  statsGridFull: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingVertical: 8,
+    width: "100%",
+  },
   statItemSmall: {
     width: "33.33%",
     alignItems: "center",
@@ -1142,5 +1374,173 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 10,
     textAlign: "center",
+  },
+  // Ranking preview styles
+  rankingPreviewContainer: {
+    paddingVertical: 12,
+  },
+  currentRankCard: {
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 8,
+  },
+  currentRankLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 8,
+    fontWeight: "600",
+  },
+  rankBadge: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 8,
+    elevation: 2,
+  },
+  rankBadgeText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  mmrText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 4,
+  },
+  globalRankText: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 12,
+  },
+  progressToNextTier: {
+    width: "100%",
+    marginTop: 8,
+  },
+  progressLabel: {
+    fontSize: 12,
+    color: "#888",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  progressBarRank: {
+    height: 8,
+    borderRadius: 4,
+  },
+  // Leaderboard styles
+  leaderboardContainer: {
+    paddingVertical: 8,
+  },
+  leaderboardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginVertical: 2,
+  },
+  leaderboardRowAlt: {
+    backgroundColor: "#f9f9f9",
+  },
+  leaderboardRowHighlight: {
+    backgroundColor: "#E3F2FD",
+    borderWidth: 1,
+    borderColor: "#2196F3",
+  },
+  leaderboardRankCol: {
+    width: 40,
+    alignItems: "center",
+  },
+  leaderboardRankText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
+  leaderboardRankMedal: {
+    fontSize: 20,
+  },
+  leaderboardName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    marginLeft: 8,
+  },
+  leaderboardMMR: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    marginRight: 8,
+  },
+  leaderboardTierBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  leaderboardTierText: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  leaderboardEllipsis: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  leaderboardEllipsisText: {
+    fontSize: 18,
+    color: "#999",
+    fontWeight: "bold",
+  },
+  leaderboardNote: {
+    fontSize: 12,
+    color: "#888",
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  // Trophy room / seasonal badges styles
+  trophyRoomSubtitle: {
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  seasonalBadgesContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  seasonalBadgeCard: {
+    alignItems: "center",
+    width: 80,
+  },
+  seasonalBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 6,
+    elevation: 3,
+  },
+  seasonalBadgeRank: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
+  },
+  seasonalBadgeSeason: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 2,
+  },
+  seasonalBadgeMMR: {
+    fontSize: 10,
+    color: "#888",
   },
 });

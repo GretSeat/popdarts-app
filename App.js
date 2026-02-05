@@ -6,6 +6,12 @@ import { PaperProvider, MD3LightTheme, Appbar } from "react-native-paper";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  Platform,
+  View,
+  Text as RNText,
+  ActivityIndicator,
+} from "react-native";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 import { PlayerPreferencesProvider } from "./src/contexts/PlayerPreferencesContext";
 
@@ -77,6 +83,9 @@ function LocalStack() {
 function MainNavigator() {
   return (
     <Tab.Navigator
+      sceneContainerStyle={
+        Platform.OS === "web" ? { backgroundColor: "#f5f5f5" } : {}
+      }
       screenOptions={{
         headerStyle: {
           backgroundColor: theme.colors.primary,
@@ -87,6 +96,40 @@ function MainNavigator() {
         },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: "#999",
+        tabBarStyle:
+          Platform.OS === "web"
+            ? {
+                height: 60,
+                backgroundColor: theme.colors.primary,
+                borderBottomWidth: 0,
+                elevation: 4,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+              }
+            : {},
+        tabBarPosition: Platform.OS === "web" ? "top" : "bottom",
+        tabBarLabelStyle:
+          Platform.OS === "web"
+            ? {
+                fontSize: 16,
+                fontWeight: "600",
+                textTransform: "none",
+              }
+            : {},
+        tabBarActiveTintColor:
+          Platform.OS === "web" ? "#fff" : theme.colors.primary,
+        tabBarInactiveTintColor:
+          Platform.OS === "web" ? "rgba(255,255,255,0.7)" : "#999",
+        tabBarIndicatorStyle:
+          Platform.OS === "web"
+            ? {
+                backgroundColor: "#fff",
+                height: 3,
+              }
+            : {},
+        lazy: false,
       }}
     >
       <Tab.Screen
@@ -96,6 +139,7 @@ function MainNavigator() {
           tabBarIcon: ({ color }) => (
             <Appbar.Action icon="home" color={color} />
           ),
+          tabBarShowIcon: Platform.OS !== "web",
           headerShown: false,
         }}
       />
@@ -107,6 +151,7 @@ function MainNavigator() {
           tabBarIcon: ({ color }) => (
             <Appbar.Action icon="store" color={color} />
           ),
+          tabBarShowIcon: Platform.OS !== "web",
           headerShown: false,
         }}
       />
@@ -119,10 +164,7 @@ function MainNavigator() {
           tabBarIcon: ({ color, size }) => (
             <Appbar.Action icon="play-circle" color={color} size={32} />
           ),
-          tabBarLabelStyle: {
-            fontSize: 14,
-            fontWeight: "bold",
-          },
+          tabBarShowIcon: Platform.OS !== "web",
           headerShown: false,
         }}
       />
@@ -134,6 +176,7 @@ function MainNavigator() {
           tabBarIcon: ({ color }) => (
             <Appbar.Action icon="map-marker" color={color} />
           ),
+          tabBarShowIcon: Platform.OS !== "web",
           headerShown: false,
         }}
       />
@@ -144,6 +187,7 @@ function MainNavigator() {
           tabBarIcon: ({ color }) => (
             <Appbar.Action icon="account" color={color} />
           ),
+          tabBarShowIcon: Platform.OS !== "web",
           headerShown: false,
         }}
       />
@@ -166,7 +210,21 @@ function AppContent() {
   }, [user, isGuest]);
 
   if (loading || hasCompletedWelcome === null) {
-    return null; // TODO: Add loading screen
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#fff",
+        }}
+      >
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <RNText style={{ marginTop: 20, color: "#666" }}>
+          Loading Popdarts...
+        </RNText>
+      </View>
+    );
   }
 
   // Show welcome screen for first-time authenticated users
@@ -197,7 +255,13 @@ export default function App() {
       <PaperProvider theme={theme}>
         <AuthProvider>
           <PlayerPreferencesProvider>
-            <StatusBar style="auto" translucent backgroundColor="transparent" />
+            {Platform.OS !== "web" && (
+              <StatusBar
+                style="auto"
+                translucent
+                backgroundColor="transparent"
+              />
+            )}
             <AppContent />
           </PlayerPreferencesProvider>
         </AuthProvider>

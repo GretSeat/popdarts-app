@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, Button, Card, IconButton } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../contexts/AuthContext";
+import ScreenContainer from "../components/ScreenContainer";
 
 /**
  * Home screen - Card-based with primary action and progressive disclosure
@@ -50,12 +51,13 @@ export default function HomeScreen({ navigation }) {
         style={styles.container}
         contentContainerStyle={{ paddingTop: insets.top }}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text variant="headlineSmall" style={styles.greeting}>
-            Hey {displayName} 👋
-          </Text>
-        </View>
+        <ScreenContainer>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text variant="headlineSmall" style={styles.greeting}>
+              Hey {displayName} 👋
+            </Text>
+          </View>
 
         {/* PRIMARY ACTION - Always Visible */}
         <Card style={styles.primaryCard} mode="elevated">
@@ -211,6 +213,7 @@ export default function HomeScreen({ navigation }) {
         )}
 
         <View style={styles.spacer} />
+        </ScreenContainer>
       </ScrollView>
     </View>
   );

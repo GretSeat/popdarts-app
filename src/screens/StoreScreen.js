@@ -1,7 +1,15 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, Image, Dimensions } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Image,
+  Dimensions,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, Card, Button, Chip } from "react-native-paper";
+import ScreenContainer from "../components/ScreenContainer";
 
 const { width } = Dimensions.get("window");
 
@@ -82,136 +90,138 @@ export default function StoreScreen() {
       </View>
 
       <ScrollView style={styles.container}>
-        {/* Banner Section */}
-        <View style={styles.bannerSection}>
-          <Card style={styles.bannerCard}>
-            <Card.Content>
-              <Text style={styles.bannerTitle}>SWAPTOP</Text>
-              <Text style={styles.bannerSubtitle}>
-                One Frame, Endless Games
-              </Text>
-              <Text style={styles.bannerDescription}>
-                A game-changing experience from Popdarts that allows you to swap
-                games with an interchangeable frame system.
-              </Text>
-              <Button
-                mode="contained"
-                style={styles.bannerButton}
-                labelStyle={styles.bannerButtonText}
-              >
-                Shop Now
-              </Button>
-            </Card.Content>
-          </Card>
-        </View>
-
-        {/* Category Chips */}
-        <View style={styles.categorySection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-          >
-            {categories.map((category, index) => (
-              <Chip
-                key={index}
-                style={styles.categoryChip}
-                textStyle={styles.categoryText}
-                selected={index === 0}
-              >
-                {category}
-              </Chip>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Shipping Banner */}
-        <View style={styles.shippingBanner}>
-          <Text style={styles.shippingText}>🚀 SHIPS NEXT BUSINESS DAY</Text>
-        </View>
-
-        {/* Products Grid */}
-        <View style={styles.productsSection}>
-          <Text style={styles.sectionTitle}>Hot and Trending 🔥</Text>
-
-          <View style={styles.productsGrid}>
-            {products.map((product) => (
-              <Card key={product.id} style={styles.productCard}>
-                <Card.Content style={styles.productContent}>
-                  {/* Product Tag */}
-                  {product.tag && (
-                    <View
-                      style={[
-                        styles.productTag,
-                        product.soldOut && styles.productTagSoldOut,
-                      ]}
-                    >
-                      <Text style={styles.productTagText}>{product.tag}</Text>
-                    </View>
-                  )}
-
-                  {/* Product Image Placeholder */}
-                  <View style={styles.productImageContainer}>
-                    <View style={styles.productImagePlaceholder}>
-                      <Text style={styles.productImageText}>
-                        {product.name}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Product Info */}
-                  <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productPrice}>{product.price}</Text>
-
-                  {/* Add to Cart Button */}
-                  <Button
-                    mode={product.soldOut ? "outlined" : "contained"}
-                    style={styles.addButton}
-                    labelStyle={styles.addButtonText}
-                    disabled={product.soldOut}
-                  >
-                    {product.soldOut ? "Sold Out" : "Add to Cart"}
-                  </Button>
-                </Card.Content>
-              </Card>
-            ))}
+        <ScreenContainer>
+          {/* Banner Section */}
+          <View style={styles.bannerSection}>
+            <Card style={styles.bannerCard}>
+              <Card.Content>
+                <Text style={styles.bannerTitle}>SWAPTOP</Text>
+                <Text style={styles.bannerSubtitle}>
+                  One Frame, Endless Games
+                </Text>
+                <Text style={styles.bannerDescription}>
+                  A game-changing experience from Popdarts that allows you to
+                  swap games with an interchangeable frame system.
+                </Text>
+                <Button
+                  mode="contained"
+                  style={styles.bannerButton}
+                  labelStyle={styles.bannerButtonText}
+                >
+                  Shop Now
+                </Button>
+              </Card.Content>
+            </Card>
           </View>
-        </View>
 
-        {/* Path to Pro Section */}
-        <View style={styles.proSection}>
-          <Card style={styles.proCard}>
-            <Card.Content>
-              <Text style={styles.proTitle}>PATH TO PRO 📈</Text>
-              <Text style={styles.proDescription}>
-                Go from Rookie to Pro to Elite in just 3 games.
-              </Text>
-              <Button
-                mode="outlined"
-                style={styles.proButton}
-                labelStyle={styles.proButtonText}
-              >
-                Learn More
-              </Button>
-            </Card.Content>
-          </Card>
-        </View>
+          {/* Category Chips */}
+          <View style={styles.categorySection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryScroll}
+            >
+              {categories.map((category, index) => (
+                <Chip
+                  key={index}
+                  style={styles.categoryChip}
+                  textStyle={styles.categoryText}
+                  selected={index === 0}
+                >
+                  {category}
+                </Chip>
+              ))}
+            </ScrollView>
+          </View>
 
-        {/* Free Shipping Notice */}
-        <View style={styles.footerNotice}>
-          <Text style={styles.footerText}>
-            Spend $50 and get FREE SHIPPING! 📦
-          </Text>
-        </View>
+          {/* Shipping Banner */}
+          <View style={styles.shippingBanner}>
+            <Text style={styles.shippingText}>🚀 SHIPS NEXT BUSINESS DAY</Text>
+          </View>
 
-        {/* Placeholder Notice */}
-        <View style={styles.placeholderNotice}>
-          <Text style={styles.placeholderText}>🚧 Store Coming Soon! 🚧</Text>
-          <Text style={styles.placeholderSubtext}>
-            This is a placeholder design. Full store functionality will be added
-            in a future update.
-          </Text>
-        </View>
+          {/* Products Grid */}
+          <View style={styles.productsSection}>
+            <Text style={styles.sectionTitle}>Hot and Trending 🔥</Text>
+
+            <View style={styles.productsGrid}>
+              {products.map((product) => (
+                <Card key={product.id} style={styles.productCard}>
+                  <Card.Content style={styles.productContent}>
+                    {/* Product Tag */}
+                    {product.tag && (
+                      <View
+                        style={[
+                          styles.productTag,
+                          product.soldOut && styles.productTagSoldOut,
+                        ]}
+                      >
+                        <Text style={styles.productTagText}>{product.tag}</Text>
+                      </View>
+                    )}
+
+                    {/* Product Image Placeholder */}
+                    <View style={styles.productImageContainer}>
+                      <View style={styles.productImagePlaceholder}>
+                        <Text style={styles.productImageText}>
+                          {product.name}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Product Info */}
+                    <Text style={styles.productName}>{product.name}</Text>
+                    <Text style={styles.productPrice}>{product.price}</Text>
+
+                    {/* Add to Cart Button */}
+                    <Button
+                      mode={product.soldOut ? "outlined" : "contained"}
+                      style={styles.addButton}
+                      labelStyle={styles.addButtonText}
+                      disabled={product.soldOut}
+                    >
+                      {product.soldOut ? "Sold Out" : "Add to Cart"}
+                    </Button>
+                  </Card.Content>
+                </Card>
+              ))}
+            </View>
+          </View>
+
+          {/* Path to Pro Section */}
+          <View style={styles.proSection}>
+            <Card style={styles.proCard}>
+              <Card.Content>
+                <Text style={styles.proTitle}>PATH TO PRO 📈</Text>
+                <Text style={styles.proDescription}>
+                  Go from Rookie to Pro to Elite in just 3 games.
+                </Text>
+                <Button
+                  mode="outlined"
+                  style={styles.proButton}
+                  labelStyle={styles.proButtonText}
+                >
+                  Learn More
+                </Button>
+              </Card.Content>
+            </Card>
+          </View>
+
+          {/* Free Shipping Notice */}
+          <View style={styles.footerNotice}>
+            <Text style={styles.footerText}>
+              Spend $50 and get FREE SHIPPING! 📦
+            </Text>
+          </View>
+
+          {/* Placeholder Notice */}
+          <View style={styles.placeholderNotice}>
+            <Text style={styles.placeholderText}>🚧 Store Coming Soon! 🚧</Text>
+            <Text style={styles.placeholderSubtext}>
+              This is a placeholder design. Full store functionality will be
+              added in a future update.
+            </Text>
+          </View>
+        </ScreenContainer>
       </ScrollView>
     </View>
   );
@@ -312,10 +322,13 @@ const styles = StyleSheet.create({
   productsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    justifyContent: Platform.OS === "web" ? "flex-start" : "space-between",
+    gap: Platform.OS === "web" ? 20 : 0,
   },
   productCard: {
-    width: (width - 45) / 2,
+    width: Platform.OS === "web" ? "calc(25% - 15px)" : (width - 45) / 2,
+    minWidth: Platform.OS === "web" ? 220 : undefined,
+    maxWidth: Platform.OS === "web" ? 300 : undefined,
     marginBottom: 15,
     backgroundColor: "#FFFFFF",
   },

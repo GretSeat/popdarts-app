@@ -28,27 +28,45 @@ export const AuthProvider = ({ children }) => {
   const [guestName, setGuestName] = useState("");
 
   useEffect(() => {
+    console.log("[AuthContext] Initializing...");
+
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        console.log(
+          "[AuthContext] Session loaded:",
+          session ? "authenticated" : "no session",
+        );
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("[AuthContext] Error loading session:", error);
+        setLoading(false);
+      });
 
     // Check for guest mode
-    AsyncStorage.getItem("guest_mode").then((value) => {
-      if (value === "true") {
-        setIsGuest(true);
-        AsyncStorage.getItem("guest_name").then((name) => {
-          setGuestName(name || "");
-        });
-      }
-    });
+    AsyncStorage.getItem("guest_mode")
+      .then((value) => {
+        if (value === "true") {
+          console.log("[AuthContext] Guest mode detected");
+          setIsGuest(true);
+          AsyncStorage.getItem("guest_name").then((name) => {
+            setGuestName(name || "");
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("[AuthContext] Error checking guest mode:", error);
+      });
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("[AuthContext] Auth state changed:", _event);
       setSession(session);
       setUser(session?.user ?? null);
     });
@@ -155,7 +173,7 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await signUp(
         email,
         password,
-        displayName || guestName
+        displayName || guestName,
       );
       if (error) throw error;
 
