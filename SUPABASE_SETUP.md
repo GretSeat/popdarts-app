@@ -49,6 +49,11 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 5. Verify tables created:
    - Click "Table Editor"
    - You should see: `users`, `matches`
+6. **Optional - Clubs Feature**: To enable the Local Clubs feature:
+   - Create a new query
+   - Copy and paste SQL from `supabase-clubs-schema.sql`
+   - Click "Run" (⚡ icon)
+   - Verify new tables: `clubs`, `club_members`, `club_events`, `club_event_participants`
 
 ## 5. Configure Authentication
 

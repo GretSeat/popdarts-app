@@ -1,6 +1,81 @@
 # Popdarts App - Change Log
 
-## Recent Updates (February 3, 2026)
+## Recent Updates (February 4, 2026)
+
+### ✅ Local Clubs Feature - Phase 1 Implementation
+
+**What's New:**
+
+The "Local" tab is now fully functional with a complete clubs discovery and management system, inspired by Scoreholio's "Find a Club" feature.
+
+**Key Features:**
+
+1. **Find Clubs (LocalScreen)**
+   - Search clubs by name, city, state, or description
+   - Filter clubs by:
+     - All Clubs: All publicly listed clubs
+     - Favorites: Clubs you've favorited
+     - My Clubs: Clubs you own
+   - View club details: name, location, description, stats
+   - See member count, event count, and next event
+   - Favorite/unfavorite clubs with star icon
+   - Guest user handling: prompts sign-in for favorites
+
+2. **Create Clubs (CreateClubScreen)**
+   - Create your own club page
+   - Required: club name, city, state
+   - Optional: address, ZIP, description
+   - Contact info: email, phone, website, social media
+   - Settings: public visibility, search listing
+   - Full form validation (email, URL formats)
+   - Success confirmation and navigation
+
+3. **Database Schema**
+   - `clubs` table: club information
+   - `club_members` table: memberships and favorites
+   - `club_events` table: club events (ready for future use)
+   - `club_event_participants` table: event registrations
+   - `club_stats` view: aggregated statistics
+   - Full RLS (Row-Level Security) policies
+   - Automated timestamp updates
+
+**Architecture Changes:**
+
+- Added `@react-navigation/stack` for nested navigation
+- Created LocalStack navigator for Local tab screens
+- Updated App.js with proper navigation structure
+- Changed Local tab icon from "lan" to "map-marker"
+
+**Files Added:**
+
+- `src/screens/LocalScreen.js` - Main clubs discovery screen
+- `src/screens/CreateClubScreen.js` - Club creation form
+- `supabase-clubs-schema.sql` - Database schema for clubs
+- `LOCAL_CLUBS_FEATURE.md` - Complete feature documentation
+
+**Files Updated:**
+
+- `App.js` - Added LocalStack navigator and navigation
+- `package.json` - Added @react-navigation/stack dependency
+- `SUPABASE_SETUP.md` - Added clubs schema setup instructions
+- `SCOREHOLIO_FEATURES_ROADMAP.md` - Marked Club Pages as implemented (Phase 1)
+
+**Difference from Scoreholio:**
+
+- Scoreholio: Club creation under "Run a Tournament" tab
+- Popdarts: Both finding and creating clubs unified under "Local" tab
+
+**Coming Next (Phase 2):**
+
+- ClubDetailsScreen: Full club profile with events
+- Event creation and management
+- Event registration
+- Club logos and customization
+- Geolocation-based search
+
+---
+
+## Previous Updates (February 3, 2026)
 
 ### ✅ Gradient Progress Bar - ACTUALLY FIXED NOW
 

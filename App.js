@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createStackNavigator } from "@react-navigation/stack";
 import { PaperProvider, MD3LightTheme, Appbar } from "react-native-paper";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -15,8 +16,12 @@ import MatchesScreen from "./src/screens/MatchesScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import NewMatchScreen from "./src/screens/NewMatchScreen";
 import WelcomeScreen from "./src/screens/WelcomeScreen";
+import LocalScreen from "./src/screens/LocalScreen";
+import CreateClubScreen from "./src/screens/CreateClubScreen";
+import StoreScreen from "./src/screens/StoreScreen";
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
 /**
  * Custom theme with Popdarts branding colors
@@ -29,6 +34,42 @@ const theme = {
     secondary: "#4CAF50", // Popdarts green
   },
 };
+
+/**
+ * Local Stack Navigator - Handles Local tab and club screens
+ */
+function LocalStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: theme.colors.primary,
+        },
+        headerTintColor: "#fff",
+        headerTitleStyle: {
+          fontWeight: "bold",
+        },
+      }}
+    >
+      <Stack.Screen
+        name="LocalHome"
+        component={LocalScreen}
+        options={{
+          title: "Local Clubs",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="CreateClub"
+        component={CreateClubScreen}
+        options={{
+          title: "Create Club",
+          headerShown: true,
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
 
 /**
  * Main navigation component
@@ -60,20 +101,13 @@ function MainNavigator() {
       />
       <Tab.Screen
         name="Store"
-        component={HomeScreen}
+        component={StoreScreen}
         options={{
           tabBarLabel: "Store",
           tabBarIcon: ({ color }) => (
-            <Appbar.Action icon="store" color="#999" />
+            <Appbar.Action icon="store" color={color} />
           ),
-          tabBarActiveTintColor: "#999",
-          tabBarInactiveTintColor: "#999",
-        }}
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            // Could show a toast/alert here: "Coming Soon!"
-          },
+          headerShown: false,
         }}
       />
       <Tab.Screen
@@ -94,18 +128,13 @@ function MainNavigator() {
       />
       <Tab.Screen
         name="Local"
-        component={HomeScreen}
+        component={LocalStack}
         options={{
           tabBarLabel: "Local",
-          tabBarIcon: ({ color }) => <Appbar.Action icon="lan" color="#999" />,
-          tabBarActiveTintColor: "#999",
-          tabBarInactiveTintColor: "#999",
-        }}
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            // Could show a toast/alert here: "Coming Soon!"
-          },
+          tabBarIcon: ({ color }) => (
+            <Appbar.Action icon="map-marker" color={color} />
+          ),
+          headerShown: false,
         }}
       />
       <Tab.Screen

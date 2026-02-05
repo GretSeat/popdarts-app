@@ -31,7 +31,7 @@ import { POPDARTS_COLORS } from "../constants/colors";
 /**
  * Profile screen - User profile, rankings, practice, and settings
  */
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user, isGuest, guestName, signOut } = useAuth();
   const {
     ownedColors,
@@ -374,7 +374,11 @@ export default function ProfileScreen() {
           <Text variant="bodyMedium" style={styles.upgradeDescription}>
             Save your progress and unlock competitive features
           </Text>
-          <Button mode="contained" style={styles.upgradeButton}>
+          <Button
+            mode="contained"
+            style={styles.upgradeButton}
+            onPress={handleSignOut}
+          >
             Sign Up
           </Button>
         </View>
