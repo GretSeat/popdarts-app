@@ -46,6 +46,7 @@ Unlike online games (League of Legends, Rocket League), Popdarts is an **in-pers
 - ✅ Rank updates happen **immediately after each match**
 - ✅ Players can climb tiers **during a tournament** (not just at end)
 - ✅ Tournaments can have mix of ranked and unranked players
+- 🌍 **Top 20 Elite players compete in World Championships**
 
 ### Inspiration
 
@@ -199,18 +200,18 @@ Record: 7-3
 
 8 tiers with 3 divisions each (24 total ranks) + Unranked placement:
 
-| Tier         | Division | MMR Range   | % of Players                | Color                 |
-| ------------ | -------- | ----------- | --------------------------- | --------------------- |
-| **Rookie**   | III → I  | 700 - 899   | 10%                         | #7A7A7A (Rookie Gray) |
-| **Bronze**   | III → I  | 900 - 1049  | 15%                         | #CD7F32 (Bronze)      |
-| **Silver**   | III → I  | 1050 - 1199 | 20%                         | #C0C0C0 (Silver)      |
-| **Gold**     | III → I  | 1200 - 1349 | 20%                         | #FFD700 (Gold)        |
-| **Platinum** | III → I  | 1350 - 1499 | 12%                         | #E5E4E2 (Platinum)    |
-| **Diamond**  | III → I  | 1500 - 1699 | 10%                         | #B9F2FF (Diamond)     |
-| **Pro**      | III → I  | 1700 - 1899 | 8%                          | #9D4EDD (Pro Purple)  |
-| **Elite**    | -        | 1900+       | 5% (Top ~20 of 400, capped) | #FFD60A (Elite Gold)  |
+| Tier         | Division | MMR Range   | % of Players                 | Color                 |
+| ------------ | -------- | ----------- | ---------------------------- | --------------------- |
+| **Rookie**   | III → I  | 700 - 899   | 10%                          | #7A7A7A (Rookie Gray) |
+| **Bronze**   | III → I  | 900 - 1049  | 15%                          | #CD7F32 (Bronze)      |
+| **Silver**   | III → I  | 1050 - 1199 | 20%                          | #C0C0C0 (Silver)      |
+| **Gold**     | III → I  | 1200 - 1349 | 20%                          | #FFD700 (Gold)        |
+| **Platinum** | III → I  | 1350 - 1499 | 12%                          | #E5E4E2 (Platinum)    |
+| **Diamond**  | III → I  | 1500 - 1699 | 10%                          | #B9F2FF (Diamond)     |
+| **Pro**      | III → I  | 1700 - 1899 | 8%                           | #9D4EDD (Pro Purple)  |
+| **Elite**    | -        | 1900+       | Top 20 Players (Fixed Slots) | #FFD60A (Elite Gold)  |
 
-**Elite is a fixed-slot tier** (like LoL Challenger): only the top X players by MMR hold Elite slots at any time. If a Pro player surpasses the lowest Elite MMR, they take that slot.
+**Elite is a fixed-slot tier**: Only the **top 20 players globally** by MMR hold Elite status at any time. If a Pro player surpasses the 20th-ranked Elite MMR, they take that slot and the previous #20 drops to Pro I. Elite players are invited to compete in the annual **World Championships**.
 
 ### Sweet Spot for ~400 Ranked Players
 
@@ -355,6 +356,36 @@ What if one player is ranked and one is in placement?
 - Historical badge awarded
 - Season statistics locked in
 
+### World Championships (Elite Only)
+
+**Eligibility**: Top 20 Elite players at season end qualify for Worlds
+
+**Tournament Structure**:
+
+- **Group Stage**: 4 groups of 5 players (round-robin format)
+  - Each player plays 4 matches (one against each group member)
+  - Top 4 players from each group advance (16 total)
+- **Knockout Stage**: Single-elimination bracket (16 → 8 → 4 → 2 → Champion)
+  - Best of 3 format for quarterfinals and semifinals
+  - Best of 5 format for finals
+
+**Seeding**: Groups are seeded by final season MMR:
+
+- Group A: #1, #8, #9, #16, #17
+- Group B: #2, #7, #10, #15, #18
+- Group C: #3, #6, #11, #14, #19
+- Group D: #4, #5, #12, #13, #20
+
+**Prize**: World Champion receives:
+
+- 🏆 Physical trophy and medal
+- 👑 "World Champion" title (permanent)
+- 🌟 Exclusive "Worlds Winner" badge
+- 📸 Featured on app homepage
+- 🎯 Automatic Elite status next season
+
+**Timeline**: Held 2 weeks after season end (allows for travel/planning)
+
 ### Season Reset (Soft Reset)
 
 #### **MMR Compression**
@@ -391,37 +422,43 @@ Elite (2100) → 1700 (Pro III)
 
 ### Season Rewards (Based on Peak Rank)
 
-| Rank Tier    | Rewards                                                                 |
-| ------------ | ----------------------------------------------------------------------- |
-| **Rookie**   | Rookie border, "Getting Started" badge                                  |
-| **Bronze**   | Bronze border, "Competitor" badge                                       |
-| **Silver**   | Silver border, animated emote, 100 Popdarts coins                       |
-| **Gold**     | Gold border, exclusive jersey color, 250 coins                          |
-| **Platinum** | Platinum border, victory animation, 500 coins                           |
-| **Diamond**  | Diamond border, holographic profile, 1000 coins                         |
-| **Pro**      | Pro border, custom dart trail, 2000 coins, "Pro" title                  |
-| **Elite**    | Elite border, all cosmetics, 5000 coins, "Elite" title, physical trophy |
+| Rank Tier    | Rewards                                                  |
+| ------------ | -------------------------------------------------------- |
+| **Rookie**   | Rookie border, "Getting Started" badge                   |
+| **Bronze**   | Bronze border, "Competitor" badge                        |
+| **Silver**   | Silver border, "Rising Star" badge                       |
+| **Gold**     | Gold border, "Golden Player" badge                       |
+| **Platinum** | Platinum border, "Elite Contender" badge                 |
+| **Diamond**  | Diamond border, "Diamond League" badge                   |
+| **Pro**      | Pro border, "Professional" badge                         |
+| **Elite**    | Elite border, "World Elite" badge, **Worlds invitation** |
 
 ### Permanent Badges
 
 Displayed on profile forever:
 
-- "Season X - [Highest Rank]" badge
-- Total seasons played
+- "Season X - [Highest Rank]" badge (earned each season based on peak rank)
+- "World Champion S1" badge (if won Worlds)
+- "World Elite" badge (if reached Elite status)
+- Total seasons played counter
 - Peak MMR ever achieved
 - Highest rank icon
+- Special "Worlds Participant" badge for all 20 Elite qualifiers
 
 ### Achievement Badges (Non-Ranked)
 
-Earned through gameplay, not rank:
+Earned through gameplay, not rank. These are **permanent badges** displayed on your profile:
 
-- 🎯 **Bullseye Master** - 100 bullseyes in ranked
-- 🔥 **Win Streak** - 10 wins in a row
-- 🏆 **Tournament Victor** - Win official tournament
+- 🎯 **Bullseye Master** - 100 bullseyes in ranked matches
+- 🔥 **Win Streak** - 10 consecutive ranked wins
+- 🏆 **Tournament Victor** - Win an official tournament
 - 🎪 **Giant Slayer** - Beat opponent 500+ MMR higher
-- 🛡️ **Gatekeeper** - Defend tier by beating promotion player
-- 📈 **Climber** - Gain 200 MMR in single season
-- 🌟 **Perfect Game** - Score 301 with no misses
+- 🛡️ **Gatekeeper** - Defend your tier by beating a promotion player
+- 📈 **Climber** - Gain 200+ MMR in a single season
+- 🌟 **Perfect Game** - Score 301 with zero misses
+- 🌍 **Globetrotter** - Play ranked matches at 10+ different clubs
+- 💎 **Consistency King** - Maintain 60%+ win rate over 50 matches
+- ⚡ **Speed Demon** - Win 5 matches in a single day
 
 ---
 
@@ -598,8 +635,8 @@ CREATE TABLE seasonal_rewards (
   -- Rewards Earned
   badge_earned TEXT NOT NULL,
   border_earned TEXT NOT NULL,
-  coins_earned INTEGER DEFAULT 0,
-  cosmetics_unlocked TEXT[], -- Array of cosmetic IDs
+  worlds_qualified BOOLEAN DEFAULT false, -- Top 20 Elite qualification
+  cosmetics_unlocked TEXT[], -- Array of cosmetic IDs (jerseys, animations, etc.)
 
   -- Rankings
   global_rank_percentile DECIMAL(5,2),
@@ -785,7 +822,7 @@ ALTER TABLE clubs ADD COLUMN IF NOT EXISTS club_tier TEXT DEFAULT 'Bronze'; -- B
 
 ### Phase 6: Seasonal System (Week 7-8)
 
-**Goal**: Season cycle
+**Goal**: Season cycle and Worlds qualification
 
 - [ ] Implement season tracking (season_number)
 - [ ] Create season start/end logic
@@ -793,11 +830,15 @@ ALTER TABLE clubs ADD COLUMN IF NOT EXISTS club_tier TEXT DEFAULT 'Bronze'; -- B
 - [ ] Add seasonal placement (5 matches)
 - [ ] Create season rewards table
 - [ ] Award badges at season end
+- [ ] **Identify top 20 Elite players for Worlds**
+- [ ] **Generate World Championship brackets**
+- [ ] Send Worlds invitations to Elite players
 
 **Deliverables**:
 
 - 12-week season cycle
 - Rewards distribution
+- World Championships qualification system
 - Historical badge storage
 
 ### Phase 7: Achievements (Week 9)
@@ -1092,6 +1133,12 @@ A: Yes! It updates after each match in real-time.
 **Q: Do seasons reset my rank?**  
 A: Partially. Your MMR is compressed toward average, but you'll climb back quickly.
 
+**Q: How do I get invited to Worlds?**  
+A: Finish the season as one of the top 20 Elite players globally. All Elite players receive an invitation to the World Championships.
+
+**Q: Are there any pay-to-win elements?**  
+A: No! All rewards are earned through skill and gameplay. There are no coins, purchases, or advantages you can buy.
+
 ### For Tournament Organizers
 
 **Q: Can I make all tournament matches ranked?**  
@@ -1143,9 +1190,11 @@ Silver:     20% (25-45th percentile)
 Gold:       20% (45-65th percentile)  ← Most players
 Platinum:   12% (65-77th percentile)
 Diamond:    10% (77-87th percentile)
-Pro:        8%  (87-95th percentile)
-Elite:      5%  (Top 5%, capped)
+Pro:        13% (87-99.5th percentile)
+Elite:      Top 20 players exactly (fixed slots, ~0.5% with 4000 players)
 ```
+
+**Note**: As player base grows, Elite remains fixed at 20 players. With 400 players, that's 5%. With 4000 players, that's 0.5%.
 
 ### C. Code Snippets
 
