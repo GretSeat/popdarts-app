@@ -48,6 +48,13 @@ export default {
       },
     },
     owner: "gretseatdev",
+    // EAS Update configuration
+    updates: {
+      url: "https://u.expo.dev/42236b3a-53aa-4c32-8015-ad365f090425",
+    },
+    runtimeVersion: {
+      policy: "appVersion",
+    },
     // Notification configuration (uses default icon for now)
     notification: {
       icon: "./assets/icon.png", // Using existing app icon

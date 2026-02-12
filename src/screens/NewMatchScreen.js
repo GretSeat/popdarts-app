@@ -8,6 +8,8 @@ import {
   Image,
   ImageBackground,
   Animated,
+  Platform,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -27,6 +29,16 @@ import Svg, { Path } from "react-native-svg";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 import { POPDARTS_COLORS } from "../constants/colors";
+
+// Specialty shots that can be tracked in a round
+const SPECIALTY_SHOTS = [
+  { id: "t-nobber", name: "T-Nobber" },
+  { id: "tower", name: "Tower" },
+  { id: "lippy", name: "Lippy" },
+  { id: "wiggle-nobber", name: "Wiggle Nobber" },
+  { id: "outer-bull", name: "Outer Bull" },
+  { id: "inner-bull", name: "Inner Bull" },
+];
 
 /**
  * New Match screen - Score a Popdarts match with advanced features
@@ -94,11 +106,22 @@ export default function NewMatchScreen({ navigation, route }) {
   const [simplifiedP1Darts, setSimplifiedP1Darts] = useState(0);
   const [simplifiedP2Darts, setSimplifiedP2Darts] = useState(0);
   const [closestPlayer, setClosestPlayer] = useState(null); // 1 or 2
+  const [showStatTrackerModal, setShowStatTrackerModal] = useState(false);
+  const [p1SpecialtyShots, setP1SpecialtyShots] = useState([]);
+  const [p2SpecialtyShots, setP2SpecialtyShots] = useState([]);
 
   // Pre-game and first thrower
   const [showPreGame, setShowPreGame] = useState(false);
   const [firstThrower, setFirstThrower] = useState(null); // 1 or 2
   const [coinFlipWinner, setCoinFlipWinner] = useState(null); // 1 or 2
+
+  // Round tracking for Casual Competitive
+  const [currentRound, setCurrentRound] = useState(1);
+  const [showRoundSummary, setShowRoundSummary] = useState(false);
+  const [pendingRoundData, setPendingRoundData] = useState(null); // Stores round summary data
+  const [showMatchSummary, setShowMatchSummary] = useState(false); // Show match summary after win
+  const [roundHistory, setRoundHistory] = useState([]); // Track all rounds played
+  const [showWashConfirmation, setShowWashConfirmation] = useState(false); // Wash round confirmation
 
   // Player colors for progress bars and backgrounds
   const [player1Color, setPlayer1Color] = useState("#2196F3");
@@ -388,25 +411,84 @@ export default function NewMatchScreen({ navigation, route }) {
     // Calculate net score (cancellation)
     const netScore = Math.abs(p1Points - p2Points);
 
+    // Calculate winner and new first thrower
+    let roundWinner = 0; // 0 = tie, 1 = player1, 2 = player2
     if (p1Points > p2Points) {
+      roundWinner = 1;
+    } else if (p2Points > p1Points) {
+      roundWinner = 2;
+    }
+
+    // Create round summary data
+    const summary = {
+      p1Darts,
+      p2Darts,
+      p1Points,
+      p2Points,
+      netScore,
+      winner: roundWinner,
+      roundNumber: currentRound,
+    };
+
+    console.log("submitSimplifiedRound: Creating summary", summary);
+    // Show the summary dialog
+    setPendingRoundData(summary);
+    setShowRoundSummary(true);
+    setShowSimplifiedOverlay(false);
+    console.log("submitSimplifiedRound: Set showRoundSummary to true");
+  };
+
+  /**
+   * Apply the pending round (after user confirms the summary)
+   */
+  const applyRound = () => {
+    console.log("applyRound called! Current round:", currentRound);
+    console.log("pendingRoundData:", pendingRoundData);
+
+    if (!pendingRoundData) {
+      console.log("No pending round data, returning");
+      return;
+    }
+
+    const { p1Points, p2Points, netScore, winner } = pendingRoundData;
+    console.log("Applying round. Winner:", winner, "Net Score:", netScore);
+
+    // Apply points based on winner
+    if (winner === 1) {
+      console.log("Player 1 wins this round");
       setPlayer1Score(player1Score + netScore);
       setPlayer1Stats({
         ...player1Stats,
         roundsWon: player1Stats.roundsWon + 1,
       });
-    } else if (p2Points > p1Points) {
+      setFirstThrower(1); // Winner goes first next round
+    } else if (winner === 2) {
+      console.log("Player 2 wins this round");
       setPlayer2Score(player2Score + netScore);
       setPlayer2Stats({
         ...player2Stats,
         roundsWon: player2Stats.roundsWon + 1,
       });
+      setFirstThrower(2); // Winner goes first next round
+    } else {
+      console.log("Tie round");
     }
+    // If tie (winner === 0), no points awarded, first thrower stays same
 
-    // Reset round inputs and close overlay
+    // Increment round number
+    setCurrentRound((prev) => {
+      const newRound = prev + 1;
+      console.log("Incrementing round from", prev, "to", newRound);
+      return newRound;
+    });
+
+    // Reset round inputs
     setSimplifiedP1Darts(0);
     setSimplifiedP2Darts(0);
     setClosestPlayer(null);
-    setShowSimplifiedOverlay(false);
+    setShowRoundSummary(false);
+    setPendingRoundData(null);
+    console.log("Round applied and states reset");
   };
 
   const addStat = (player, statType) => {
@@ -449,6 +531,8 @@ export default function NewMatchScreen({ navigation, route }) {
     setClosestPlayer(null);
     setWinner(null);
     setShowSimplifiedOverlay(false);
+    setCurrentRound(1);
+    setRoundHistory([]);
   };
 
   /**
@@ -496,8 +580,48 @@ export default function NewMatchScreen({ navigation, route }) {
       player2Stats,
     });
 
-    // Close dialog first
+    // Reset ALL match state before navigating to ensure fresh Quick Play
     setWinner(null);
+    setShowMatchSummary(false);
+    setMatchStarted(false);
+    setMatchMode(null);
+    setMatchType(null);
+    setEditionType(null);
+    setPlayer1Score(0);
+    setPlayer2Score(0);
+    setPlayer1Name(currentUserName);
+    setPlayer2Name("");
+    setPlayer1Stats({
+      wiggleNobbers: 0,
+      tNobbers: 0,
+      fenderBenders: 0,
+      inchWorms: 0,
+      lippies: 0,
+      tower: 0,
+      roundsWon: 0,
+    });
+    setPlayer2Stats({
+      wiggleNobbers: 0,
+      tNobbers: 0,
+      fenderBenders: 0,
+      inchWorms: 0,
+      lippies: 0,
+      tower: 0,
+      roundsWon: 0,
+    });
+    setCurrentRound(1);
+    setRoundHistory([]);
+    setSimplifiedP1Darts(0);
+    setSimplifiedP2Darts(0);
+    setClosestPlayer(null);
+    setP1SpecialtyShots([]);
+    setP2SpecialtyShots([]);
+    setSimplifiedMode(false);
+    setShowSimplifiedOverlay(false);
+    setFirstThrower(null);
+    setCoinFlipWinner(null);
+    setPlayers([]);
+    setLobbyMatchType("friendly");
 
     // Navigate back home
     navigation.navigate("Home");
@@ -751,6 +875,10 @@ export default function NewMatchScreen({ navigation, route }) {
     });
     setWinner(null);
     setShowBackConfirmation(false);
+    setCurrentRound(1); // Reset round counter
+    setRoundHistory([]); // Clear round history
+    setShowRoundSummary(false);
+    setPendingRoundData(null);
   };
 
   const initializeLobby = (mode) => {
@@ -2642,867 +2770,1672 @@ export default function NewMatchScreen({ navigation, route }) {
   );
 
   return (
-    <View style={styles.fullscreenContainer}>
-      {/* Top Player - 50% of screen */}
-      <View
-        style={[
-          styles.topPlayerSection,
-          firstThrower === 1 && styles.playerSectionHighlighted,
-        ]}
-      >
-        <View style={styles.whiteBackground}>
-          {/* Progressive Gradient Reveal - Width Only */}
-          <View
-            style={[
-              styles.gradientClipContainer,
-              { width: `${(player1Score / 21) * 100}%` },
-            ]}
-          >
-            {player1ColorObj?.isGradient ? (
-              <LinearGradient
-                colors={player1ColorObj.colors}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                locations={[0, 1]}
-                style={styles.gradientFull}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.gradientFull,
-                  {
-                    backgroundColor: player1ColorObj?.colors?.[0] || "#2A2A2A",
-                  },
-                ]}
-              />
-            )}
-          </View>
-
-          {/* Back Button */}
-          <TouchableOpacity
-            onPress={() => setShowBackConfirmation(true)}
-            style={[styles.backButtonCircle, { top: 40 + insets.top }]}
-          >
-            <IconButton icon="arrow-left" size={24} iconColor="#333" />
-          </TouchableOpacity>
-
-          {/* Simple Scoring Button */}
-          <TouchableOpacity
-            onPress={() => setShowSimplifiedOverlay(true)}
-            disabled={winner !== null}
-            style={[styles.simpleScoreButton, { top: 40 + insets.top }]}
-          >
-            <Text style={styles.simpleScoreButtonText}>QUICK</Text>
-            <Text style={styles.simpleScoreButtonText}>SCORE</Text>
-          </TouchableOpacity>
-
-          {/* Player Name */}
-          <Text style={styles.playerNameTop}>{player1Name.toUpperCase()}</Text>
-
-          {/* Large Tap Areas for Score */}
-          <View style={styles.scoreSectionFullscreen}>
-            {/* Left Half - Minus */}
-            <TouchableOpacity
-              onPress={() => decrementScore(1)}
-              disabled={winner !== null}
-              style={styles.scoreHalfTapArea}
+    <>
+      <View style={styles.fullscreenContainer}>
+        {/* Top Player - 50% of screen */}
+        <View
+          style={[
+            styles.topPlayerSection,
+            firstThrower === 1 && styles.playerSectionHighlighted,
+          ]}
+        >
+          <View style={styles.whiteBackground}>
+            {/* Progressive Gradient Reveal - Width Only */}
+            <View
+              style={[
+                styles.gradientClipContainer,
+                { width: `${(player1Score / 21) * 100}%` },
+              ]}
             >
-              <Text style={styles.minusPlusTextLarge}>–</Text>
-            </TouchableOpacity>
-
-            {/* Center - Score */}
-            <View style={styles.scoreCenter}>
-              <Text style={styles.scoreNumberLarge}>{player1Score}</Text>
+              {player1ColorObj?.isGradient ? (
+                <LinearGradient
+                  colors={player1ColorObj.colors}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  locations={[0, 1]}
+                  style={styles.gradientFull}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.gradientFull,
+                    {
+                      backgroundColor:
+                        player1ColorObj?.colors?.[0] || "#2A2A2A",
+                    },
+                  ]}
+                />
+              )}
             </View>
 
-            {/* Right Half - Plus */}
+            {/* Back Button */}
             <TouchableOpacity
-              onPress={() => incrementScore(1)}
-              disabled={winner !== null}
-              style={styles.scoreHalfTapArea}
+              onPress={() => setShowBackConfirmation(true)}
+              style={[styles.backButtonCircle, { top: 40 + insets.top }]}
             >
-              <Text style={styles.minusPlusTextLarge}>+</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Stat Track Button */}
-          <TouchableOpacity
-            onPress={() =>
-              isStatTrackingEnabled && setShowStatsDialog("player1")
-            }
-            style={[
-              styles.statTrackButtonSquare,
-              !isStatTrackingEnabled && { opacity: 0.4 },
-            ]}
-            disabled={!isStatTrackingEnabled}
-          >
-            <Text style={styles.statTrackText}>STAT</Text>
-            <Text style={styles.statTrackText}>TRACK</Text>
-          </TouchableOpacity>
-
-          {/* +2, +3, +4, +5 Grid */}
-          <View style={styles.incrementGrid}>
-            {[2, 3, 4, 5].map((points) => (
-              <TouchableOpacity
-                key={points}
-                onPress={() => addPoints(1, points)}
-                disabled={winner !== null}
-                style={styles.incrementButton}
-              >
-                <Text style={styles.incrementButtonText}>+{points}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-
-      {/* Bottom Player - 50% of screen */}
-      <View
-        style={[
-          styles.bottomPlayerSection,
-          firstThrower === 2 && styles.playerSectionHighlighted,
-        ]}
-      >
-        <View style={styles.whiteBackground}>
-          {/* Progressive Gradient Reveal - Width Only */}
-          <View
-            style={[
-              styles.gradientClipContainer,
-              { width: `${(player2Score / 21) * 100}%` },
-            ]}
-          >
-            {player2ColorObj?.isGradient ? (
-              <LinearGradient
-                colors={player2ColorObj.colors}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                locations={[0, 1]}
-                style={styles.gradientFull}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.gradientFull,
-                  {
-                    backgroundColor: player2ColorObj?.colors?.[0] || "#CF2740",
-                  },
-                ]}
-              />
-            )}
-          </View>
-
-          {/* Player Name */}
-          <Text style={styles.playerNameBottom}>
-            {player2Name.toUpperCase()}
-          </Text>
-
-          {/* Large Tap Areas for Score */}
-          <View style={styles.scoreSectionFullscreen}>
-            {/* Left Half - Minus */}
-            <TouchableOpacity
-              onPress={() => decrementScore(2)}
-              disabled={winner !== null}
-              style={styles.scoreHalfTapArea}
-            >
-              <Text style={styles.minusPlusTextLarge}>–</Text>
+              <IconButton icon="arrow-left" size={24} iconColor="#333" />
             </TouchableOpacity>
 
-            {/* Center - Score */}
-            <View style={styles.scoreCenter}>
-              <Text style={styles.scoreNumberLarge}>{player2Score}</Text>
-            </View>
-
-            {/* Right Half - Plus */}
+            {/* Simple Scoring Button */}
             <TouchableOpacity
-              onPress={() => incrementScore(2)}
+              onPress={() => setShowSimplifiedOverlay(true)}
               disabled={winner !== null}
-              style={styles.scoreHalfTapArea}
+              style={[styles.simpleScoreButton, { top: 40 + insets.top }]}
             >
-              <Text style={styles.minusPlusTextLarge}>+</Text>
+              <Text style={styles.simpleScoreButtonText}>QUICK</Text>
+              <Text style={styles.simpleScoreButtonText}>SCORE</Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Stat Track Button */}
-          <TouchableOpacity
-            onPress={() => setShowStatsDialog("player2")}
-            style={styles.statTrackButtonSquare}
-          >
-            <Text style={styles.statTrackText}>STAT</Text>
-            <Text style={styles.statTrackText}>TRACK</Text>
-          </TouchableOpacity>
-
-          {/* +2, +3, +4, +5 Grid */}
-          <View style={styles.incrementGrid}>
-            {[2, 3, 4, 5].map((points) => (
-              <TouchableOpacity
-                key={points}
-                onPress={() => addPoints(2, points)}
-                disabled={winner !== null}
-                style={styles.incrementButton}
-              >
-                <Text style={styles.incrementButtonText}>+{points}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-
-      {/* Stats Dialog */}
-      <Modal
-        visible={showStatsDialog !== null}
-        onDismiss={() => setShowStatsDialog(null)}
-        animationType="slide"
-        transparent
-      >
-        <View style={styles.statTrackModal}>
-          <View style={styles.statTrackContainer}>
-            <Text style={styles.statTrackTitle}>Stat Track</Text>
-            <Text style={styles.statTrackSubtitle}>
-              Track the number of trick shots players achieve during the game
-            </Text>
-            <Text style={styles.statTrackPlayerName}>
-              {showStatsDialog === "player1" ? player1Name : player2Name}
+            {/* Player Name */}
+            <Text style={styles.playerNameTop}>
+              {player1Name.toUpperCase()}
             </Text>
 
-            {/* Grid Layout */}
-            <View style={styles.statGrid}>
-              {/* Wiggle Nobbers */}
-              <View style={styles.statGridItem}>
-                <Text style={styles.statGridLabel}>Wiggle Nobbers</Text>
-                <View style={styles.statGridControls}>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() => {
-                      const stats =
-                        showStatsDialog === "player1"
-                          ? player1Stats
-                          : player2Stats;
-                      const setStats =
-                        showStatsDialog === "player1"
-                          ? setPlayer1Stats
-                          : setPlayer2Stats;
-                      if (stats.wiggleNobbers > 0) {
-                        setStats({
-                          ...stats,
-                          wiggleNobbers: stats.wiggleNobbers - 1,
-                        });
-                      }
-                    }}
-                  >
-                    <Text style={styles.statButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.statGridValue}>
-                    {showStatsDialog === "player1"
-                      ? player1Stats.wiggleNobbers
-                      : player2Stats.wiggleNobbers}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() =>
-                      addStat(
-                        showStatsDialog === "player1" ? 1 : 2,
-                        "wiggleNobbers",
-                      )
-                    }
-                  >
-                    <Text style={styles.statButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
+            {/* Large Tap Areas for Score */}
+            <View style={styles.scoreSectionFullscreen}>
+              {/* Left Half - Minus */}
+              <TouchableOpacity
+                onPress={() => decrementScore(1)}
+                disabled={winner !== null}
+                style={styles.scoreHalfTapArea}
+              >
+                <Text style={styles.minusPlusTextLarge}>–</Text>
+              </TouchableOpacity>
+
+              {/* Center - Score */}
+              <View style={styles.scoreCenter}>
+                <Text style={styles.scoreNumberLarge}>{player1Score}</Text>
               </View>
 
-              {/* T-Nobbers */}
-              <View style={styles.statGridItem}>
-                <Text style={styles.statGridLabel}>T-Nobbers</Text>
-                <View style={styles.statGridControls}>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() => {
-                      const stats =
-                        showStatsDialog === "player1"
-                          ? player1Stats
-                          : player2Stats;
-                      const setStats =
-                        showStatsDialog === "player1"
-                          ? setPlayer1Stats
-                          : setPlayer2Stats;
-                      if (stats.tNobbers > 0) {
-                        setStats({ ...stats, tNobbers: stats.tNobbers - 1 });
-                      }
-                    }}
-                  >
-                    <Text style={styles.statButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.statGridValue}>
-                    {showStatsDialog === "player1"
-                      ? player1Stats.tNobbers
-                      : player2Stats.tNobbers}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() =>
-                      addStat(showStatsDialog === "player1" ? 1 : 2, "tNobbers")
-                    }
-                  >
-                    <Text style={styles.statButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Fender Benders */}
-              <View style={styles.statGridItem}>
-                <Text style={styles.statGridLabel}>Fender Benders</Text>
-                <View style={styles.statGridControls}>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() => {
-                      const stats =
-                        showStatsDialog === "player1"
-                          ? player1Stats
-                          : player2Stats;
-                      const setStats =
-                        showStatsDialog === "player1"
-                          ? setPlayer1Stats
-                          : setPlayer2Stats;
-                      if (stats.fenderBenders > 0) {
-                        setStats({
-                          ...stats,
-                          fenderBenders: stats.fenderBenders - 1,
-                        });
-                      }
-                    }}
-                  >
-                    <Text style={styles.statButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.statGridValue}>
-                    {showStatsDialog === "player1"
-                      ? player1Stats.fenderBenders
-                      : player2Stats.fenderBenders}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() =>
-                      addStat(
-                        showStatsDialog === "player1" ? 1 : 2,
-                        "fenderBenders",
-                      )
-                    }
-                  >
-                    <Text style={styles.statButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Inch Worms */}
-              <View style={styles.statGridItem}>
-                <Text style={styles.statGridLabel}>Inch Worms</Text>
-                <View style={styles.statGridControls}>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() => {
-                      const stats =
-                        showStatsDialog === "player1"
-                          ? player1Stats
-                          : player2Stats;
-                      const setStats =
-                        showStatsDialog === "player1"
-                          ? setPlayer1Stats
-                          : setPlayer2Stats;
-                      if (stats.inchWorms > 0) {
-                        setStats({ ...stats, inchWorms: stats.inchWorms - 1 });
-                      }
-                    }}
-                  >
-                    <Text style={styles.statButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.statGridValue}>
-                    {showStatsDialog === "player1"
-                      ? player1Stats.inchWorms
-                      : player2Stats.inchWorms}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() =>
-                      addStat(
-                        showStatsDialog === "player1" ? 1 : 2,
-                        "inchWorms",
-                      )
-                    }
-                  >
-                    <Text style={styles.statButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Lippies */}
-              <View style={styles.statGridItem}>
-                <Text style={styles.statGridLabel}>Lippies</Text>
-                <View style={styles.statGridControls}>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() => {
-                      const stats =
-                        showStatsDialog === "player1"
-                          ? player1Stats
-                          : player2Stats;
-                      const setStats =
-                        showStatsDialog === "player1"
-                          ? setPlayer1Stats
-                          : setPlayer2Stats;
-                      if (stats.lippies > 0) {
-                        setStats({ ...stats, lippies: stats.lippies - 1 });
-                      }
-                    }}
-                  >
-                    <Text style={styles.statButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.statGridValue}>
-                    {showStatsDialog === "player1"
-                      ? player1Stats.lippies
-                      : player2Stats.lippies}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() =>
-                      addStat(showStatsDialog === "player1" ? 1 : 2, "lippies")
-                    }
-                  >
-                    <Text style={styles.statButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Tower */}
-              <View style={styles.statGridItem}>
-                <Text style={styles.statGridLabel}>Tower</Text>
-                <View style={styles.statGridControls}>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() => {
-                      const stats =
-                        showStatsDialog === "player1"
-                          ? player1Stats
-                          : player2Stats;
-                      const setStats =
-                        showStatsDialog === "player1"
-                          ? setPlayer1Stats
-                          : setPlayer2Stats;
-                      if (stats.tower > 0) {
-                        setStats({ ...stats, tower: stats.tower - 1 });
-                      }
-                    }}
-                  >
-                    <Text style={styles.statButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.statGridValue}>
-                    {showStatsDialog === "player1"
-                      ? player1Stats.tower
-                      : player2Stats.tower}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.statButton}
-                    onPress={() =>
-                      addStat(showStatsDialog === "player1" ? 1 : 2, "tower")
-                    }
-                  >
-                    <Text style={styles.statButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              {/* Right Half - Plus */}
+              <TouchableOpacity
+                onPress={() => incrementScore(1)}
+                disabled={winner !== null}
+                style={styles.scoreHalfTapArea}
+              >
+                <Text style={styles.minusPlusTextLarge}>+</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Save Button */}
+            {/* Stat Track Button */}
             <TouchableOpacity
-              style={styles.statTrackSaveButton}
-              onPress={() => setShowStatsDialog(null)}
-            >
-              <Text style={styles.statTrackSaveButtonText}>SAVE</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Back Confirmation Dialog */}
-      <Dialog
-        visible={showBackConfirmation}
-        onDismiss={() => setShowBackConfirmation(false)}
-        style={styles.backConfirmDialog}
-      >
-        <Dialog.Content style={styles.backConfirmContent}>
-          <Text variant="titleLarge" style={styles.backConfirmText}>
-            {gameFormat === "tournament"
-              ? "Pause match and return to bracket?"
-              : "Are you sure you want to return to the lobby?"}
-          </Text>
-          <Text variant="bodyMedium" style={styles.backConfirmSubtext}>
-            {gameFormat === "tournament"
-              ? "Your progress will be saved and you can resume later."
-              : "All progress in this match will be lost."}
-          </Text>
-        </Dialog.Content>
-        <Dialog.Actions style={styles.backConfirmActions}>
-          <Button
-            onPress={() => {
-              if (gameFormat === "tournament" && currentTournamentMatch) {
-                // Save current match state as paused
-                const pausedMatch = {
-                  ...currentTournamentMatch,
-                  pausedPlayer1Score: player1Score,
-                  pausedPlayer2Score: player2Score,
-                };
-                setPausedTournamentMatch(pausedMatch);
-                setMatchStarted(false);
-                setShowBracket(true);
-                setShowBackConfirmation(false);
-              } else {
-                backToSetup();
+              onPress={() =>
+                isStatTrackingEnabled && setShowStatsDialog("player1")
               }
-            }}
-            mode="contained"
-            buttonColor={gameFormat === "tournament" ? "#2196F3" : "#FF0000"}
-            style={styles.confirmBackButton}
-          >
-            {gameFormat === "tournament"
-              ? "Return to Bracket"
-              : "Return to Lobby"}
-          </Button>
-          <Button
-            onPress={() => setShowBackConfirmation(false)}
-            textColor="#FFFFFF"
-            style={styles.cancelBackButton}
-          >
-            Cancel
-          </Button>
-        </Dialog.Actions>
-      </Dialog>
+              style={[
+                styles.statTrackButtonSquare,
+                !isStatTrackingEnabled && { opacity: 0.4 },
+              ]}
+              disabled={!isStatTrackingEnabled}
+            >
+              <Text style={styles.statTrackText}>STAT</Text>
+              <Text style={styles.statTrackText}>TRACK</Text>
+            </TouchableOpacity>
 
-      {/* Quick Score Overlay */}
+            {/* +2, +3, +4, +5 Grid */}
+            <View style={styles.incrementGrid}>
+              {[2, 3, 4, 5].map((points) => (
+                <TouchableOpacity
+                  key={points}
+                  onPress={() => addPoints(1, points)}
+                  disabled={winner !== null}
+                  style={styles.incrementButton}
+                >
+                  <Text style={styles.incrementButtonText}>+{points}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Bottom Player - 50% of screen */}
+        <View
+          style={[
+            styles.bottomPlayerSection,
+            firstThrower === 2 && styles.playerSectionHighlighted,
+          ]}
+        >
+          <View style={styles.whiteBackground}>
+            {/* Progressive Gradient Reveal - Width Only */}
+            <View
+              style={[
+                styles.gradientClipContainer,
+                { width: `${(player2Score / 21) * 100}%` },
+              ]}
+            >
+              {player2ColorObj?.isGradient ? (
+                <LinearGradient
+                  colors={player2ColorObj.colors}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  locations={[0, 1]}
+                  style={styles.gradientFull}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.gradientFull,
+                    {
+                      backgroundColor:
+                        player2ColorObj?.colors?.[0] || "#CF2740",
+                    },
+                  ]}
+                />
+              )}
+            </View>
+
+            {/* Player Name */}
+            <Text style={styles.playerNameBottom}>
+              {player2Name.toUpperCase()}
+            </Text>
+
+            {/* Large Tap Areas for Score */}
+            <View style={styles.scoreSectionFullscreen}>
+              {/* Left Half - Minus */}
+              <TouchableOpacity
+                onPress={() => decrementScore(2)}
+                disabled={winner !== null}
+                style={styles.scoreHalfTapArea}
+              >
+                <Text style={styles.minusPlusTextLarge}>–</Text>
+              </TouchableOpacity>
+
+              {/* Center - Score */}
+              <View style={styles.scoreCenter}>
+                <Text style={styles.scoreNumberLarge}>{player2Score}</Text>
+              </View>
+
+              {/* Right Half - Plus */}
+              <TouchableOpacity
+                onPress={() => incrementScore(2)}
+                disabled={winner !== null}
+                style={styles.scoreHalfTapArea}
+              >
+                <Text style={styles.minusPlusTextLarge}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Stat Track Button */}
+            <TouchableOpacity
+              onPress={() => setShowStatsDialog("player2")}
+              style={styles.statTrackButtonSquare}
+            >
+              <Text style={styles.statTrackText}>STAT</Text>
+              <Text style={styles.statTrackText}>TRACK</Text>
+            </TouchableOpacity>
+
+            {/* +2, +3, +4, +5 Grid */}
+            <View style={styles.incrementGrid}>
+              {[2, 3, 4, 5].map((points) => (
+                <TouchableOpacity
+                  key={points}
+                  onPress={() => addPoints(2, points)}
+                  disabled={winner !== null}
+                  style={styles.incrementButton}
+                >
+                  <Text style={styles.incrementButtonText}>+{points}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Round Tracker - Centered in middle of screen */}
+        {lobbyMatchType === "casual-competitive" &&
+          !showRoundSummary &&
+          !showBackConfirmation &&
+          winner === null && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setShowSimplifiedOverlay(true)}
+              style={styles.roundTrackerContainer}
+            >
+              <View style={styles.roundTrackerBox}>
+                <Text style={styles.roundTrackerLabel}>ROUND</Text>
+                <Text style={styles.roundTrackerNumber}>{currentRound}</Text>
+                <Text style={styles.roundTrackerHint}>TAP TO SCORE</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+        {/* Stats Dialog */}
+        <Modal
+          visible={showStatsDialog !== null}
+          onDismiss={() => setShowStatsDialog(null)}
+          animationType="slide"
+          transparent
+        >
+          <View style={styles.statTrackModal}>
+            <View style={styles.statTrackContainer}>
+              <Text style={styles.statTrackTitle}>Stat Track</Text>
+              <Text style={styles.statTrackSubtitle}>
+                Track the number of trick shots players achieve during the game
+              </Text>
+              <Text style={styles.statTrackPlayerName}>
+                {showStatsDialog === "player1" ? player1Name : player2Name}
+              </Text>
+
+              {/* Grid Layout */}
+              <View style={styles.statGrid}>
+                {/* Wiggle Nobbers */}
+                <View style={styles.statGridItem}>
+                  <Text style={styles.statGridLabel}>Wiggle Nobbers</Text>
+                  <View style={styles.statGridControls}>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() => {
+                        const stats =
+                          showStatsDialog === "player1"
+                            ? player1Stats
+                            : player2Stats;
+                        const setStats =
+                          showStatsDialog === "player1"
+                            ? setPlayer1Stats
+                            : setPlayer2Stats;
+                        if (stats.wiggleNobbers > 0) {
+                          setStats({
+                            ...stats,
+                            wiggleNobbers: stats.wiggleNobbers - 1,
+                          });
+                        }
+                      }}
+                    >
+                      <Text style={styles.statButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.statGridValue}>
+                      {showStatsDialog === "player1"
+                        ? player1Stats.wiggleNobbers
+                        : player2Stats.wiggleNobbers}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() =>
+                        addStat(
+                          showStatsDialog === "player1" ? 1 : 2,
+                          "wiggleNobbers",
+                        )
+                      }
+                    >
+                      <Text style={styles.statButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* T-Nobbers */}
+                <View style={styles.statGridItem}>
+                  <Text style={styles.statGridLabel}>T-Nobbers</Text>
+                  <View style={styles.statGridControls}>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() => {
+                        const stats =
+                          showStatsDialog === "player1"
+                            ? player1Stats
+                            : player2Stats;
+                        const setStats =
+                          showStatsDialog === "player1"
+                            ? setPlayer1Stats
+                            : setPlayer2Stats;
+                        if (stats.tNobbers > 0) {
+                          setStats({ ...stats, tNobbers: stats.tNobbers - 1 });
+                        }
+                      }}
+                    >
+                      <Text style={styles.statButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.statGridValue}>
+                      {showStatsDialog === "player1"
+                        ? player1Stats.tNobbers
+                        : player2Stats.tNobbers}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() =>
+                        addStat(
+                          showStatsDialog === "player1" ? 1 : 2,
+                          "tNobbers",
+                        )
+                      }
+                    >
+                      <Text style={styles.statButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Fender Benders */}
+                <View style={styles.statGridItem}>
+                  <Text style={styles.statGridLabel}>Fender Benders</Text>
+                  <View style={styles.statGridControls}>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() => {
+                        const stats =
+                          showStatsDialog === "player1"
+                            ? player1Stats
+                            : player2Stats;
+                        const setStats =
+                          showStatsDialog === "player1"
+                            ? setPlayer1Stats
+                            : setPlayer2Stats;
+                        if (stats.fenderBenders > 0) {
+                          setStats({
+                            ...stats,
+                            fenderBenders: stats.fenderBenders - 1,
+                          });
+                        }
+                      }}
+                    >
+                      <Text style={styles.statButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.statGridValue}>
+                      {showStatsDialog === "player1"
+                        ? player1Stats.fenderBenders
+                        : player2Stats.fenderBenders}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() =>
+                        addStat(
+                          showStatsDialog === "player1" ? 1 : 2,
+                          "fenderBenders",
+                        )
+                      }
+                    >
+                      <Text style={styles.statButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Inch Worms */}
+                <View style={styles.statGridItem}>
+                  <Text style={styles.statGridLabel}>Inch Worms</Text>
+                  <View style={styles.statGridControls}>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() => {
+                        const stats =
+                          showStatsDialog === "player1"
+                            ? player1Stats
+                            : player2Stats;
+                        const setStats =
+                          showStatsDialog === "player1"
+                            ? setPlayer1Stats
+                            : setPlayer2Stats;
+                        if (stats.inchWorms > 0) {
+                          setStats({
+                            ...stats,
+                            inchWorms: stats.inchWorms - 1,
+                          });
+                        }
+                      }}
+                    >
+                      <Text style={styles.statButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.statGridValue}>
+                      {showStatsDialog === "player1"
+                        ? player1Stats.inchWorms
+                        : player2Stats.inchWorms}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() =>
+                        addStat(
+                          showStatsDialog === "player1" ? 1 : 2,
+                          "inchWorms",
+                        )
+                      }
+                    >
+                      <Text style={styles.statButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Lippies */}
+                <View style={styles.statGridItem}>
+                  <Text style={styles.statGridLabel}>Lippies</Text>
+                  <View style={styles.statGridControls}>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() => {
+                        const stats =
+                          showStatsDialog === "player1"
+                            ? player1Stats
+                            : player2Stats;
+                        const setStats =
+                          showStatsDialog === "player1"
+                            ? setPlayer1Stats
+                            : setPlayer2Stats;
+                        if (stats.lippies > 0) {
+                          setStats({ ...stats, lippies: stats.lippies - 1 });
+                        }
+                      }}
+                    >
+                      <Text style={styles.statButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.statGridValue}>
+                      {showStatsDialog === "player1"
+                        ? player1Stats.lippies
+                        : player2Stats.lippies}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() =>
+                        addStat(
+                          showStatsDialog === "player1" ? 1 : 2,
+                          "lippies",
+                        )
+                      }
+                    >
+                      <Text style={styles.statButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Tower */}
+                <View style={styles.statGridItem}>
+                  <Text style={styles.statGridLabel}>Tower</Text>
+                  <View style={styles.statGridControls}>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() => {
+                        const stats =
+                          showStatsDialog === "player1"
+                            ? player1Stats
+                            : player2Stats;
+                        const setStats =
+                          showStatsDialog === "player1"
+                            ? setPlayer1Stats
+                            : setPlayer2Stats;
+                        if (stats.tower > 0) {
+                          setStats({ ...stats, tower: stats.tower - 1 });
+                        }
+                      }}
+                    >
+                      <Text style={styles.statButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.statGridValue}>
+                      {showStatsDialog === "player1"
+                        ? player1Stats.tower
+                        : player2Stats.tower}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.statButton}
+                      onPress={() =>
+                        addStat(showStatsDialog === "player1" ? 1 : 2, "tower")
+                      }
+                    >
+                      <Text style={styles.statButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* Save Button */}
+              <TouchableOpacity
+                style={styles.statTrackSaveButton}
+                onPress={() => setShowStatsDialog(null)}
+              >
+                <Text style={styles.statTrackSaveButtonText}>SAVE</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Back Confirmation Dialog */}
+        <Dialog
+          visible={showBackConfirmation}
+          onDismiss={() => setShowBackConfirmation(false)}
+          style={styles.backConfirmDialog}
+        >
+          <Dialog.Content style={styles.backConfirmContent}>
+            <Text variant="titleLarge" style={styles.backConfirmText}>
+              {gameFormat === "tournament"
+                ? "Pause match and return to bracket?"
+                : "Are you sure you want to return to the lobby?"}
+            </Text>
+            <Text variant="bodyMedium" style={styles.backConfirmSubtext}>
+              {gameFormat === "tournament"
+                ? "Your progress will be saved and you can resume later."
+                : "All progress in this match will be lost."}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={styles.backConfirmActions}>
+            <Button
+              onPress={() => {
+                if (gameFormat === "tournament" && currentTournamentMatch) {
+                  // Save current match state as paused
+                  const pausedMatch = {
+                    ...currentTournamentMatch,
+                    pausedPlayer1Score: player1Score,
+                    pausedPlayer2Score: player2Score,
+                  };
+                  setPausedTournamentMatch(pausedMatch);
+                  setMatchStarted(false);
+                  setShowBracket(true);
+                  setShowBackConfirmation(false);
+                } else {
+                  backToSetup();
+                }
+              }}
+              mode="contained"
+              buttonColor={gameFormat === "tournament" ? "#2196F3" : "#FF0000"}
+              style={styles.confirmBackButton}
+            >
+              {gameFormat === "tournament"
+                ? "Return to Bracket"
+                : "Return to Lobby"}
+            </Button>
+            <Button
+              onPress={() => setShowBackConfirmation(false)}
+              textColor="#FFFFFF"
+              style={styles.cancelBackButton}
+            >
+              Cancel
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Round Summary Dialog */}
+        {showRoundSummary &&
+          pendingRoundData &&
+          console.log(
+            "Rendering Round Summary Modal with data:",
+            pendingRoundData,
+          )}
+        <Modal
+          visible={showRoundSummary && pendingRoundData !== null}
+          onDismiss={() => {
+            console.log("Round Summary Modal dismissed");
+            setShowRoundSummary(false);
+            setPendingRoundData(null);
+          }}
+          animationType="fade"
+          transparent
+        >
+          <View style={styles.roundSummaryOverlay}>
+            <View style={styles.roundSummaryContainer}>
+              <Text style={styles.roundSummaryTitle}>
+                Round {pendingRoundData?.roundNumber} Summary
+              </Text>
+
+              {/* Round Results */}
+              <View style={styles.roundSummaryContent}>
+                {/* Player 1 Stats */}
+                <View style={styles.roundPlayerStats}>
+                  <Text style={styles.roundPlayerName}>{player1Name}</Text>
+                  <Text style={styles.roundDarts}>
+                    {pendingRoundData?.p1Darts} dart
+                    {pendingRoundData?.p1Darts !== 1 ? "s" : ""}
+                  </Text>
+                  <Text style={styles.roundPoints}>
+                    {pendingRoundData?.p1Points} point
+                    {pendingRoundData?.p1Points !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+
+                {/* VS Divider */}
+                <View style={styles.roundVsDivider}>
+                  <Text style={styles.roundVsText}>VS</Text>
+                </View>
+
+                {/* Player 2 Stats */}
+                <View style={styles.roundPlayerStats}>
+                  <Text style={styles.roundPlayerName}>{player2Name}</Text>
+                  <Text style={styles.roundDarts}>
+                    {pendingRoundData?.p2Darts} dart
+                    {pendingRoundData?.p2Darts !== 1 ? "s" : ""}
+                  </Text>
+                  <Text style={styles.roundPoints}>
+                    {pendingRoundData?.p2Points} point
+                    {pendingRoundData?.p2Points !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Round Winner */}
+              <View style={styles.roundWinnerSection}>
+                {pendingRoundData?.winner === 0 ? (
+                  <Text style={styles.roundTieText}>It's a Tie!</Text>
+                ) : (
+                  <>
+                    <Text style={styles.roundWinnerLabel}>Round Winner</Text>
+                    <Text style={styles.roundWinnerName}>
+                      {pendingRoundData?.winner === 1
+                        ? player1Name
+                        : player2Name}
+                    </Text>
+                    <Text style={styles.roundWinnerPoints}>
+                      +{pendingRoundData?.netScore} Point
+                      {pendingRoundData?.netScore !== 1 ? "s" : ""}
+                    </Text>
+                  </>
+                )}
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.roundSummaryActions}>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    console.log("EDIT button pressed");
+                    setShowRoundSummary(false);
+                    setPendingRoundData(null);
+                    setShowSimplifiedOverlay(true); // Re-open the quick score overlay
+                  }}
+                  textColor="#FFFFFF"
+                  style={styles.roundSummaryActionButton}
+                >
+                  EDIT
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    console.log("SUBMIT ROUND button pressed");
+                    applyRound();
+                  }}
+                  buttonColor="#4CAF50"
+                  textColor="#000000"
+                  style={styles.roundSummaryActionButton}
+                >
+                  SUBMIT ROUND
+                </Button>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Quick Score Overlay */}
+        <Modal
+          visible={showSimplifiedOverlay}
+          onDismiss={() => setShowSimplifiedOverlay(false)}
+          animationType="fade"
+          transparent
+        >
+          <View style={styles.quickScoreOverlay}>
+            <View style={styles.quickScoreContainer}>
+              <Text style={styles.quickScoreTitle}>Quick Score</Text>
+              <Text style={styles.quickScoreSubtitle}>
+                Enter dart counts for quick scoring
+              </Text>
+
+              {/* Player 1 */}
+              <View style={styles.quickScorePlayerSection}>
+                <View style={styles.quickScorePlayerHeader}>
+                  <Text style={styles.quickScorePlayerName}>{player1Name}</Text>
+                  {simplifiedP1Darts > 0 && (
+                    <Text style={styles.quickScorePlayerCalculation}>
+                      {(() => {
+                        const isClosest = closestPlayer === 1;
+                        if (simplifiedP1Darts === 1) {
+                          return isClosest ? "= 3" : "= 1";
+                        }
+                        let calc = isClosest ? "3" : "1";
+                        for (let i = 1; i < simplifiedP1Darts; i++) {
+                          calc += " + 1";
+                        }
+                        return `= ${calc}`;
+                      })()}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.quickScoreInputRow}>
+                  <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
+                  <View style={styles.quickScoreControls}>
+                    <TouchableOpacity
+                      style={styles.quickScoreButton}
+                      onPress={() =>
+                        setSimplifiedP1Darts(Math.max(0, simplifiedP1Darts - 1))
+                      }
+                    >
+                      <Text style={styles.quickScoreButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.quickScoreValue}>
+                      {simplifiedP1Darts}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.quickScoreButton}
+                      onPress={() =>
+                        setSimplifiedP1Darts(Math.min(3, simplifiedP1Darts + 1))
+                      }
+                      disabled={simplifiedP1Darts >= 3}
+                    >
+                      <Text style={styles.quickScoreButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* Player 2 */}
+              <View style={styles.quickScorePlayerSection}>
+                <View style={styles.quickScorePlayerHeader}>
+                  <Text style={styles.quickScorePlayerName}>{player2Name}</Text>
+                  {simplifiedP2Darts > 0 && (
+                    <Text style={styles.quickScorePlayerCalculation}>
+                      {(() => {
+                        const isClosest = closestPlayer === 2;
+                        if (simplifiedP2Darts === 1) {
+                          return isClosest ? "= 3" : "= 1";
+                        }
+                        let calc = isClosest ? "3" : "1";
+                        for (let i = 1; i < simplifiedP2Darts; i++) {
+                          calc += " + 1";
+                        }
+                        return `= ${calc}`;
+                      })()}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.quickScoreInputRow}>
+                  <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
+                  <View style={styles.quickScoreControls}>
+                    <TouchableOpacity
+                      style={styles.quickScoreButton}
+                      onPress={() =>
+                        setSimplifiedP2Darts(Math.max(0, simplifiedP2Darts - 1))
+                      }
+                    >
+                      <Text style={styles.quickScoreButtonText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.quickScoreValue}>
+                      {simplifiedP2Darts}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.quickScoreButton}
+                      onPress={() =>
+                        setSimplifiedP2Darts(Math.min(3, simplifiedP2Darts + 1))
+                      }
+                      disabled={simplifiedP2Darts >= 3}
+                    >
+                      <Text style={styles.quickScoreButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* Closest Player */}
+              <View style={styles.quickScoreClosestSection}>
+                <Text style={styles.quickScoreLabel}>
+                  Closest to Target Marker:
+                </Text>
+                <View style={styles.quickScoreClosestButtons}>
+                  <TouchableOpacity
+                    disabled={simplifiedP1Darts === 0}
+                    style={[
+                      styles.quickScorePlayerButton,
+                      closestPlayer === 1 &&
+                        styles.quickScorePlayerButtonSelected,
+                      simplifiedP1Darts === 0 &&
+                        styles.quickScorePlayerButtonDisabled,
+                    ]}
+                    onPress={() => setClosestPlayer(1)}
+                  >
+                    <Text
+                      style={[
+                        styles.quickScorePlayerButtonText,
+                        simplifiedP1Darts === 0 &&
+                          styles.quickScorePlayerButtonTextDisabled,
+                      ]}
+                    >
+                      {player1Name}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    disabled={simplifiedP2Darts === 0}
+                    style={[
+                      styles.quickScorePlayerButton,
+                      closestPlayer === 2 &&
+                        styles.quickScorePlayerButtonSelected,
+                      simplifiedP2Darts === 0 &&
+                        styles.quickScorePlayerButtonDisabled,
+                    ]}
+                    onPress={() => setClosestPlayer(2)}
+                  >
+                    <Text
+                      style={[
+                        styles.quickScorePlayerButtonText,
+                        simplifiedP2Darts === 0 &&
+                          styles.quickScorePlayerButtonTextDisabled,
+                      ]}
+                    >
+                      {player2Name}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Stat Tracker Button */}
+              <View style={styles.quickScoreStatTrackerSection}>
+                <TouchableOpacity
+                  onPress={() => setShowStatTrackerModal(true)}
+                  style={styles.quickScoreStatTrackerButton}
+                >
+                  <Text style={styles.quickScoreStatTrackerText}>
+                    Specialty Shots
+                  </Text>
+                  {(p1SpecialtyShots.length > 0 ||
+                    p2SpecialtyShots.length > 0) && (
+                    <Text style={styles.quickScoreStatTrackerActiveText}>
+                      {p1SpecialtyShots.length + p2SpecialtyShots.length}{" "}
+                      tracked
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Calculation Preview */}
+              {(simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
+                closestPlayer && (
+                  <View style={styles.quickScoreCalculationSection}>
+                    <Text style={styles.quickScoreCalculationText}>
+                      {(() => {
+                        let p1Score = simplifiedP1Darts;
+                        let p2Score = simplifiedP2Darts;
+
+                        // Add bonus for closest
+                        if (closestPlayer === 1 && p1Score > 0) {
+                          p1Score += 2;
+                        } else if (closestPlayer === 2 && p2Score > 0) {
+                          p2Score += 2;
+                        }
+
+                        // Calculate net score
+                        const netPoints = Math.abs(p1Score - p2Score);
+                        const winner =
+                          p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0;
+
+                        if (winner === 0) {
+                          return "Tie - No points awarded";
+                        }
+
+                        const winnerName =
+                          winner === 1 ? player1Name : player2Name;
+
+                        return `${netPoints} Point${
+                          netPoints !== 1 ? "s" : ""
+                        } for ${winnerName}`;
+                      })()}
+                    </Text>
+                  </View>
+                )}
+
+              {/* Action Buttons */}
+              <View style={styles.quickScoreActions}>
+                <TouchableOpacity
+                  style={styles.quickScoreCancelButton}
+                  onPress={() => {
+                    setShowSimplifiedOverlay(false);
+                    setSimplifiedP1Darts(0);
+                    setSimplifiedP2Darts(0);
+                    setClosestPlayer(null);
+                    setP1SpecialtyShots([]);
+                    setP2SpecialtyShots([]);
+                  }}
+                >
+                  <Text style={styles.quickScoreCancelButtonText}>CANCEL</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.quickScoreApplyButton,
+                    (simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
+                    closestPlayer === null
+                      ? styles.quickScoreApplyButtonDisabled
+                      : null,
+                  ]}
+                  onPress={() => {
+                    // Validate that closest player is selected if darts were landed
+                    if (
+                      (simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
+                      closestPlayer === null
+                    ) {
+                      console.log(
+                        "Cannot submit - darts landed but no closest player selected",
+                      );
+                      return;
+                    }
+
+                    console.log("APPLY button pressed in Quick Score");
+
+                    // Check for wash round (both players with 0 darts)
+                    if (simplifiedP1Darts === 0 && simplifiedP2Darts === 0) {
+                      console.log(
+                        "No darts landed - showing wash confirmation",
+                      );
+                      setShowWashConfirmation(true);
+                      return;
+                    }
+
+                    // Calculate scores with cancellation scoring
+                    let p1Score = simplifiedP1Darts;
+                    let p2Score = simplifiedP2Darts;
+
+                    // Add 3 points for closest dart (if any darts landed)
+                    if (closestPlayer === 1 && p1Score > 0) {
+                      p1Score += 2; // +2 because closest is worth 3 total (1 for landing + 2 bonus)
+                    } else if (closestPlayer === 2 && p2Score > 0) {
+                      p2Score += 2;
+                    }
+
+                    // Cancellation scoring: only winner gets net points
+                    let newP1Score = player1Score;
+                    let newP2Score = player2Score;
+
+                    if (p1Score > p2Score) {
+                      console.log(
+                        "Player 1 wins this round. Adding",
+                        p1Score - p2Score,
+                        "points",
+                      );
+                      newP1Score = player1Score + (p1Score - p2Score);
+                      setPlayer1Stats((prev) => ({
+                        ...prev,
+                        roundsWon: prev.roundsWon + 1,
+                      }));
+                      setFirstThrower(1); // Winner goes first next round
+                    } else if (p2Score > p1Score) {
+                      console.log(
+                        "Player 2 wins this round. Adding",
+                        p2Score - p1Score,
+                        "points",
+                      );
+                      newP2Score = player2Score + (p2Score - p1Score);
+                      setPlayer2Stats((prev) => ({
+                        ...prev,
+                        roundsWon: prev.roundsWon + 1,
+                      }));
+                      setFirstThrower(2);
+                    } else {
+                      console.log("Tie round - no points awarded");
+                    }
+                    // If tie, no points awarded, first thrower stays same
+
+                    // Cap scores at 21
+                    newP1Score = Math.min(newP1Score, 21);
+                    newP2Score = Math.min(newP2Score, 21);
+
+                    setPlayer1Score(newP1Score);
+                    setPlayer2Score(newP2Score);
+
+                    // Save round to history
+                    const roundData = {
+                      roundNumber: currentRound,
+                      p1Darts: simplifiedP1Darts,
+                      p2Darts: simplifiedP2Darts,
+                      p1Points: p1Score,
+                      p2Points: p2Score,
+                      closestPlayer,
+                      roundWinner:
+                        p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0,
+                      p1SpecialtyShots: [...p1SpecialtyShots],
+                      p2SpecialtyShots: [...p2SpecialtyShots],
+                    };
+                    setRoundHistory((prev) => [...prev, roundData]);
+                    console.log("Saved round to history:", roundData);
+
+                    // Check for winner (first to 21)
+                    if (newP1Score >= 21) {
+                      console.log("Player 1 wins the match!");
+                      setWinner(1);
+                    } else if (newP2Score >= 21) {
+                      console.log("Player 2 wins the match!");
+                      setWinner(2);
+                    } else {
+                      // Increment round number only if match is still going
+                      setCurrentRound((prev) => {
+                        const newRound = prev + 1;
+                        console.log(
+                          "Incrementing round from",
+                          prev,
+                          "to",
+                          newRound,
+                        );
+                        return newRound;
+                      });
+                    }
+
+                    setShowSimplifiedOverlay(false);
+                    setSimplifiedP1Darts(0);
+                    setSimplifiedP2Darts(0);
+                    setClosestPlayer(null);
+                    setP1SpecialtyShots([]);
+                    setP2SpecialtyShots([]);
+                  }}
+                >
+                  <Text style={styles.quickScoreApplyButtonText}>APPLY</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Winner Dialog - Now shows full match summary */}
+        <Modal
+          visible={winner !== null}
+          onDismiss={() => {}}
+          animationType="fade"
+          transparent
+        >
+          <View style={styles.matchSummaryOverlay}>
+            <View style={styles.matchSummaryContainer}>
+              <ScrollView
+                style={styles.matchSummaryScrollView}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.matchSummaryHeaderSection}>
+                  <Text style={styles.matchSummaryDialogTitle}>
+                    Match Summary
+                  </Text>
+                  <Text style={styles.matchSummaryRoundsText}>
+                    {roundHistory.length} Rounds
+                  </Text>
+                </View>
+
+                {/* Winner */}
+                <LinearGradient
+                  colors={
+                    winner === 1
+                      ? [
+                          player1ColorObj?.colors[0] || "#2196F3",
+                          player1ColorObj?.colors[1] || "#2196F3",
+                        ]
+                      : [
+                          player2ColorObj?.colors[0] || "#4CAF50",
+                          player2ColorObj?.colors[1] || "#4CAF50",
+                        ]
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.matchWinnerSection}
+                >
+                  <Text style={styles.matchWinnerLabel}>🏆 WINNER 🏆</Text>
+                  <Text style={styles.matchWinnerName}>
+                    {winner === 1
+                      ? player1Name || "Player 1"
+                      : player2Name || "Player 2"}
+                  </Text>
+                  <Text style={styles.matchFinalScore}>
+                    {player1Score} - {player2Score}
+                  </Text>
+                </LinearGradient>
+
+                {/* Comparative Stats Section */}
+                {roundHistory &&
+                  roundHistory.length > 0 &&
+                  (() => {
+                    const totalRounds = roundHistory.length;
+                    const p1DartsLanded = roundHistory.reduce(
+                      (sum, round) => sum + round.p1Darts,
+                      0,
+                    );
+                    const p1DartsMissed = totalRounds * 3 - p1DartsLanded;
+                    const p2DartsLanded = roundHistory.reduce(
+                      (sum, round) => sum + round.p2Darts,
+                      0,
+                    );
+                    const p2DartsMissed = totalRounds * 3 - p2DartsLanded;
+                    const p1RoundsWon = player1Stats.roundsWon;
+                    const p2RoundsWon = player2Stats.roundsWon;
+
+                    return (
+                      <View style={styles.comparativeStatsSection}>
+                        {/* Player Names Header */}
+                        <View style={styles.statsHeaderRow}>
+                          <Text style={styles.statsPlayerName}>
+                            {player1Name || "Player 1"}
+                          </Text>
+                          <Text style={styles.statsPlayerName}>
+                            {player2Name || "Player 2"}
+                          </Text>
+                        </View>
+
+                        {/* Darts Landed */}
+                        <View style={styles.statsCategory}>
+                          <Text style={styles.statsCategoryLabel}>
+                            Darts Landed
+                          </Text>
+                          <View style={styles.statsValueRow}>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                p1DartsLanded > p2DartsLanded &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {p1DartsLanded}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                p2DartsLanded > p1DartsLanded &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {p2DartsLanded}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Average Darts Per Round */}
+                        <View style={styles.statsCategory}>
+                          <Text style={styles.statsCategoryLabel}>
+                            Avg Darts/Round
+                          </Text>
+                          <View style={styles.statsValueRow}>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                p1DartsLanded / totalRounds >
+                                  p2DartsLanded / totalRounds &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {(p1DartsLanded / totalRounds).toFixed(1)}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                p2DartsLanded / totalRounds >
+                                  p1DartsLanded / totalRounds &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {(p2DartsLanded / totalRounds).toFixed(1)}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Darts Missed */}
+                        <View style={styles.statsCategory}>
+                          <Text style={styles.statsCategoryLabel}>
+                            Darts Missed
+                          </Text>
+                          <View style={styles.statsValueRow}>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                p1DartsMissed < p2DartsMissed &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {p1DartsMissed}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                p2DartsMissed < p1DartsMissed &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {p2DartsMissed}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Landing Percentage */}
+                        <View style={styles.statsCategory}>
+                          <Text style={styles.statsCategoryLabel}>
+                            Landing %
+                          </Text>
+                          <View style={styles.statsValueRow}>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                (p1DartsLanded / (totalRounds * 3)) * 100 >
+                                  (p2DartsLanded / (totalRounds * 3)) * 100 &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {(
+                                  (p1DartsLanded / (totalRounds * 3)) *
+                                  100
+                                ).toFixed(0)}
+                                %
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                (p2DartsLanded / (totalRounds * 3)) * 100 >
+                                  (p1DartsLanded / (totalRounds * 3)) * 100 &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {(
+                                  (p2DartsLanded / (totalRounds * 3)) *
+                                  100
+                                ).toFixed(0)}
+                                %
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Rounds Won */}
+                        <View style={styles.statsCategory}>
+                          <Text style={styles.statsCategoryLabel}>
+                            Rounds Won
+                          </Text>
+                          <View style={styles.statsValueRow}>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                p1RoundsWon > p2RoundsWon &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {p1RoundsWon}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                p2RoundsWon > p1RoundsWon &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {p2RoundsWon}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Round Win Percentage */}
+                        <View style={styles.statsCategory}>
+                          <Text style={styles.statsCategoryLabel}>
+                            Round Win %
+                          </Text>
+                          <View style={styles.statsValueRow}>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                (p1RoundsWon / totalRounds) * 100 >
+                                  (p2RoundsWon / totalRounds) * 100 &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {((p1RoundsWon / totalRounds) * 100).toFixed(0)}
+                                %
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.statsValueBox,
+                                (p2RoundsWon / totalRounds) * 100 >
+                                  (p1RoundsWon / totalRounds) * 100 &&
+                                  styles.statsValueHighlight,
+                              ]}
+                            >
+                              <Text style={styles.statsValueText}>
+                                {((p2RoundsWon / totalRounds) * 100).toFixed(0)}
+                                %
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })()}
+
+                {/* Round-by-Round Breakdown */}
+                {roundHistory && roundHistory.length > 0 && (
+                  <View style={styles.roundBreakdownSection}>
+                    <Text style={styles.roundBreakdownTitle}>
+                      Round Breakdown
+                    </Text>
+
+                    {/* Column Headers */}
+                    <View style={styles.roundBreakdownHeader}>
+                      <Text
+                        style={[
+                          styles.roundBreakdownColumn,
+                          styles.roundNumberColumn,
+                          styles.roundBreakdownHeaderText,
+                        ]}
+                      >
+                        Round
+                      </Text>
+                      <Text
+                        style={[
+                          styles.roundBreakdownColumn,
+                          styles.playerDartsColumn,
+                          styles.roundBreakdownHeaderText,
+                        ]}
+                      >
+                        {player1Name || "Player 1"}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.roundBreakdownColumn,
+                          styles.playerDartsColumn,
+                          styles.roundBreakdownHeaderText,
+                        ]}
+                      >
+                        {player2Name || "Player 2"}
+                      </Text>
+                    </View>
+
+                    {/* Round Rows */}
+                    {roundHistory.map((round, index) => {
+                      const p1IsClosest = round.closestPlayer === 1;
+                      const p2IsClosest = round.closestPlayer === 2;
+
+                      return (
+                        <View key={index} style={styles.roundBreakdownRow}>
+                          <Text
+                            style={[
+                              styles.roundBreakdownColumn,
+                              styles.roundNumberColumn,
+                              styles.roundNumberText,
+                            ]}
+                          >
+                            {round.roundNumber}
+                          </Text>
+                          <View
+                            style={[
+                              styles.roundBreakdownColumn,
+                              styles.playerDartsColumn,
+                              p1IsClosest && styles.roundBreakdownClosest,
+                            ]}
+                          >
+                            <Text style={styles.roundDartsText}>
+                              {round.p1Points}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.roundBreakdownColumn,
+                              styles.playerDartsColumn,
+                              p2IsClosest && styles.roundBreakdownClosest,
+                            ]}
+                          >
+                            <Text style={styles.roundDartsText}>
+                              {round.p2Points}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Action Buttons */}
+              <View style={styles.matchSummaryButtonContainer}>
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    console.log("Finish button pressed");
+                    setWinner(null);
+                    saveMatch();
+                  }}
+                  buttonColor="#2196F3"
+                  textColor="#FFFFFF"
+                  style={{ flex: 1 }}
+                >
+                  Finish/Home
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={resetMatch}
+                  buttonColor="#4CAF50"
+                  textColor="#000000"
+                  style={{ flex: 1 }}
+                >
+                  Rematch
+                </Button>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Wash Round Confirmation Dialog - Now rendered last for proper layering */}
+      </View>
+
+      {/* Wash Round Confirmation Dialog - Rendered as Modal for top layering */}
       <Modal
-        visible={showSimplifiedOverlay}
-        onDismiss={() => setShowSimplifiedOverlay(false)}
+        visible={showWashConfirmation}
+        onDismiss={() => setShowWashConfirmation(false)}
         animationType="fade"
         transparent
       >
-        <View style={styles.quickScoreOverlay}>
-          <View style={styles.quickScoreContainer}>
-            <Text style={styles.quickScoreTitle}>Quick Score</Text>
-            <Text style={styles.quickScoreSubtitle}>
-              Enter dart counts for quick scoring
+        <View style={styles.washOverlay}>
+          <View style={styles.washDialogContainer}>
+            <Text style={styles.washDialogTitle}>Wash Round?</Text>
+            <Text style={styles.washDialogMessage}>
+              No darts landed this round, and honors will change.
             </Text>
 
-            {/* Player 1 */}
-            <View style={styles.quickScorePlayerSection}>
-              <View style={styles.quickScorePlayerHeader}>
-                <Text style={styles.quickScorePlayerName}>{player1Name}</Text>
-                {simplifiedP1Darts > 0 && (
-                  <Text style={styles.quickScorePlayerCalculation}>
-                    {(() => {
-                      const isClosest = closestPlayer === 1;
-                      if (simplifiedP1Darts === 1) {
-                        return isClosest ? "= 3" : "= 1";
-                      }
-                      let calc = isClosest ? "3" : "1";
-                      for (let i = 1; i < simplifiedP1Darts; i++) {
-                        calc += " + 1";
-                      }
-                      return `= ${calc}`;
-                    })()}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.quickScoreInputRow}>
-                <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
-                <View style={styles.quickScoreControls}>
-                  <TouchableOpacity
-                    style={styles.quickScoreButton}
-                    onPress={() =>
-                      setSimplifiedP1Darts(Math.max(0, simplifiedP1Darts - 1))
-                    }
-                  >
-                    <Text style={styles.quickScoreButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.quickScoreValue}>
-                    {simplifiedP1Darts}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.quickScoreButton}
-                    onPress={() =>
-                      setSimplifiedP1Darts(Math.min(3, simplifiedP1Darts + 1))
-                    }
-                    disabled={simplifiedP1Darts >= 3}
-                  >
-                    <Text style={styles.quickScoreButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            {/* Player 2 */}
-            <View style={styles.quickScorePlayerSection}>
-              <View style={styles.quickScorePlayerHeader}>
-                <Text style={styles.quickScorePlayerName}>{player2Name}</Text>
-                {simplifiedP2Darts > 0 && (
-                  <Text style={styles.quickScorePlayerCalculation}>
-                    {(() => {
-                      const isClosest = closestPlayer === 2;
-                      if (simplifiedP2Darts === 1) {
-                        return isClosest ? "= 3" : "= 1";
-                      }
-                      let calc = isClosest ? "3" : "1";
-                      for (let i = 1; i < simplifiedP2Darts; i++) {
-                        calc += " + 1";
-                      }
-                      return `= ${calc}`;
-                    })()}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.quickScoreInputRow}>
-                <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
-                <View style={styles.quickScoreControls}>
-                  <TouchableOpacity
-                    style={styles.quickScoreButton}
-                    onPress={() =>
-                      setSimplifiedP2Darts(Math.max(0, simplifiedP2Darts - 1))
-                    }
-                  >
-                    <Text style={styles.quickScoreButtonText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.quickScoreValue}>
-                    {simplifiedP2Darts}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.quickScoreButton}
-                    onPress={() =>
-                      setSimplifiedP2Darts(Math.min(3, simplifiedP2Darts + 1))
-                    }
-                    disabled={simplifiedP2Darts >= 3}
-                  >
-                    <Text style={styles.quickScoreButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            {/* Closest Player */}
-            <View style={styles.quickScoreClosestSection}>
-              <Text style={styles.quickScoreLabel}>
-                Closest to Target Marker:
-              </Text>
-              <View style={styles.quickScoreClosestButtons}>
-                <TouchableOpacity
-                  disabled={simplifiedP1Darts === 0}
-                  style={[
-                    styles.quickScorePlayerButton,
-                    closestPlayer === 1 &&
-                      styles.quickScorePlayerButtonSelected,
-                    simplifiedP1Darts === 0 &&
-                      styles.quickScorePlayerButtonDisabled,
-                  ]}
-                  onPress={() => setClosestPlayer(1)}
-                >
-                  <Text
-                    style={[
-                      styles.quickScorePlayerButtonText,
-                      simplifiedP1Darts === 0 &&
-                        styles.quickScorePlayerButtonTextDisabled,
-                    ]}
-                  >
-                    {player1Name}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  disabled={simplifiedP2Darts === 0}
-                  style={[
-                    styles.quickScorePlayerButton,
-                    closestPlayer === 2 &&
-                      styles.quickScorePlayerButtonSelected,
-                    simplifiedP2Darts === 0 &&
-                      styles.quickScorePlayerButtonDisabled,
-                  ]}
-                  onPress={() => setClosestPlayer(2)}
-                >
-                  <Text
-                    style={[
-                      styles.quickScorePlayerButtonText,
-                      simplifiedP2Darts === 0 &&
-                        styles.quickScorePlayerButtonTextDisabled,
-                    ]}
-                  >
-                    {player2Name}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Stat Tracker Button */}
-            <View style={styles.quickScoreStatTrackerSection}>
-              <TouchableOpacity
-                disabled={true}
-                style={styles.quickScoreStatTrackerButton}
-              >
-                <Text style={styles.quickScoreStatTrackerText}>
-                  Stat Tracker
-                </Text>
-                <Text style={styles.quickScoreComingSoonText}>COMING SOON</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Calculation Preview */}
-            {(simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
-              closestPlayer && (
-                <View style={styles.quickScoreCalculationSection}>
-                  <Text style={styles.quickScoreCalculationText}>
-                    {(() => {
-                      let p1Score = simplifiedP1Darts;
-                      let p2Score = simplifiedP2Darts;
-
-                      // Add bonus for closest
-                      if (closestPlayer === 1 && p1Score > 0) {
-                        p1Score += 2;
-                      } else if (closestPlayer === 2 && p2Score > 0) {
-                        p2Score += 2;
-                      }
-
-                      // Calculate net score
-                      const netPoints = Math.abs(p1Score - p2Score);
-                      const winner =
-                        p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0;
-
-                      if (winner === 0) {
-                        return "Tie - No points awarded";
-                      }
-
-                      const winnerName =
-                        winner === 1 ? player1Name : player2Name;
-
-                      return `${netPoints} Point${
-                        netPoints !== 1 ? "s" : ""
-                      } for ${winnerName}`;
-                    })()}
-                  </Text>
-                </View>
-              )}
-
-            {/* Action Buttons */}
-            <View style={styles.quickScoreActions}>
-              <TouchableOpacity
-                style={styles.quickScoreCancelButton}
+            <View style={styles.washDialogActions}>
+              <Button
+                mode="outlined"
                 onPress={() => {
+                  console.log("Wash confirmation cancelled");
+                  setShowWashConfirmation(false);
+                }}
+                style={styles.washButton}
+              >
+                No, Edit
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() => {
+                  console.log("Wash round confirmed");
+                  // Save wash round to history
+                  const roundData = {
+                    roundNumber: currentRound,
+                    p1Darts: 0,
+                    p2Darts: 0,
+                    p1Points: 0,
+                    p2Points: 0,
+                    closestPlayer: null,
+                    roundWinner: 0,
+                  };
+                  setRoundHistory((prev) => [...prev, roundData]);
+
+                  // Increment round
+                  setCurrentRound((prev) => prev + 1);
+
+                  // Toggle the first thrower for next round
+                  setFirstThrower(firstThrower === 1 ? 2 : 1);
+
+                  // Close overlay and reset
                   setShowSimplifiedOverlay(false);
+                  setShowWashConfirmation(false);
                   setSimplifiedP1Darts(0);
                   setSimplifiedP2Darts(0);
                   setClosestPlayer(null);
+                  setP1SpecialtyShots([]);
+                  setP2SpecialtyShots([]);
                 }}
+                buttonColor="#4CAF50"
+                textColor="#000000"
+                style={styles.washButton}
               >
-                <Text style={styles.quickScoreCancelButtonText}>CANCEL</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.quickScoreApplyButton}
-                onPress={() => {
-                  // Calculate scores with cancellation scoring
-                  let p1Score = simplifiedP1Darts;
-                  let p2Score = simplifiedP2Darts;
-
-                  // Add 3 points for closest dart (if any darts landed)
-                  if (closestPlayer === 1 && p1Score > 0) {
-                    p1Score += 2; // +2 because closest is worth 3 total (1 for landing + 2 bonus)
-                  } else if (closestPlayer === 2 && p2Score > 0) {
-                    p2Score += 2;
-                  }
-
-                  // Cancellation scoring: only winner gets net points
-                  if (p1Score > p2Score) {
-                    setPlayer1Score(player1Score + (p1Score - p2Score));
-                    setFirstThrower(1); // Winner goes first next round
-                  } else if (p2Score > p1Score) {
-                    setPlayer2Score(player2Score + (p2Score - p1Score));
-                    setFirstThrower(2);
-                  }
-                  // If tie, no points awarded, first thrower stays same
-
-                  setShowSimplifiedOverlay(false);
-                  setSimplifiedP1Darts(0);
-                  setSimplifiedP2Darts(0);
-                  setClosestPlayer(null);
-                }}
-              >
-                <Text style={styles.quickScoreApplyButtonText}>APPLY</Text>
-              </TouchableOpacity>
+                Confirm Wash
+              </Button>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Winner Dialog */}
-      <Dialog
-        visible={winner !== null}
-        onDismiss={() => {}}
-        style={styles.victoryDialog}
+      {/* Stat Tracker Modal */}
+      <Modal
+        visible={showStatTrackerModal}
+        onRequestClose={() => setShowStatTrackerModal(false)}
+        animationType="slide"
+        transparent
       >
-        <Dialog.Content style={styles.victoryContent}>
-          <Text variant="headlineLarge" style={styles.victoryTitle}>
-            {winner === 1 ? player1Name : player2Name} Wins!
-          </Text>
-          <Text variant="displayLarge" style={styles.victoryScore}>
-            {player1Score} - {player2Score}
-          </Text>
-          <Text variant="bodyLarge" style={styles.victorySubtext}>
-            {gameFormat === "tournament"
-              ? "Continue tournament or view bracket"
-              : "Select Finish to See Match Results or Select Rematch to Play Again"}
-          </Text>
-        </Dialog.Content>
-        <Dialog.Actions style={styles.victoryActions}>
-          {gameFormat === "tournament" ? (
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <Button
-                mode="contained"
+        <View style={styles.statTrackerOverlay}>
+          <View style={styles.statTrackerContainer}>
+            {/* Header */}
+            <View style={styles.statTrackerHeader}>
+              <Text style={styles.statTrackerTitle}>
+                Specialty Shots Tracker
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowStatTrackerModal(false)}
+                style={styles.statTrackerCloseButton}
+              >
+                <Text style={styles.statTrackerCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.statTrackerContent}>
+              {/* Player 1 Section */}
+              <View style={styles.statTrackerPlayerSection}>
+                <Text style={styles.statTrackerPlayerName}>{player1Name}</Text>
+
+                {/* Shot buttons grid */}
+                <View style={styles.statTrackerShotsGrid}>
+                  {SPECIALTY_SHOTS.map((shot) => (
+                    <TouchableOpacity
+                      key={shot.id}
+                      onPress={() => {
+                        setP1SpecialtyShots((prev) => [...prev, shot.id]);
+                      }}
+                      style={styles.statTrackerShotButton}
+                    >
+                      <Text style={styles.statTrackerShotName}>
+                        {shot.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Selected shots for Player 1 */}
+                {p1SpecialtyShots.length > 0 && (
+                  <View style={styles.statTrackerSelectedShots}>
+                    <Text style={styles.statTrackerSelectedLabel}>
+                      Selected ({p1SpecialtyShots.length}):
+                    </Text>
+                    <View style={styles.statTrackerChipsContainer}>
+                      {p1SpecialtyShots.map((shotId, index) => {
+                        const shot = SPECIALTY_SHOTS.find(
+                          (s) => s.id === shotId,
+                        );
+                        return (
+                          <View key={index} style={styles.statTrackerChip}>
+                            <Text style={styles.statTrackerChipText}>
+                              {shot.name}
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setP1SpecialtyShots((prev) =>
+                                  prev.filter((_, i) => i !== index),
+                                );
+                              }}
+                              style={styles.statTrackerChipRemove}
+                            >
+                              <Text style={styles.statTrackerChipRemoveText}>
+                                ✕
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              <Divider style={styles.statTrackerDivider} />
+
+              {/* Player 2 Section */}
+              <View style={styles.statTrackerPlayerSection}>
+                <Text style={styles.statTrackerPlayerName}>{player2Name}</Text>
+
+                {/* Shot buttons grid */}
+                <View style={styles.statTrackerShotsGrid}>
+                  {SPECIALTY_SHOTS.map((shot) => (
+                    <TouchableOpacity
+                      key={shot.id}
+                      onPress={() => {
+                        setP2SpecialtyShots((prev) => [...prev, shot.id]);
+                      }}
+                      style={styles.statTrackerShotButton}
+                    >
+                      <Text style={styles.statTrackerShotName}>
+                        {shot.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Selected shots for Player 2 */}
+                {p2SpecialtyShots.length > 0 && (
+                  <View style={styles.statTrackerSelectedShots}>
+                    <Text style={styles.statTrackerSelectedLabel}>
+                      Selected ({p2SpecialtyShots.length}):
+                    </Text>
+                    <View style={styles.statTrackerChipsContainer}>
+                      {p2SpecialtyShots.map((shotId, index) => {
+                        const shot = SPECIALTY_SHOTS.find(
+                          (s) => s.id === shotId,
+                        );
+                        return (
+                          <View key={index} style={styles.statTrackerChip}>
+                            <Text style={styles.statTrackerChipText}>
+                              {shot.name}
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setP2SpecialtyShots((prev) =>
+                                  prev.filter((_, i) => i !== index),
+                                );
+                              }}
+                              style={styles.statTrackerChipRemove}
+                            >
+                              <Text style={styles.statTrackerChipRemoveText}>
+                                ✕
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+
+            {/* Action Buttons */}
+            <View style={styles.statTrackerActions}>
+              <TouchableOpacity
                 onPress={() => {
-                  const nextMatch = getNextTournamentMatch();
-                  if (nextMatch) {
-                    advanceTournamentWinner();
-                    startTournamentMatch(nextMatch);
-                  } else {
-                    advanceTournamentWinner();
-                  }
+                  setP1SpecialtyShots([]);
+                  setP2SpecialtyShots([]);
                 }}
-                buttonColor="#4CAF50"
-                style={styles.victoryButton}
+                style={styles.statTrackerClearButton}
               >
-                Next Match
-              </Button>
-              <Button
-                mode="contained"
-                onPress={advanceTournamentWinner}
-                buttonColor="#2196F3"
-                style={styles.victoryButton}
+                <Text style={styles.statTrackerClearButtonText}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowStatTrackerModal(false)}
+                style={styles.statTrackerDoneButton}
               >
-                View Bracket
-              </Button>
+                <Text style={styles.statTrackerDoneButtonText}>Done</Text>
+              </TouchableOpacity>
             </View>
-          ) : (
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <Button
-                mode="contained"
-                onPress={saveMatch}
-                buttonColor="#2196F3"
-                style={styles.victoryButton}
-              >
-                Finish
-              </Button>
-              <Button
-                mode="contained"
-                onPress={resetMatch}
-                buttonColor="#4CAF50"
-                style={styles.victoryButton}
-              >
-                Rematch
-              </Button>
-            </View>
-          )}
-        </Dialog.Actions>
-      </Dialog>
-    </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -4589,24 +5522,30 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   quickScoreStatTrackerSection: {
-    marginTop: 20,
+    marginTop: 8,
+    marginBottom: 16,
     alignItems: "center",
   },
   quickScoreStatTrackerButton: {
-    backgroundColor: "#444",
+    backgroundColor: "#2A2A2A",
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#666",
+    borderWidth: 2,
+    borderColor: "#4CAF50",
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   quickScoreStatTrackerText: {
-    color: "#999",
+    color: "#4CAF50",
     fontSize: 16,
     fontWeight: "600",
+  },
+  quickScoreStatTrackerActiveText: {
+    color: "#4CAF50",
+    fontSize: 12,
+    fontWeight: "bold",
   },
   quickScoreComingSoonText: {
     color: "#666",
@@ -4651,11 +5590,52 @@ const styles = StyleSheet.create({
     backgroundColor: "#4CAF50",
     borderRadius: 12,
   },
+  quickScoreApplyButtonDisabled: {
+    backgroundColor: "#666666",
+    opacity: 0.5,
+  },
   quickScoreApplyButtonText: {
     color: "#000000",
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
+  },
+  // Wash Round Dialog Styles
+  washOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  washDialogContainer: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#FFD700",
+    padding: 20,
+    width: "88%",
+    maxWidth: 360,
+  },
+  washDialogTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#FFD700",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  washDialogMessage: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  washDialogActions: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  washButton: {
+    flex: 1,
   },
   // Pre-Game Modal Styles
   preGameOverlay: {
@@ -5144,5 +6124,665 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#E65100",
     fontStyle: "italic",
+  },
+  // Round Tracker Styles
+  roundTrackerContainer: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: [{ translateX: -75 }, { translateY: -75 }],
+    width: 150,
+    height: 150,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 5,
+  },
+  roundTrackerBox: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    borderWidth: 3,
+    borderColor: "#FFD700",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#FFD700",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
+    elevation: 15,
+  },
+  roundTrackerLabel: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#FFD700",
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  roundTrackerNumber: {
+    fontSize: 56,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 8,
+  },
+  roundTrackerHint: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#CCCCCC",
+    letterSpacing: 1,
+  },
+  // Round Summary Dialog Styles
+  roundSummaryOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  roundSummaryContainer: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 20,
+    padding: 24,
+    width: "85%",
+    maxWidth: 420,
+    borderWidth: 2,
+    borderColor: "#FFD700",
+  },
+  roundSummaryTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#FFD700",
+    textAlign: "center",
+    marginBottom: 24,
+    letterSpacing: 1.5,
+  },
+  roundSummaryContent: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    marginBottom: 28,
+    paddingVertical: 16,
+  },
+  roundPlayerStats: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 12,
+  },
+  roundPlayerName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  roundDarts: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#4CAF50",
+    marginBottom: 8,
+  },
+  roundPoints: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#FFD700",
+  },
+  roundVsDivider: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#FFD700",
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 12,
+  },
+  roundVsText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1A1A1A",
+    letterSpacing: 1,
+  },
+  roundWinnerSection: {
+    backgroundColor: "#2A2A2A",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+    alignItems: "center",
+  },
+  roundWinnerLabel: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#CCCCCC",
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  roundWinnerName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    marginBottom: 8,
+  },
+  roundWinnerPoints: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFD700",
+  },
+  roundTieText: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#CCCCCC",
+    letterSpacing: 1,
+  },
+  roundSummaryActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  roundSummaryActionButton: {
+    flex: 1,
+    borderRadius: 12,
+  },
+  roundCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    backgroundColor: "#333333",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#555555",
+    alignItems: "center",
+  },
+  roundCancelButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    letterSpacing: 1,
+  },
+  roundSubmitButton: {
+    flex: 1,
+    paddingVertical: 14,
+    backgroundColor: "#4CAF50",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+    alignItems: "center",
+  },
+  roundSubmitButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#000000",
+    letterSpacing: 1,
+  },
+  // Match Summary Modal Styles
+  matchSummaryOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: Platform.OS === "web" ? 0 : 16,
+  },
+  matchSummaryContainer: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+    width: Platform.OS === "web" ? 420 : "100%",
+    maxWidth:
+      Platform.OS === "web" ? 420 : Dimensions.get("window").width * 0.95,
+    maxHeight: Dimensions.get("window").height * 0.85,
+    flexDirection: "column",
+  },
+  matchSummaryScrollView: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  matchSummaryButtonContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 8,
+    gap: 12,
+    backgroundColor: "#1A1A1A",
+    borderTopWidth: 1,
+    borderTopColor: "#333",
+  },
+  matchSummaryDialog: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+    maxWidth:
+      Platform.OS === "web" ? 340 : Dimensions.get("window").width * 0.9,
+    width: Platform.OS === "web" ? 340 : "90%",
+    alignSelf: "center",
+    maxHeight: Dimensions.get("window").height * 0.8,
+  },
+  matchSummaryDialogContent: {
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    backgroundColor: "#1A1A1A",
+    backgroundImage: null, // Will be set dynamically inline
+    maxHeight: Dimensions.get("window").height * 0.7,
+  },
+  matchSummaryHeaderSection: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  matchSummaryDialogTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    textAlign: "center",
+    letterSpacing: 1.5,
+  },
+  matchSummaryRoundsText: {
+    fontSize: 14,
+    color: "#CCCCCC",
+    marginTop: 6,
+    fontWeight: "500",
+  },
+  matchSummaryDialogActions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  roundBreakdownSection: {
+    marginTop: 20,
+    backgroundColor: "#2A2A2A",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FFD700",
+  },
+  simpleStatsSection: {
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: "#2A2A2A",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+  },
+  comparativeStatsSection: {
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: "#2A2A2A",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+  },
+  statsHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: "#4CAF50",
+  },
+  statsPlayerName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    flex: 1,
+    textAlign: "center",
+  },
+  statsCategory: {
+    marginBottom: 12,
+  },
+  statsCategoryLabel: {
+    fontSize: 12,
+    color: "#CCCCCC",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  statsValueRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    gap: 8,
+  },
+  statsValueBox: {
+    flex: 1,
+    backgroundColor: "#1A1A1A",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#444",
+  },
+  statsValueHighlight: {
+    backgroundColor: "#4CAF50",
+    borderColor: "#4CAF50",
+  },
+  statsValueText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  statRowSimple: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
+  },
+  statLabelSimple: {
+    fontSize: 13,
+    color: "#CCCCCC",
+    fontWeight: "500",
+  },
+  statValueSimple: {
+    fontSize: 13,
+    color: "#4CAF50",
+    fontWeight: "bold",
+  },
+  roundBreakdownSection: {
+    marginTop: 20,
+    backgroundColor: "#2A2A2A",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FFD700",
+  },
+  roundBreakdownTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#FFD700",
+    marginBottom: 12,
+    textAlign: "center",
+    letterSpacing: 1.2,
+  },
+  roundBreakdownHeader: {
+    flexDirection: "row",
+    paddingBottom: 8,
+    marginBottom: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: "#FFD700",
+  },
+  roundBreakdownHeaderText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  roundBreakdownRow: {
+    flexDirection: "row",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#444444",
+  },
+  roundNumberText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  roundBreakdownColumn: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  roundNumberColumn: {
+    flex: 0.6,
+  },
+  playerDartsColumn: {
+    flex: 1,
+    paddingHorizontal: 4,
+  },
+  roundBreakdownClosest: {
+    backgroundColor: "#4CAF50",
+    borderRadius: 8,
+    paddingVertical: 4,
+  },
+  roundDartsText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  matchSummaryTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    textAlign: "center",
+    marginBottom: 24,
+    letterSpacing: 1.5,
+  },
+  matchWinnerSection: {
+    backgroundColor: "#2A2A2A",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: "#FFD700",
+    alignItems: "center",
+  },
+  matchWinnerLabel: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#FFD700",
+    letterSpacing: 1.5,
+    marginBottom: 8,
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  matchWinnerName: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 12,
+    textAlign: "center",
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  matchFinalScore: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    letterSpacing: 2,
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  matchStatsSection: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 20,
+    paddingVertical: 16,
+  },
+  matchPlayerStats: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: "#2A2A2A",
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 8,
+    minWidth: 0, // Allow text to wrap
+  },
+  matchPlayerStatsName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 12,
+    textAlign: "center",
+    flexShrink: 1,
+  },
+  matchStatRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    gap: 8,
+  },
+  matchStatLabel: {
+    fontSize: 14,
+    color: "#CCCCCC",
+    fontWeight: "600",
+  },
+  matchStatValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#4CAF50",
+  },
+  matchStatDivider: {
+    height: 1,
+    backgroundColor: "#444444",
+    marginVertical: 8,
+    width: "100%",
+  },
+  // Stat Tracker Modal Styles
+  statTrackerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "flex-end",
+  },
+  statTrackerContainer: {
+    backgroundColor: "#1A1A1A",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "70%",
+    minHeight: "55%",
+    flexDirection: "column",
+  },
+  statTrackerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#4CAF50",
+  },
+  statTrackerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#4CAF50",
+  },
+  statTrackerCloseButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  statTrackerCloseText: {
+    fontSize: 24,
+    color: "#FFFFFF",
+  },
+  statTrackerContent: {
+    flex: 1,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  statTrackerPlayerSection: {
+    marginBottom: 24,
+  },
+  statTrackerPlayerName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    marginBottom: 12,
+  },
+  statTrackerShotsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  statTrackerShotButton: {
+    backgroundColor: "#2A2A2A",
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "45%",
+  },
+  statTrackerShotName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  statTrackerSelectedShots: {
+    marginTop: 12,
+  },
+  statTrackerSelectedLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#CCCCCC",
+    marginBottom: 8,
+  },
+  statTrackerChipsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  statTrackerChip: {
+    backgroundColor: "#4CAF50",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+  },
+  statTrackerChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  statTrackerChipRemove: {
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  statTrackerChipRemoveText: {
+    fontSize: 14,
+    color: "#000000",
+    fontWeight: "bold",
+  },
+  statTrackerDivider: {
+    backgroundColor: "#4CAF50",
+    marginVertical: 8,
+  },
+  statTrackerActions: {
+    flexDirection: "row",
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#4CAF50",
+  },
+  statTrackerClearButton: {
+    flex: 1,
+    backgroundColor: "#444444",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statTrackerClearButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  statTrackerDoneButton: {
+    flex: 1,
+    backgroundColor: "#4CAF50",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statTrackerDoneButtonText: {
+    color: "#000000",
+    fontSize: 14,
+    fontWeight: "bold",
   },
 });
