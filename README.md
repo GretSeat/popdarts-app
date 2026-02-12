@@ -2,7 +2,7 @@
 
 **A mobile-first Popdarts scoring and competitive platform**
 
-Score. Play. Compete.
+Score. Play. Compete. Get Notified.
 
 ---
 
@@ -12,11 +12,26 @@ Popdarts App is a React Native mobile application that lets players:
 
 - Score casual Popdarts matches
 - Track match history and stats
+- **🔔 Receive push notifications** for tournaments, sales, and leagues
 - Eventually compete in tournaments and leagues
 - Discover other players nearby
 - Access Popdarts store integration
 
-This is **Phase 1 MVP** - focused on core scoring functionality.
+This is **Phase 1 MVP** - focused on core scoring functionality and push notifications.
+
+---
+
+## ✨ New: Push Notifications
+
+Stay updated with real-time notifications for:
+
+- 🛒 Store updates and flash sales
+- 📍 New leagues in your area
+- 🎯 Tournament turns
+- ⏰ Match reminders
+- 📢 Club announcements
+
+**[→ Full Push Notification Setup Guide](./PUSH_NOTIFICATIONS.md)**
 
 ---
 
@@ -27,6 +42,7 @@ This is **Phase 1 MVP** - focused on core scoring functionality.
 - Node.js 18+ installed
 - Expo Go app on your phone ([iOS](https://apps.apple.com/app/expo-go/id982107779) | [Android](https://play.google.com/store/apps/details?id=host.exp.exponent))
 - Supabase account ([supabase.com](https://supabase.com))
+- **Physical device** (required for push notifications)
 
 ### Installation
 
@@ -38,8 +54,8 @@ npm install
 ```
 
 2. **Set up Supabase:**
-
    - Follow instructions in [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md)
+   - **NEW:** Run push notification schema from `supabase-push-notifications-schema.sql`
    - Create `.env` file with your Supabase credentials
 
 3. **Run the app:**
@@ -59,19 +75,16 @@ npm start
 ### ✅ Implemented
 
 - **Authentication**
-
   - Email/password signup and login
   - Guest mode (play without account)
   - Persistent sessions
 
 - **Match Scoring**
-
   - Simple 1v1 score tracking
   - Increment/decrement controls
   - Save matches to cloud
 
 - **Match History**
-
   - View past matches
   - Basic statistics (wins, losses, win rate)
 
@@ -89,7 +102,6 @@ npm start
   - National and global leaderboards
   - Glicko-2 rating system
 - **Practice Mode**
-
   - Dart placement heatmaps
   - Accuracy tracking over time
   - Throwing pattern analysis
@@ -137,18 +149,25 @@ See [`MVP_PLAN.md`](../MVP_PLAN.md) for complete roadmap.
 popdarts-app/
 ├── src/
 │   ├── contexts/
-│   │   └── AuthContext.js       # Authentication state management
+│   │   ├── AuthContext.js              # Authentication + push token registration
+│   │   └── PlayerPreferencesContext.js # User preferences
+│   ├── services/
+│   │   └── pushNotificationService.js  # 🆕 Push notification logic
 │   ├── lib/
-│   │   └── supabase.js          # Supabase client configuration
+│   │   └── supabase.js                 # Supabase client configuration
 │   ├── screens/
-│   │   ├── AuthScreen.js        # Sign in/up and guest mode
-│   │   ├── HomeScreen.js        # Dashboard with stats
-│   │   ├── MatchesScreen.js     # Match history list
-│   │   ├── NewMatchScreen.js    # Score tracking UI
-│   │   └── ProfileScreen.js     # User profile and settings
-├── App.js                       # Root component with navigation
-├── supabase-schema.sql          # Database schema
-├── SUPABASE_SETUP.md            # Supabase configuration guide
+│   │   ├── AuthScreen.js               # Sign in/up and guest mode
+│   │   ├── HomeScreen.js               # Dashboard with stats
+│   │   ├── MatchesScreen.js            # Match history list
+│   │   ├── NewMatchScreen.js           # Score tracking UI
+│   │   ├── ProfileScreen.js            # 🆕 Includes notification settings
+│   │   ├── LocalScreen.js              # Local clubs and leagues
+│   │   └── StoreScreen.js              # Shop for dart colors/jerseys
+├── App.js                               # 🆕 Root + notification handlers
+├── supabase-schema.sql                  # Core database schema
+├── supabase-push-notifications-schema.sql # 🆕 Notification tables
+├── SUPABASE_SETUP.md                    # Supabase configuration guide
+├── PUSH_NOTIFICATIONS.md                # 🆕 Push notification setup guide
 └── package.json
 ```
 
@@ -156,7 +175,7 @@ popdarts-app/
 
 ## 🗄️ Database Schema
 
-### Tables
+### Core Tables
 
 **users**
 
@@ -176,6 +195,29 @@ popdarts-app/
 - `winner_id` (UUID, auto-calculated)
 - `duration_seconds` (integer, optional)
 - `played_at`, `created_at` (timestamps)
+
+### 🆕 Push Notification Tables
+
+**push_tokens**
+
+- `id` (UUID, primary key)
+- `user_id` (UUID, references auth.users)
+- `push_token` (text, Expo push token)
+- `platform` (text: ios/android/web)
+- `device_name` (text)
+- `preferences` (jsonb, notification settings)
+- `created_at`, `updated_at`, `last_used_at` (timestamps)
+
+**notification_logs**
+
+- `id` (UUID, primary key)
+- `user_id` (UUID)
+- `push_token` (text)
+- `notification_type` (text)
+- `title`, `body` (text)
+- `data` (jsonb)
+- `status` (text: sent/failed/delivered/opened)
+- `sent_at`, `delivered_at`, `opened_at` (timestamps)
 
 ### Views
 

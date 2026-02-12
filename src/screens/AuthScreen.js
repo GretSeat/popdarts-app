@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { TextInput, Button, Text, Surface, useTheme } from "react-native-paper";
 import { useAuth } from "../contexts/AuthContext";
+import ScreenContainer from "../components/ScreenContainer";
 
 /**
  * Authentication screen with sign in, sign up, and guest mode
@@ -95,179 +96,181 @@ export default function AuthScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text
-            variant="displayMedium"
-            style={[styles.title, { color: theme.colors.primary }]}
-          >
-            Popdarts
-          </Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>
-            Score. Play. Compete.
-          </Text>
-        </View>
+        <ScreenContainer>
+          <View style={styles.header}>
+            <Text
+              variant="displayMedium"
+              style={[styles.title, { color: theme.colors.primary }]}
+            >
+              Popdarts
+            </Text>
+            <Text variant="bodyLarge" style={styles.subtitle}>
+              Score. Play. Compete.
+            </Text>
+          </View>
 
-        <Surface style={styles.card} elevation={2}>
-          {mode === "signin" && (
-            <>
-              <Text variant="headlineSmall" style={styles.cardTitle}>
-                Sign In
-              </Text>
+          <Surface style={styles.card} elevation={2}>
+            {mode === "signin" && (
+              <>
+                <Text variant="headlineSmall" style={styles.cardTitle}>
+                  Sign In
+                </Text>
 
-              <TextInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={styles.input}
-                mode="outlined"
-              />
+                <TextInput
+                  label="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={styles.input}
+                  mode="outlined"
+                />
 
-              <TextInput
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                style={styles.input}
-                mode="outlined"
-              />
+                <TextInput
+                  label="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  style={styles.input}
+                  mode="outlined"
+                />
 
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+                {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <Button
-                mode="contained"
-                onPress={handleSignIn}
-                loading={loading}
-                style={styles.button}
-              >
-                Sign In
-              </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleSignIn}
+                  loading={loading}
+                  style={styles.button}
+                >
+                  Sign In
+                </Button>
 
-              <Button
-                mode="text"
-                onPress={() => {
-                  setMode("signup");
-                  setError("");
-                }}
-                style={styles.linkButton}
-              >
-                Don't have an account? Sign Up
-              </Button>
+                <Button
+                  mode="text"
+                  onPress={() => {
+                    setMode("signup");
+                    setError("");
+                  }}
+                  style={styles.linkButton}
+                >
+                  Don't have an account? Sign Up
+                </Button>
 
-              <Button
-                mode="outlined"
-                onPress={() => {
-                  setMode("guest");
-                  setError("");
-                }}
-                style={styles.guestButton}
-              >
-                Continue as Guest
-              </Button>
-            </>
-          )}
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    setMode("guest");
+                    setError("");
+                  }}
+                  style={styles.guestButton}
+                >
+                  Continue as Guest
+                </Button>
+              </>
+            )}
 
-          {mode === "signup" && (
-            <>
-              <Text variant="headlineSmall" style={styles.cardTitle}>
-                Create Account
-              </Text>
+            {mode === "signup" && (
+              <>
+                <Text variant="headlineSmall" style={styles.cardTitle}>
+                  Create Account
+                </Text>
 
-              <TextInput
-                label="Display Name"
-                value={displayName}
-                onChangeText={setDisplayName}
-                style={styles.input}
-                mode="outlined"
-              />
+                <TextInput
+                  label="Display Name"
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  style={styles.input}
+                  mode="outlined"
+                />
 
-              <TextInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={styles.input}
-                mode="outlined"
-              />
+                <TextInput
+                  label="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={styles.input}
+                  mode="outlined"
+                />
 
-              <TextInput
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                style={styles.input}
-                mode="outlined"
-              />
+                <TextInput
+                  label="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  style={styles.input}
+                  mode="outlined"
+                />
 
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+                {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <Button
-                mode="contained"
-                onPress={handleSignUp}
-                loading={loading}
-                style={styles.button}
-              >
-                Sign Up
-              </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleSignUp}
+                  loading={loading}
+                  style={styles.button}
+                >
+                  Sign Up
+                </Button>
 
-              <Button
-                mode="text"
-                onPress={() => {
-                  setMode("signin");
-                  setError("");
-                }}
-                style={styles.linkButton}
-              >
-                Already have an account? Sign In
-              </Button>
-            </>
-          )}
+                <Button
+                  mode="text"
+                  onPress={() => {
+                    setMode("signin");
+                    setError("");
+                  }}
+                  style={styles.linkButton}
+                >
+                  Already have an account? Sign In
+                </Button>
+              </>
+            )}
 
-          {mode === "guest" && (
-            <>
-              <Text variant="headlineSmall" style={styles.cardTitle}>
-                Guest Mode
-              </Text>
+            {mode === "guest" && (
+              <>
+                <Text variant="headlineSmall" style={styles.cardTitle}>
+                  Guest Mode
+                </Text>
 
-              <Text variant="bodyMedium" style={styles.guestInfo}>
-                Try Popdarts without an account. Your matches will be saved
-                locally.
-              </Text>
+                <Text variant="bodyMedium" style={styles.guestInfo}>
+                  Try Popdarts without an account. Your matches will be saved
+                  locally.
+                </Text>
 
-              <TextInput
-                label="Your Name"
-                value={guestName}
-                onChangeText={setGuestName}
-                style={styles.input}
-                mode="outlined"
-              />
+                <TextInput
+                  label="Your Name"
+                  value={guestName}
+                  onChangeText={setGuestName}
+                  style={styles.input}
+                  mode="outlined"
+                />
 
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+                {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <Button
-                mode="contained"
-                onPress={handleGuestMode}
-                loading={loading}
-                style={styles.button}
-              >
-                Start Playing
-              </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleGuestMode}
+                  loading={loading}
+                  style={styles.button}
+                >
+                  Start Playing
+                </Button>
 
-              <Button
-                mode="text"
-                onPress={() => {
-                  setMode("signin");
-                  setError("");
-                }}
-                style={styles.linkButton}
-              >
-                Back to Sign In
-              </Button>
-            </>
-          )}
-        </Surface>
+                <Button
+                  mode="text"
+                  onPress={() => {
+                    setMode("signin");
+                    setError("");
+                  }}
+                  style={styles.linkButton}
+                >
+                  Back to Sign In
+                </Button>
+              </>
+            )}
+          </Surface>
+        </ScreenContainer>
       </ScrollView>
     </KeyboardAvoidingView>
   );

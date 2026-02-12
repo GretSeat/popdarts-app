@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
@@ -11,9 +11,12 @@ import {
   View,
   Text as RNText,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 import { PlayerPreferencesProvider } from "./src/contexts/PlayerPreferencesContext";
+import * as Notifications from "expo-notifications";
+import { addNotificationListeners } from "./src/services/pushNotificationService";
 
 // Screens
 import AuthScreen from "./src/screens/AuthScreen";
@@ -201,12 +204,63 @@ function MainNavigator() {
 function AppContent() {
   const { user, loading, isGuest } = useAuth();
   const [hasCompletedWelcome, setHasCompletedWelcome] = useState(null);
+  const notificationListener = useRef();
+  const responseListener = useRef();
 
   useEffect(() => {
     // Check if user has completed welcome screen
     AsyncStorage.getItem("has_completed_welcome").then((value) => {
       setHasCompletedWelcome(value === "true");
     });
+  }, [user, isGuest]);
+
+  // Set up notification handlers
+  useEffect(() => {
+    if (user || isGuest) {
+      console.log("[App] Setting up notification listeners");
+
+      // Handle notification received while app is in foreground
+      const handleNotification = (notification) => {
+        console.log("[App] Notification received:", notification);
+        const { title, body } = notification.request.content;
+
+        // Show alert for foreground notifications
+        if (Platform.OS !== "web") {
+          Alert.alert(title, body);
+        }
+      };
+
+      // Handle notification tap/interaction
+      const handleNotificationResponse = (response) => {
+        console.log("[App] Notification tapped:", response);
+        const data = response.notification.request.content.data;
+
+        // Navigate based on notification type
+        if (data.type === "tournament_turn") {
+          // Navigate to tournament/match screen
+          console.log("[App] Navigate to tournament");
+        } else if (data.type === "flash_sale" || data.type === "store_update") {
+          // Navigate to store
+          console.log("[App] Navigate to store");
+        } else if (data.type === "league_nearby") {
+          // Navigate to local/clubs
+          console.log("[App] Navigate to local clubs");
+        }
+      };
+
+      // Add listeners
+      const listeners = addNotificationListeners(
+        handleNotification,
+        handleNotificationResponse,
+      );
+
+      notificationListener.current = listeners;
+
+      return () => {
+        console.log("[App] Removing notification listeners");
+        listeners.remove();
+      };
+    }
   }, [user, isGuest]);
 
   if (loading || hasCompletedWelcome === null) {

@@ -1,6 +1,11 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { supabase } from "../lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  registerForPushNotificationsAsync,
+  savePushTokenToDatabase,
+  removePushTokenFromDatabase,
+} from "../services/pushNotificationService";
 
 const AuthContext = createContext({});
 
@@ -26,6 +31,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [guestName, setGuestName] = useState("");
+  const [pushToken, setPushToken] = useState(null);
 
   useEffect(() => {
     console.log("[AuthContext] Initializing...");
@@ -33,13 +39,19 @@ export const AuthProvider = ({ children }) => {
     // Check for existing session
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => {
+      .then(async ({ data: { session } }) => {
         console.log(
           "[AuthContext] Session loaded:",
           session ? "authenticated" : "no session",
         );
         setSession(session);
         setUser(session?.user ?? null);
+
+        // Register for push notifications if user is authenticated
+        if (session?.user) {
+          await registerPushNotifications(session.user.id);
+        }
+
         setLoading(false);
       })
       .catch((error) => {
@@ -65,14 +77,47 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("[AuthContext] Auth state changed:", _event);
       setSession(session);
       setUser(session?.user ?? null);
+
+      // Handle push notifications on sign in
+      if (_event === "SIGNED_IN" && session?.user) {
+        await registerPushNotifications(session.user.id);
+      }
+
+      // Handle push notifications on sign out
+      if (_event === "SIGNED_OUT" && pushToken) {
+        await removePushTokenFromDatabase(user?.id, pushToken);
+        setPushToken(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  /**
+   * Register device for push notifications
+   * @param {string} userId - User ID from Supabase auth
+   */
+  const registerPushNotifications = async (userId) => {
+    try {
+      console.log("[AuthContext] Registering for push notifications...");
+      const token = await registerForPushNotificationsAsync();
+
+      if (token) {
+        setPushToken(token);
+        await savePushTokenToDatabase(userId, token);
+        console.log("[AuthContext] Push notifications registered successfully");
+      }
+    } catch (error) {
+      console.error(
+        "[AuthContext] Error registering push notifications:",
+        error,
+      );
+    }
+  };
 
   /**
    * Sign up with email and password
@@ -100,6 +145,11 @@ export const AuthProvider = ({ children }) => {
         });
 
         if (profileError) throw profileError;
+      }
+
+      // Register for push notifications after successful signup
+      if (data.user) {
+        await registerPushNotifications(data.user.id);
       }
 
       return { data, error: null };
@@ -132,6 +182,12 @@ export const AuthProvider = ({ children }) => {
    */
   const signOut = async () => {
     try {
+      // Remove push token before signing out
+      if (user?.id && pushToken) {
+        await removePushTokenFromDatabase(user.id, pushToken);
+        setPushToken(null);
+      }
+
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
@@ -196,11 +252,13 @@ export const AuthProvider = ({ children }) => {
     loading,
     isGuest,
     guestName,
+    pushToken,
     signUp,
     signIn,
     signOut,
     enableGuestMode,
     convertGuestToAccount,
+    registerPushNotifications,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

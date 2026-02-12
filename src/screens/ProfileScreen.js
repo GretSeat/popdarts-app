@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
   ScrollView,
   Dimensions,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -17,9 +18,14 @@ import {
   ProgressBar,
   Surface,
   Chip,
+  Switch,
 } from "react-native-paper";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+} from "../services/pushNotificationService";
 
 import DartColorManager from "../components/DartColorManager";
 import JerseyColorManager, {
@@ -75,7 +81,7 @@ export default function ProfileScreen() {
   const [jerseyManagerVisible, setJerseyManagerVisible] = useState(false);
 
   // Tab navigation
-  const [activeTab, setActiveTab] = useState("profile"); // "profile", "stats", "practice"
+  const [activeTab, setActiveTab] = useState("profile"); // "profile", "stats", "practice", "settings"
   // Secondary tab for stats: 'casual' or 'official'
   const [statsSubTab, setStatsSubTab] = useState("casual");
   // User setting for casual match tracking: 'all', 'recent', 'none'
@@ -83,9 +89,58 @@ export default function ProfileScreen() {
   // Chart container width for responsive chart
   const [chartContainerWidth, setChartContainerWidth] = useState(300);
 
+  // Notification preferences state
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    storeUpdates: true,
+    flashSales: true,
+    leaguesNearby: true,
+    tournamentTurns: true,
+    matchReminders: true,
+    clubAnnouncements: true,
+  });
+  const [loadingPrefs, setLoadingPrefs] = useState(false);
+
   const displayName =
     user?.user_metadata?.display_name || guestName || "Player";
   const email = user?.email || "Guest User";
+
+  // Load notification preferences when user is authenticated
+  useEffect(() => {
+    if (user?.id) {
+      loadNotificationPreferences();
+    }
+  }, [user]);
+
+  const loadNotificationPreferences = async () => {
+    try {
+      const prefs = await getNotificationPreferences(user.id);
+      if (prefs) {
+        setNotificationPrefs(prefs);
+      }
+    } catch (error) {
+      console.error("Error loading notification preferences:", error);
+    }
+  };
+
+  const handleNotificationPrefChange = async (key, value) => {
+    const updatedPrefs = { ...notificationPrefs, [key]: value };
+    setNotificationPrefs(updatedPrefs);
+
+    if (user?.id) {
+      setLoadingPrefs(true);
+      const success = await updateNotificationPreferences(
+        user.id,
+        updatedPrefs,
+      );
+      setLoadingPrefs(false);
+
+      if (!success) {
+        Alert.alert("Error", "Failed to update notification preferences");
+        // Revert on error
+        setNotificationPrefs(notificationPrefs);
+      }
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -983,6 +1038,174 @@ export default function ProfileScreen() {
     </ScrollView>
   );
 
+  // --- SETTINGS TAB: Notifications and Preferences ---
+  const renderSettingsTab = () => (
+    <ScrollView>
+      {/* Notification Preferences Section */}
+      {!isGuest && (
+        <Surface style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              🔔 Push Notifications
+            </Text>
+          </View>
+          <Text variant="bodySmall" style={{ color: "#666", marginBottom: 16 }}>
+            Choose which notifications you want to receive
+          </Text>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Store Updates</Text>
+              <Text style={styles.settingDescription}>
+                New items and restocks
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.storeUpdates}
+              onValueChange={(value) =>
+                handleNotificationPrefChange("storeUpdates", value)
+              }
+              disabled={loadingPrefs}
+            />
+          </View>
+          <Divider />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Flash Sales</Text>
+              <Text style={styles.settingDescription}>
+                Limited time discounts and offers
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.flashSales}
+              onValueChange={(value) =>
+                handleNotificationPrefChange("flashSales", value)
+              }
+              disabled={loadingPrefs}
+            />
+          </View>
+          <Divider />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Leagues Nearby</Text>
+              <Text style={styles.settingDescription}>
+                New leagues in your area
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.leaguesNearby}
+              onValueChange={(value) =>
+                handleNotificationPrefChange("leaguesNearby", value)
+              }
+              disabled={loadingPrefs}
+            />
+          </View>
+          <Divider />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Tournament Turn</Text>
+              <Text style={styles.settingDescription}>
+                When it's your turn to play
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.tournamentTurns}
+              onValueChange={(value) =>
+                handleNotificationPrefChange("tournamentTurns", value)
+              }
+              disabled={loadingPrefs}
+            />
+          </View>
+          <Divider />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Match Reminders</Text>
+              <Text style={styles.settingDescription}>
+                Upcoming scheduled matches
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.matchReminders}
+              onValueChange={(value) =>
+                handleNotificationPrefChange("matchReminders", value)
+              }
+              disabled={loadingPrefs}
+            />
+          </View>
+          <Divider />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Club Announcements</Text>
+              <Text style={styles.settingDescription}>
+                Updates from your clubs
+              </Text>
+            </View>
+            <Switch
+              value={notificationPrefs.clubAnnouncements}
+              onValueChange={(value) =>
+                handleNotificationPrefChange("clubAnnouncements", value)
+              }
+              disabled={loadingPrefs}
+            />
+          </View>
+        </Surface>
+      )}
+
+      {/* Account Settings */}
+      <Surface style={styles.section}>
+        <Text variant="titleMedium" style={styles.sectionTitle}>
+          Account Settings
+        </Text>
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Display Name</Text>
+            <Text style={styles.settingDescription}>{displayName}</Text>
+          </View>
+        </View>
+        <Divider />
+
+        {!isGuest && (
+          <>
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Email</Text>
+                <Text style={styles.settingDescription}>{email}</Text>
+              </View>
+            </View>
+            <Divider />
+          </>
+        )}
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Account Type</Text>
+            <Text style={styles.settingDescription}>
+              {isGuest ? "Guest Account" : "Registered Account"}
+            </Text>
+          </View>
+        </View>
+      </Surface>
+
+      {/* Sign Out Button */}
+      <View style={styles.section}>
+        <Button
+          mode="contained"
+          onPress={handleSignOut}
+          style={styles.signOutButton}
+          icon="logout"
+        >
+          Sign Out
+        </Button>
+      </View>
+    </ScrollView>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -1027,12 +1250,26 @@ export default function ProfileScreen() {
               Practice
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "settings" && styles.activeTab]}
+            onPress={() => setActiveTab("settings")}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "settings" && styles.activeTabText,
+              ]}
+            >
+              Settings
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Tab Content */}
         {activeTab === "profile" && renderProfileTab()}
         {activeTab === "stats" && renderStatsTab()}
         {activeTab === "practice" && renderPracticeTab()}
+        {activeTab === "settings" && renderSettingsTab()}
 
         {/* Dart Color Manager Modal */}
         <DartColorManager
@@ -1542,5 +1779,27 @@ const styles = StyleSheet.create({
   seasonalBadgeMMR: {
     fontSize: 10,
     color: "#888",
+  },
+  // Settings tab styles
+  settingRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 13,
+    color: "#666",
   },
 });

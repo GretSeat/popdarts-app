@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Text, Button, RadioButton } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import ScreenContainer from "../components/ScreenContainer";
 
 /**
  * Welcome screen for first-time users
@@ -24,78 +25,80 @@ export default function WelcomeScreen({ onComplete }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text variant="displayMedium" style={styles.welcomeTitle}>
-          Welcome to Popdarts! 🎯
-        </Text>
-        <Text variant="bodyLarge" style={styles.subtitle}>
-          Thanks for downloading the app!
-        </Text>
-      </View>
+      <ScreenContainer>
+        <View style={styles.header}>
+          <Text variant="displayMedium" style={styles.welcomeTitle}>
+            Welcome to Popdarts! 🎯
+          </Text>
+          <Text variant="bodyLarge" style={styles.subtitle}>
+            Thanks for downloading the app!
+          </Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text variant="titleLarge" style={styles.question}>
-          Do you see yourself being competitive, or mostly playing for fun with
-          friends and family?
-        </Text>
-        <Text variant="bodyMedium" style={styles.explanation}>
-          This helps us prioritize what you see first. You can always change
-          this later, and you'll have access to all features either way.
-        </Text>
+        <View style={styles.card}>
+          <Text variant="titleLarge" style={styles.question}>
+            Do you see yourself being competitive, or mostly playing for fun
+            with friends and family?
+          </Text>
+          <Text variant="bodyMedium" style={styles.explanation}>
+            This helps us prioritize what you see first. You can always change
+            this later, and you'll have access to all features either way.
+          </Text>
 
-        <RadioButton.Group
-          onValueChange={(value) => setPlayStyle(value)}
-          value={playStyle}
+          <RadioButton.Group
+            onValueChange={(value) => setPlayStyle(value)}
+            value={playStyle}
+          >
+            <View style={styles.optionCard}>
+              <View style={styles.optionHeader}>
+                <RadioButton value="casual" />
+                <Text variant="titleMedium" style={styles.optionTitle}>
+                  Playing for Fun 🎲
+                </Text>
+              </View>
+              <Text variant="bodySmall" style={styles.optionDescription}>
+                Quick access to start games with friends and family. Stats and
+                leagues available when you want them.
+              </Text>
+            </View>
+
+            <View style={styles.optionCard}>
+              <View style={styles.optionHeader}>
+                <RadioButton value="competitive" />
+                <Text variant="titleMedium" style={styles.optionTitle}>
+                  Being Competitive 🏆
+                </Text>
+              </View>
+              <Text variant="bodySmall" style={styles.optionDescription}>
+                Emphasize stats tracking, match history, and nearby leagues.
+                Features unlock as you play.
+              </Text>
+              <Text variant="bodySmall" style={styles.privacyNote}>
+                📍 We'll ask for location permission to show you local
+                tournaments and league nights.
+              </Text>
+            </View>
+          </RadioButton.Group>
+        </View>
+
+        <Button
+          mode="contained"
+          onPress={handleContinue}
+          disabled={!playStyle}
+          style={styles.continueButton}
+          contentStyle={styles.continueButtonContent}
         >
-          <View style={styles.optionCard}>
-            <View style={styles.optionHeader}>
-              <RadioButton value="casual" />
-              <Text variant="titleMedium" style={styles.optionTitle}>
-                Playing for Fun 🎲
-              </Text>
-            </View>
-            <Text variant="bodySmall" style={styles.optionDescription}>
-              Quick access to start games with friends and family. Stats and
-              leagues available when you want them.
-            </Text>
-          </View>
+          Continue
+        </Button>
 
-          <View style={styles.optionCard}>
-            <View style={styles.optionHeader}>
-              <RadioButton value="competitive" />
-              <Text variant="titleMedium" style={styles.optionTitle}>
-                Being Competitive 🏆
-              </Text>
-            </View>
-            <Text variant="bodySmall" style={styles.optionDescription}>
-              Emphasize stats tracking, match history, and nearby leagues.
-              Features unlock as you play.
-            </Text>
-            <Text variant="bodySmall" style={styles.privacyNote}>
-              📍 We'll ask for location permission to show you local tournaments
-              and league nights.
-            </Text>
-          </View>
-        </RadioButton.Group>
-      </View>
-
-      <Button
-        mode="contained"
-        onPress={handleContinue}
-        disabled={!playStyle}
-        style={styles.continueButton}
-        contentStyle={styles.continueButtonContent}
-      >
-        Continue
-      </Button>
-
-      <Button
-        mode="text"
-        onPress={() => handleContinue()}
-        style={styles.skipButton}
-      >
-        Skip for now
-      </Button>
+        <Button
+          mode="text"
+          onPress={() => handleContinue()}
+          style={styles.skipButton}
+        >
+          Skip for now
+        </Button>
+      </ScreenContainer>
     </ScrollView>
   );
 }
