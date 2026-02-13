@@ -103,12 +103,25 @@ export default function NewMatchScreen({ navigation, route }) {
 
   // Simplified scoring inputs (overlay)
   const [showSimplifiedOverlay, setShowSimplifiedOverlay] = useState(false);
-  const [simplifiedP1Darts, setSimplifiedP1Darts] = useState(0);
-  const [simplifiedP2Darts, setSimplifiedP2Darts] = useState(0);
   const [closestPlayer, setClosestPlayer] = useState(null); // 1 or 2
   const [showStatTrackerModal, setShowStatTrackerModal] = useState(false);
   const [p1SpecialtyShots, setP1SpecialtyShots] = useState([]);
   const [p2SpecialtyShots, setP2SpecialtyShots] = useState([]);
+
+  // Dart selection with specialty shots tracking
+  const [p1DartStates, setP1DartStates] = useState([
+    { selected: false, specialtyShot: null },
+    { selected: false, specialtyShot: null },
+    { selected: false, specialtyShot: null },
+  ]);
+  const [p2DartStates, setP2DartStates] = useState([
+    { selected: false, specialtyShot: null },
+    { selected: false, specialtyShot: null },
+    { selected: false, specialtyShot: null },
+  ]);
+  const [showDartSpecialtyModal, setShowDartSpecialtyModal] = useState(false);
+  const [selectedDartPlayer, setSelectedDartPlayer] = useState(null); // 1 or 2
+  const [selectedDartIndex, setSelectedDartIndex] = useState(null); // 0-2
 
   // Pre-game and first thrower
   const [showPreGame, setShowPreGame] = useState(false);
@@ -180,6 +193,23 @@ export default function NewMatchScreen({ navigation, route }) {
       setClosestPlayer(null);
     }
   }, [simplifiedP1Darts, simplifiedP2Darts]);
+
+  // Auto-show simplified overlay when both players have darts recorded
+  useEffect(() => {
+    if (
+      simplifiedMode &&
+      simplifiedP1Darts > 0 &&
+      simplifiedP2Darts > 0 &&
+      !showSimplifiedOverlay
+    ) {
+      setShowSimplifiedOverlay(true);
+    }
+  }, [
+    simplifiedP1Darts,
+    simplifiedP2Darts,
+    simplifiedMode,
+    showSimplifiedOverlay,
+  ]);
 
   /**
    * Handle Quick Play navigation params
@@ -3462,15 +3492,18 @@ export default function NewMatchScreen({ navigation, route }) {
               <View style={styles.quickScorePlayerSection}>
                 <View style={styles.quickScorePlayerHeader}>
                   <Text style={styles.quickScorePlayerName}>{player1Name}</Text>
-                  {simplifiedP1Darts > 0 && (
+                  {p1DartStates.filter((d) => d.selected).length > 0 && (
                     <Text style={styles.quickScorePlayerCalculation}>
                       {(() => {
+                        const dartsLanded = p1DartStates.filter(
+                          (d) => d.selected,
+                        ).length;
                         const isClosest = closestPlayer === 1;
-                        if (simplifiedP1Darts === 1) {
+                        if (dartsLanded === 1) {
                           return isClosest ? "= 3" : "= 1";
                         }
                         let calc = isClosest ? "3" : "1";
-                        for (let i = 1; i < simplifiedP1Darts; i++) {
+                        for (let i = 1; i < dartsLanded; i++) {
                           calc += " + 1";
                         }
                         return `= ${calc}`;
@@ -3480,27 +3513,37 @@ export default function NewMatchScreen({ navigation, route }) {
                 </View>
                 <View style={styles.quickScoreInputRow}>
                   <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
-                  <View style={styles.quickScoreControls}>
-                    <TouchableOpacity
-                      style={styles.quickScoreButton}
-                      onPress={() =>
-                        setSimplifiedP1Darts(Math.max(0, simplifiedP1Darts - 1))
-                      }
-                    >
-                      <Text style={styles.quickScoreButtonText}>−</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.quickScoreValue}>
-                      {simplifiedP1Darts}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.quickScoreButton}
-                      onPress={() =>
-                        setSimplifiedP1Darts(Math.min(3, simplifiedP1Darts + 1))
-                      }
-                      disabled={simplifiedP1Darts >= 3}
-                    >
-                      <Text style={styles.quickScoreButtonText}>+</Text>
-                    </TouchableOpacity>
+                  <View style={styles.dartSelectorGrid}>
+                    {p1DartStates.map((dart, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        onLongPress={() => {
+                          setSelectedDartPlayer(1);
+                          setSelectedDartIndex(index);
+                          setShowDartSpecialtyModal(true);
+                        }}
+                        onPress={() => {
+                          const newStates = [...p1DartStates];
+                          newStates[index] = {
+                            ...newStates[index],
+                            selected: !newStates[index].selected,
+                            specialtyShot: !newStates[index].selected
+                              ? null
+                              : newStates[index].specialtyShot,
+                          };
+                          setP1DartStates(newStates);
+                        }}
+                        style={[
+                          styles.dartSquare,
+                          dart.selected && styles.dartSquareSelected,
+                          dart.specialtyShot && styles.dartSquareWithSpecialty,
+                        ]}
+                      >
+                        {dart.specialtyShot && (
+                          <Text style={styles.dartSpecialtyIndicator}>★</Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 </View>
               </View>
@@ -3509,15 +3552,18 @@ export default function NewMatchScreen({ navigation, route }) {
               <View style={styles.quickScorePlayerSection}>
                 <View style={styles.quickScorePlayerHeader}>
                   <Text style={styles.quickScorePlayerName}>{player2Name}</Text>
-                  {simplifiedP2Darts > 0 && (
+                  {p2DartStates.filter((d) => d.selected).length > 0 && (
                     <Text style={styles.quickScorePlayerCalculation}>
                       {(() => {
+                        const dartsLanded = p2DartStates.filter(
+                          (d) => d.selected,
+                        ).length;
                         const isClosest = closestPlayer === 2;
-                        if (simplifiedP2Darts === 1) {
+                        if (dartsLanded === 1) {
                           return isClosest ? "= 3" : "= 1";
                         }
                         let calc = isClosest ? "3" : "1";
-                        for (let i = 1; i < simplifiedP2Darts; i++) {
+                        for (let i = 1; i < dartsLanded; i++) {
                           calc += " + 1";
                         }
                         return `= ${calc}`;
@@ -3527,27 +3573,37 @@ export default function NewMatchScreen({ navigation, route }) {
                 </View>
                 <View style={styles.quickScoreInputRow}>
                   <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
-                  <View style={styles.quickScoreControls}>
-                    <TouchableOpacity
-                      style={styles.quickScoreButton}
-                      onPress={() =>
-                        setSimplifiedP2Darts(Math.max(0, simplifiedP2Darts - 1))
-                      }
-                    >
-                      <Text style={styles.quickScoreButtonText}>−</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.quickScoreValue}>
-                      {simplifiedP2Darts}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.quickScoreButton}
-                      onPress={() =>
-                        setSimplifiedP2Darts(Math.min(3, simplifiedP2Darts + 1))
-                      }
-                      disabled={simplifiedP2Darts >= 3}
-                    >
-                      <Text style={styles.quickScoreButtonText}>+</Text>
-                    </TouchableOpacity>
+                  <View style={styles.dartSelectorGrid}>
+                    {p2DartStates.map((dart, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        onLongPress={() => {
+                          setSelectedDartPlayer(2);
+                          setSelectedDartIndex(index);
+                          setShowDartSpecialtyModal(true);
+                        }}
+                        onPress={() => {
+                          const newStates = [...p2DartStates];
+                          newStates[index] = {
+                            ...newStates[index],
+                            selected: !newStates[index].selected,
+                            specialtyShot: !newStates[index].selected
+                              ? null
+                              : newStates[index].specialtyShot,
+                          };
+                          setP2DartStates(newStates);
+                        }}
+                        style={[
+                          styles.dartSquare,
+                          dart.selected && styles.dartSquareSelected,
+                          dart.specialtyShot && styles.dartSquareWithSpecialty,
+                        ]}
+                      >
+                        {dart.specialtyShot && (
+                          <Text style={styles.dartSpecialtyIndicator}>★</Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 </View>
               </View>
@@ -3667,8 +3723,16 @@ export default function NewMatchScreen({ navigation, route }) {
                     setSimplifiedP1Darts(0);
                     setSimplifiedP2Darts(0);
                     setClosestPlayer(null);
-                    setP1SpecialtyShots([]);
-                    setP2SpecialtyShots([]);
+                    setP1DartStates([
+                      { selected: false, specialtyShot: null },
+                      { selected: false, specialtyShot: null },
+                      { selected: false, specialtyShot: null },
+                    ]);
+                    setP2DartStates([
+                      { selected: false, specialtyShot: null },
+                      { selected: false, specialtyShot: null },
+                      { selected: false, specialtyShot: null },
+                    ]);
                   }}
                 >
                   <Text style={styles.quickScoreCancelButtonText}>CANCEL</Text>
@@ -3676,15 +3740,23 @@ export default function NewMatchScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[
                     styles.quickScoreApplyButton,
-                    (simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
+                    (p1DartStates.filter((d) => d.selected).length > 0 ||
+                      p2DartStates.filter((d) => d.selected).length > 0) &&
                     closestPlayer === null
                       ? styles.quickScoreApplyButtonDisabled
                       : null,
                   ]}
                   onPress={() => {
+                    const p1DartsLanded = p1DartStates.filter(
+                      (d) => d.selected,
+                    ).length;
+                    const p2DartsLanded = p2DartStates.filter(
+                      (d) => d.selected,
+                    ).length;
+
                     // Validate that closest player is selected if darts were landed
                     if (
-                      (simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
+                      (p1DartsLanded > 0 || p2DartsLanded > 0) &&
                       closestPlayer === null
                     ) {
                       console.log(
@@ -3696,7 +3768,7 @@ export default function NewMatchScreen({ navigation, route }) {
                     console.log("APPLY button pressed in Quick Score");
 
                     // Check for wash round (both players with 0 darts)
-                    if (simplifiedP1Darts === 0 && simplifiedP2Darts === 0) {
+                    if (p1DartsLanded === 0 && p2DartsLanded === 0) {
                       console.log(
                         "No darts landed - showing wash confirmation",
                       );
@@ -3705,8 +3777,8 @@ export default function NewMatchScreen({ navigation, route }) {
                     }
 
                     // Calculate scores with cancellation scoring
-                    let p1Score = simplifiedP1Darts;
-                    let p2Score = simplifiedP2Darts;
+                    let p1Score = p1DartsLanded;
+                    let p2Score = p2DartsLanded;
 
                     // Add 3 points for closest dart (if any darts landed)
                     if (closestPlayer === 1 && p1Score > 0) {
@@ -3758,15 +3830,15 @@ export default function NewMatchScreen({ navigation, route }) {
                     // Save round to history
                     const roundData = {
                       roundNumber: currentRound,
-                      p1Darts: simplifiedP1Darts,
-                      p2Darts: simplifiedP2Darts,
+                      p1Darts: p1DartsLanded,
+                      p2Darts: p2DartsLanded,
                       p1Points: p1Score,
                       p2Points: p2Score,
                       closestPlayer,
                       roundWinner:
                         p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0,
-                      p1SpecialtyShots: [...p1SpecialtyShots],
-                      p2SpecialtyShots: [...p2SpecialtyShots],
+                      p1DartStates: [...p1DartStates],
+                      p2DartStates: [...p2DartStates],
                     };
                     setRoundHistory((prev) => [...prev, roundData]);
                     console.log("Saved round to history:", roundData);
@@ -4260,8 +4332,16 @@ export default function NewMatchScreen({ navigation, route }) {
                   setSimplifiedP1Darts(0);
                   setSimplifiedP2Darts(0);
                   setClosestPlayer(null);
-                  setP1SpecialtyShots([]);
-                  setP2SpecialtyShots([]);
+                  setP1DartStates([
+                    { selected: false, specialtyShot: null },
+                    { selected: false, specialtyShot: null },
+                    { selected: false, specialtyShot: null },
+                  ]);
+                  setP2DartStates([
+                    { selected: false, specialtyShot: null },
+                    { selected: false, specialtyShot: null },
+                    { selected: false, specialtyShot: null },
+                  ]);
                 }}
                 buttonColor="#4CAF50"
                 textColor="#000000"
@@ -4274,164 +4354,76 @@ export default function NewMatchScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      {/* Stat Tracker Modal */}
+      {/* Dart Specialty Modal - Centered */}
       <Modal
-        visible={showStatTrackerModal}
-        onRequestClose={() => setShowStatTrackerModal(false)}
-        animationType="slide"
+        visible={showDartSpecialtyModal}
+        onRequestClose={() => setShowDartSpecialtyModal(false)}
+        animationType="fade"
         transparent
       >
-        <View style={styles.statTrackerOverlay}>
-          <View style={styles.statTrackerContainer}>
-            {/* Header */}
-            <View style={styles.statTrackerHeader}>
-              <Text style={styles.statTrackerTitle}>
-                Specialty Shots Tracker
+        <View style={styles.dartSpecialtyOverlay}>
+          <View style={styles.dartSpecialtyContainer}>
+            <Text style={styles.dartSpecialtyTitle}>
+              {selectedDartPlayer === 1 ? player1Name : player2Name} - Dart{" "}
+              {(selectedDartIndex || 0) + 1}
+            </Text>
+            <Text style={styles.dartSpecialtySubtitle}>
+              Select a specialty shot:
+            </Text>
+
+            <View style={styles.dartSpecialtyShotsGrid}>
+              {SPECIALTY_SHOTS.map((shot) => (
+                <TouchableOpacity
+                  key={shot.id}
+                  onPress={() => {
+                    const dartStates =
+                      selectedDartPlayer === 1 ? p1DartStates : p2DartStates;
+                    const setDartStates =
+                      selectedDartPlayer === 1
+                        ? setP1DartStates
+                        : setP2DartStates;
+                    const newStates = [...dartStates];
+                    newStates[selectedDartIndex] = {
+                      ...newStates[selectedDartIndex],
+                      specialtyShot: shot.id,
+                    };
+                    setDartStates(newStates);
+                    setShowDartSpecialtyModal(false);
+                  }}
+                  style={styles.dartSpecialtyShotButton}
+                >
+                  <Text style={styles.dartSpecialtyShotName}>{shot.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                const dartStates =
+                  selectedDartPlayer === 1 ? p1DartStates : p2DartStates;
+                const setDartStates =
+                  selectedDartPlayer === 1 ? setP1DartStates : setP2DartStates;
+                const newStates = [...dartStates];
+                newStates[selectedDartIndex] = {
+                  ...newStates[selectedDartIndex],
+                  specialtyShot: null,
+                };
+                setDartStates(newStates);
+                setShowDartSpecialtyModal(false);
+              }}
+              style={styles.dartSpecialtyClearButton}
+            >
+              <Text style={styles.dartSpecialtyClearButtonText}>
+                None / Clear
               </Text>
-              <TouchableOpacity
-                onPress={() => setShowStatTrackerModal(false)}
-                style={styles.statTrackerCloseButton}
-              >
-                <Text style={styles.statTrackerCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
 
-            <ScrollView style={styles.statTrackerContent}>
-              {/* Player 1 Section */}
-              <View style={styles.statTrackerPlayerSection}>
-                <Text style={styles.statTrackerPlayerName}>{player1Name}</Text>
-
-                {/* Shot buttons grid */}
-                <View style={styles.statTrackerShotsGrid}>
-                  {SPECIALTY_SHOTS.map((shot) => (
-                    <TouchableOpacity
-                      key={shot.id}
-                      onPress={() => {
-                        setP1SpecialtyShots((prev) => [...prev, shot.id]);
-                      }}
-                      style={styles.statTrackerShotButton}
-                    >
-                      <Text style={styles.statTrackerShotName}>
-                        {shot.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Selected shots for Player 1 */}
-                {p1SpecialtyShots.length > 0 && (
-                  <View style={styles.statTrackerSelectedShots}>
-                    <Text style={styles.statTrackerSelectedLabel}>
-                      Selected ({p1SpecialtyShots.length}):
-                    </Text>
-                    <View style={styles.statTrackerChipsContainer}>
-                      {p1SpecialtyShots.map((shotId, index) => {
-                        const shot = SPECIALTY_SHOTS.find(
-                          (s) => s.id === shotId,
-                        );
-                        return (
-                          <View key={index} style={styles.statTrackerChip}>
-                            <Text style={styles.statTrackerChipText}>
-                              {shot.name}
-                            </Text>
-                            <TouchableOpacity
-                              onPress={() => {
-                                setP1SpecialtyShots((prev) =>
-                                  prev.filter((_, i) => i !== index),
-                                );
-                              }}
-                              style={styles.statTrackerChipRemove}
-                            >
-                              <Text style={styles.statTrackerChipRemoveText}>
-                                ✕
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </View>
-                )}
-              </View>
-
-              <Divider style={styles.statTrackerDivider} />
-
-              {/* Player 2 Section */}
-              <View style={styles.statTrackerPlayerSection}>
-                <Text style={styles.statTrackerPlayerName}>{player2Name}</Text>
-
-                {/* Shot buttons grid */}
-                <View style={styles.statTrackerShotsGrid}>
-                  {SPECIALTY_SHOTS.map((shot) => (
-                    <TouchableOpacity
-                      key={shot.id}
-                      onPress={() => {
-                        setP2SpecialtyShots((prev) => [...prev, shot.id]);
-                      }}
-                      style={styles.statTrackerShotButton}
-                    >
-                      <Text style={styles.statTrackerShotName}>
-                        {shot.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Selected shots for Player 2 */}
-                {p2SpecialtyShots.length > 0 && (
-                  <View style={styles.statTrackerSelectedShots}>
-                    <Text style={styles.statTrackerSelectedLabel}>
-                      Selected ({p2SpecialtyShots.length}):
-                    </Text>
-                    <View style={styles.statTrackerChipsContainer}>
-                      {p2SpecialtyShots.map((shotId, index) => {
-                        const shot = SPECIALTY_SHOTS.find(
-                          (s) => s.id === shotId,
-                        );
-                        return (
-                          <View key={index} style={styles.statTrackerChip}>
-                            <Text style={styles.statTrackerChipText}>
-                              {shot.name}
-                            </Text>
-                            <TouchableOpacity
-                              onPress={() => {
-                                setP2SpecialtyShots((prev) =>
-                                  prev.filter((_, i) => i !== index),
-                                );
-                              }}
-                              style={styles.statTrackerChipRemove}
-                            >
-                              <Text style={styles.statTrackerChipRemoveText}>
-                                ✕
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </View>
-                )}
-              </View>
-            </ScrollView>
-
-            {/* Action Buttons */}
-            <View style={styles.statTrackerActions}>
-              <TouchableOpacity
-                onPress={() => {
-                  setP1SpecialtyShots([]);
-                  setP2SpecialtyShots([]);
-                }}
-                style={styles.statTrackerClearButton}
-              >
-                <Text style={styles.statTrackerClearButtonText}>Clear All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowStatTrackerModal(false)}
-                style={styles.statTrackerDoneButton}
-              >
-                <Text style={styles.statTrackerDoneButtonText}>Done</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={() => setShowDartSpecialtyModal(false)}
+              style={styles.dartSpecialtyCloseButton}
+            >
+              <Text style={styles.dartSpecialtyCloseButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -4440,6 +4432,111 @@ export default function NewMatchScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  // Dart selector styles
+  dartSelectorGrid: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    gap: 12,
+    marginVertical: 8,
+  },
+  dartSquare: {
+    width: 50,
+    height: 50,
+    borderWidth: 2,
+    borderColor: "#999",
+    borderRadius: 8,
+    backgroundColor: "#333",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dartSquareSelected: {
+    borderColor: "#4CAF50",
+    backgroundColor: "#2A5A2A",
+    borderWidth: 3,
+  },
+  dartSquareWithSpecialty: {
+    borderColor: "#FF9800",
+    backgroundColor: "#4A3A1A",
+  },
+  dartSpecialtyIndicator: {
+    fontSize: 20,
+    color: "#FF9800",
+  },
+  // Dart Specialty Modal Styles
+  dartSpecialtyOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dartSpecialtyContainer: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 16,
+    padding: 20,
+    width: "85%",
+    maxWidth: 350,
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+  },
+  dartSpecialtyTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  dartSpecialtySubtitle: {
+    fontSize: 14,
+    color: "#CCCCCC",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  dartSpecialtyShotsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+    justifyContent: "center",
+  },
+  dartSpecialtyShotButton: {
+    backgroundColor: "#2A2A2A",
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minWidth: "45%",
+    alignItems: "center",
+  },
+  dartSpecialtyShotName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  dartSpecialtyClearButton: {
+    backgroundColor: "#444",
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  dartSpecialtyClearButtonText: {
+    fontSize: 12,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  dartSpecialtyCloseButton: {
+    backgroundColor: "#666",
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  dartSpecialtyCloseButtonText: {
+    fontSize: 12,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
   // Fullscreen split layout
   fullscreenContainer: {
     flex: 1,
