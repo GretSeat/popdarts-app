@@ -12,7 +12,6 @@ export default {
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
-    newArchEnabled: true,
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
@@ -21,6 +20,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.gretseatdev.popdarts",
+      newArchEnabled: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
@@ -34,6 +34,7 @@ export default {
       },
       edgeToEdgeEnabled: true,
       package: "com.gretseatdev.popdarts",
+      newArchEnabled: true,
       // Push notification configuration for Android
       useNextNotificationsApi: true,
       // Firebase configuration file (optional - add when you have it)

@@ -104,6 +104,8 @@ export default function NewMatchScreen({ navigation, route }) {
   // Simplified scoring inputs (overlay)
   const [showSimplifiedOverlay, setShowSimplifiedOverlay] = useState(false);
   const [closestPlayer, setClosestPlayer] = useState(null); // 1 or 2
+  const [simplifiedP1Darts, setSimplifiedP1Darts] = useState(0);
+  const [simplifiedP2Darts, setSimplifiedP2Darts] = useState(0);
   const [showStatTrackerModal, setShowStatTrackerModal] = useState(false);
   const [p1SpecialtyShots, setP1SpecialtyShots] = useState([]);
   const [p2SpecialtyShots, setP2SpecialtyShots] = useState([]);
@@ -167,12 +169,59 @@ export default function NewMatchScreen({ navigation, route }) {
   // Pulsing animation for paused matches
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Hide tab bar when in active game, show it in lobby
+  // Hide tab bar when in active gameplay (1v1 match or viewing bracket), show it during setup/lobby
   useEffect(() => {
-    navigation.setOptions({
-      tabBarStyle: matchStarted ? { display: "none" } : undefined,
-    });
-  }, [matchStarted, navigation]);
+    const isInActiveGameplay = matchStarted || showBracket;
+
+    if (isInActiveGameplay) {
+      // Hide the tab bar during active gameplay
+      navigation.setOptions({
+        tabBarStyle: { display: "none" },
+      });
+    } else {
+      // Restore tab bar with proper styling for web
+      if (Platform.OS === "web") {
+        navigation.setOptions({
+          tabBarStyle: {
+            height: 60,
+            backgroundColor: theme.colors.primary,
+            borderBottomWidth: 0,
+            elevation: 4,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+          },
+        });
+      } else {
+        navigation.setOptions({
+          tabBarStyle: undefined,
+        });
+      }
+    }
+
+    // Cleanup: restore tab bar when component unmounts
+    return () => {
+      if (Platform.OS === "web") {
+        navigation.setOptions({
+          tabBarStyle: {
+            height: 60,
+            backgroundColor: theme.colors.primary,
+            borderBottomWidth: 0,
+            elevation: 4,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+          },
+        });
+      } else {
+        navigation.setOptions({
+          tabBarStyle: undefined,
+        });
+      }
+    };
+  }, [matchStarted, showBracket, navigation, theme]);
 
   // Auto-select closest player logic
   useEffect(() => {

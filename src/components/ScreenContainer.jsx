@@ -10,12 +10,13 @@ export default function ScreenContainer({
   children,
   style,
   scrollable = false,
+  maxWidth = 1200,
 }) {
   const content = (
     <View
       style={[
         styles.container,
-        Platform.OS === "web" && styles.webContainer,
+        Platform.OS === "web" && { ...styles.webContainer, maxWidth },
         style,
       ]}
     >
