@@ -31,6 +31,7 @@ import DartColorManager from "../components/DartColorManager";
 import JerseyColorManager, {
   getJerseyById,
 } from "../components/JerseyColorManager";
+import ScreenContainer from "../components/ScreenContainer";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-chart-kit";
 import { POPDARTS_COLORS } from "../constants/colors";
@@ -1208,91 +1209,93 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Tab Navigation */}
-        <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "profile" && styles.activeTab]}
-            onPress={() => setActiveTab("profile")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "profile" && styles.activeTabText,
-              ]}
+      <ScreenContainer>
+        <View style={styles.container}>
+          {/* Tab Navigation */}
+          <View style={styles.tabBar}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "profile" && styles.activeTab]}
+              onPress={() => setActiveTab("profile")}
             >
-              Profile
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "stats" && styles.activeTab]}
-            onPress={() => setActiveTab("stats")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "stats" && styles.activeTabText,
-              ]}
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "profile" && styles.activeTabText,
+                ]}
+              >
+                Profile
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "stats" && styles.activeTab]}
+              onPress={() => setActiveTab("stats")}
             >
-              Stats
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "practice" && styles.activeTab]}
-            onPress={() => setActiveTab("practice")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "practice" && styles.activeTabText,
-              ]}
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "stats" && styles.activeTabText,
+                ]}
+              >
+                Stats
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "practice" && styles.activeTab]}
+              onPress={() => setActiveTab("practice")}
             >
-              Practice
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "settings" && styles.activeTab]}
-            onPress={() => setActiveTab("settings")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "settings" && styles.activeTabText,
-              ]}
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "practice" && styles.activeTabText,
+                ]}
+              >
+                Practice
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "settings" && styles.activeTab]}
+              onPress={() => setActiveTab("settings")}
             >
-              Settings
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "settings" && styles.activeTabText,
+                ]}
+              >
+                Settings
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Tab Content */}
+          {activeTab === "profile" && renderProfileTab()}
+          {activeTab === "stats" && renderStatsTab()}
+          {activeTab === "practice" && renderPracticeTab()}
+          {activeTab === "settings" && renderSettingsTab()}
+
+          {/* Dart Color Manager Modal */}
+          <DartColorManager
+            visible={colorManagerVisible}
+            onDismiss={() => setColorManagerVisible(false)}
+            ownedColors={ownedColors}
+            setOwnedColors={setOwnedColors}
+            favoriteHomeColor={favoriteHomeColor}
+            setFavoriteHomeColor={setFavoriteHomeColor}
+            favoriteAwayColor={favoriteAwayColor}
+            setFavoriteAwayColor={setFavoriteAwayColor}
+          />
+
+          {/* Jersey Color Manager Modal */}
+          <JerseyColorManager
+            visible={jerseyManagerVisible}
+            onDismiss={() => setJerseyManagerVisible(false)}
+            ownedJerseys={ownedJerseys}
+            setOwnedJerseys={setOwnedJerseys}
+            favoriteJersey={favoriteJersey}
+            setFavoriteJersey={setFavoriteJersey}
+          />
         </View>
-
-        {/* Tab Content */}
-        {activeTab === "profile" && renderProfileTab()}
-        {activeTab === "stats" && renderStatsTab()}
-        {activeTab === "practice" && renderPracticeTab()}
-        {activeTab === "settings" && renderSettingsTab()}
-
-        {/* Dart Color Manager Modal */}
-        <DartColorManager
-          visible={colorManagerVisible}
-          onDismiss={() => setColorManagerVisible(false)}
-          ownedColors={ownedColors}
-          setOwnedColors={setOwnedColors}
-          favoriteHomeColor={favoriteHomeColor}
-          setFavoriteHomeColor={setFavoriteHomeColor}
-          favoriteAwayColor={favoriteAwayColor}
-          setFavoriteAwayColor={setFavoriteAwayColor}
-        />
-
-        {/* Jersey Color Manager Modal */}
-        <JerseyColorManager
-          visible={jerseyManagerVisible}
-          onDismiss={() => setJerseyManagerVisible(false)}
-          ownedJerseys={ownedJerseys}
-          setOwnedJerseys={setOwnedJerseys}
-          favoriteJersey={favoriteJersey}
-          setFavoriteJersey={setFavoriteJersey}
-        />
-      </View>
+      </ScreenContainer>
     </SafeAreaView>
   );
 }

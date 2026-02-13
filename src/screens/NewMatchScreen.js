@@ -4774,6 +4774,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+    ...(Platform.OS === "web" && {
+      maxWidth: 1200,
+      alignSelf: "center",
+      width: "100%",
+    }),
   },
   setupContainer: {
     padding: 20,

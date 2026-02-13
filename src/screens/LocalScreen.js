@@ -20,6 +20,7 @@ import {
 } from "react-native-paper";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import ScreenContainer from "../components/ScreenContainer";
 
 /**
  * Local Screen - Find and manage clubs
@@ -218,234 +219,241 @@ export default function LocalScreen({ navigation }) {
         style={styles.container}
         contentContainerStyle={{ paddingTop: insets.top }}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text variant="headlineMedium" style={styles.title}>
-            🎯 Local Clubs
-          </Text>
-          <Text variant="bodyMedium" style={styles.subtitle}>
-            Find clubs and leagues near you
-          </Text>
-        </View>
-
-        {/* Create Club Button - Always visible */}
-        <Card style={styles.createClubCard} mode="elevated">
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.createClubTitle}>
-              💡 Have a club or venue?
+        <ScreenContainer>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text variant="headlineMedium" style={styles.title}>
+              🎯 Local Clubs
             </Text>
-            <Text variant="bodyMedium" style={styles.createClubDescription}>
-              Create your club page to connect with players in your area
+            <Text variant="bodyMedium" style={styles.subtitle}>
+              Find clubs and leagues near you
             </Text>
-          </Card.Content>
-          <Card.Actions>
-            <Button
-              mode="contained"
-              onPress={() => {
-                if (isGuest) {
-                  Alert.alert(
-                    "Sign In Required",
-                    "You need to create an account to create a club.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Sign In",
-                        onPress: () => navigation.navigate("Profile"),
-                      },
-                    ],
-                  );
-                } else {
-                  navigation.navigate("CreateClub");
-                }
-              }}
-              style={styles.createClubButton}
-            >
-              Create Club Page
-            </Button>
-          </Card.Actions>
-        </Card>
+          </View>
 
-        {/* Search Bar */}
-        <Searchbar
-          placeholder="Search clubs by name, city, or state..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchBar}
-          iconColor="#2196F3"
-        />
+          {/* Create Club Button - Always visible */}
+          <Card style={styles.createClubCard} mode="elevated">
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.createClubTitle}>
+                💡 Have a club or venue?
+              </Text>
+              <Text variant="bodyMedium" style={styles.createClubDescription}>
+                Create your club page to connect with players in your area
+              </Text>
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="contained"
+                onPress={() => {
+                  if (isGuest) {
+                    Alert.alert(
+                      "Sign In Required",
+                      "You need to create an account to create a club.",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Sign In",
+                          onPress: () => navigation.navigate("Profile"),
+                        },
+                      ],
+                    );
+                  } else {
+                    navigation.navigate("CreateClub");
+                  }
+                }}
+                style={styles.createClubButton}
+              >
+                Create Club Page
+              </Button>
+            </Card.Actions>
+          </Card>
 
-        {/* Filter Chips */}
-        <View style={styles.filterContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <Chip
-              selected={filterMode === "all"}
-              onPress={() => setFilterMode("all")}
-              style={styles.filterChip}
-              textStyle={
-                filterMode === "all"
-                  ? styles.filterChipTextActive
-                  : styles.filterChipText
-              }
-            >
-              All Clubs
-            </Chip>
-            <Chip
-              selected={filterMode === "favorites"}
-              onPress={() => setFilterMode("favorites")}
-              style={styles.filterChip}
-              textStyle={
-                filterMode === "favorites"
-                  ? styles.filterChipTextActive
-                  : styles.filterChipText
-              }
-              disabled={!user}
-            >
-              ⭐ Favorites ({favoriteClubs.length})
-            </Chip>
-            {user && (
+          {/* Search Bar */}
+          <Searchbar
+            placeholder="Search clubs by name, city, or state..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchBar}
+            iconColor="#2196F3"
+          />
+
+          {/* Filter Chips */}
+          <View style={styles.filterContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <Chip
-                selected={filterMode === "my-clubs"}
-                onPress={() => setFilterMode("my-clubs")}
+                selected={filterMode === "all"}
+                onPress={() => setFilterMode("all")}
                 style={styles.filterChip}
                 textStyle={
-                  filterMode === "my-clubs"
+                  filterMode === "all"
                     ? styles.filterChipTextActive
                     : styles.filterChipText
                 }
               >
-                My Clubs
+                All Clubs
               </Chip>
-            )}
-          </ScrollView>
-        </View>
-
-        <Divider style={styles.divider} />
-
-        {/* Loading State */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>Loading clubs...</Text>
+              <Chip
+                selected={filterMode === "favorites"}
+                onPress={() => setFilterMode("favorites")}
+                style={styles.filterChip}
+                textStyle={
+                  filterMode === "favorites"
+                    ? styles.filterChipTextActive
+                    : styles.filterChipText
+                }
+                disabled={!user}
+              >
+                ⭐ Favorites ({favoriteClubs.length})
+              </Chip>
+              {user && (
+                <Chip
+                  selected={filterMode === "my-clubs"}
+                  onPress={() => setFilterMode("my-clubs")}
+                  style={styles.filterChip}
+                  textStyle={
+                    filterMode === "my-clubs"
+                      ? styles.filterChipTextActive
+                      : styles.filterChipText
+                  }
+                >
+                  My Clubs
+                </Chip>
+              )}
+            </ScrollView>
           </View>
-        ) : filteredClubs.length === 0 ? (
-          /* Empty State */
-          <View style={styles.emptyContainer}>
-            <Text variant="headlineSmall" style={styles.emptyTitle}>
-              {searchQuery
-                ? "🔍 No clubs found"
-                : filterMode === "favorites"
-                  ? "⭐ No favorite clubs yet"
-                  : filterMode === "my-clubs"
-                    ? "📋 You haven't created any clubs"
-                    : "📍 No clubs listed yet"}
-            </Text>
-            <Text variant="bodyMedium" style={styles.emptyDescription}>
-              {searchQuery
-                ? "Try a different search term"
-                : filterMode === "favorites"
-                  ? "Tap the star icon on clubs to add them to your favorites"
-                  : filterMode === "my-clubs"
-                    ? "Create your first club to get started"
-                    : "Be the first to create a club in your area!"}
-            </Text>
-          </View>
-        ) : (
-          /* Clubs List */
-          <View style={styles.clubsList}>
-            {filteredClubs.map((club) => {
-              const nextEvent = formatNextEvent(club.next_event_time);
 
-              return (
-                <Card key={club.id} style={styles.clubCard} mode="elevated">
-                  <Card.Content>
-                    <View style={styles.clubHeader}>
-                      <View style={styles.clubTitleContainer}>
-                        <Text variant="titleLarge" style={styles.clubName}>
-                          {club.name}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => toggleFavorite(club.id)}
-                          style={styles.favoriteButton}
-                        >
-                          <IconButton
-                            icon={
-                              isClubFavorited(club.id) ? "star" : "star-outline"
-                            }
-                            iconColor={
-                              isClubFavorited(club.id) ? "#FFD700" : "#999"
-                            }
-                            size={24}
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+          <Divider style={styles.divider} />
 
-                    {/* Location */}
-                    {(club.city || club.state) && (
-                      <Text variant="bodyMedium" style={styles.clubLocation}>
-                        📍 {[club.city, club.state].filter(Boolean).join(", ")}
-                      </Text>
-                    )}
+          {/* Loading State */}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2196F3" />
+              <Text style={styles.loadingText}>Loading clubs...</Text>
+            </View>
+          ) : filteredClubs.length === 0 ? (
+            /* Empty State */
+            <View style={styles.emptyContainer}>
+              <Text variant="headlineSmall" style={styles.emptyTitle}>
+                {searchQuery
+                  ? "🔍 No clubs found"
+                  : filterMode === "favorites"
+                    ? "⭐ No favorite clubs yet"
+                    : filterMode === "my-clubs"
+                      ? "📋 You haven't created any clubs"
+                      : "📍 No clubs listed yet"}
+              </Text>
+              <Text variant="bodyMedium" style={styles.emptyDescription}>
+                {searchQuery
+                  ? "Try a different search term"
+                  : filterMode === "favorites"
+                    ? "Tap the star icon on clubs to add them to your favorites"
+                    : filterMode === "my-clubs"
+                      ? "Create your first club to get started"
+                      : "Be the first to create a club in your area!"}
+              </Text>
+            </View>
+          ) : (
+            /* Clubs List */
+            <View style={styles.clubsList}>
+              {filteredClubs.map((club) => {
+                const nextEvent = formatNextEvent(club.next_event_time);
 
-                    {/* Description */}
-                    {club.description && (
-                      <Text
-                        variant="bodyMedium"
-                        style={styles.clubDescription}
-                        numberOfLines={2}
-                      >
-                        {club.description}
-                      </Text>
-                    )}
-
-                    {/* Stats */}
-                    <View style={styles.clubStats}>
-                      <View style={styles.statItem}>
-                        <Text style={styles.statValue}>
-                          {club.member_count || 0}
-                        </Text>
-                        <Text style={styles.statLabel}>Members</Text>
-                      </View>
-                      <View style={styles.statItem}>
-                        <Text style={styles.statValue}>
-                          {club.event_count || 0}
-                        </Text>
-                        <Text style={styles.statLabel}>Events</Text>
-                      </View>
-                      {nextEvent && (
-                        <View style={styles.statItem}>
-                          <Text style={styles.statValue}>{nextEvent}</Text>
-                          <Text style={styles.statLabel}>Next Event</Text>
+                return (
+                  <Card key={club.id} style={styles.clubCard} mode="elevated">
+                    <Card.Content>
+                      <View style={styles.clubHeader}>
+                        <View style={styles.clubTitleContainer}>
+                          <Text variant="titleLarge" style={styles.clubName}>
+                            {club.name}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => toggleFavorite(club.id)}
+                            style={styles.favoriteButton}
+                          >
+                            <IconButton
+                              icon={
+                                isClubFavorited(club.id)
+                                  ? "star"
+                                  : "star-outline"
+                              }
+                              iconColor={
+                                isClubFavorited(club.id) ? "#FFD700" : "#999"
+                              }
+                              size={24}
+                            />
+                          </TouchableOpacity>
                         </View>
-                      )}
-                    </View>
-                  </Card.Content>
+                      </View>
 
-                  <Card.Actions>
-                    <Button
-                      mode="text"
-                      onPress={() =>
-                        navigation.navigate("ClubDetails", { clubId: club.id })
-                      }
-                    >
-                      View Details
-                    </Button>
-                    {club.website_url && (
+                      {/* Location */}
+                      {(club.city || club.state) && (
+                        <Text variant="bodyMedium" style={styles.clubLocation}>
+                          📍{" "}
+                          {[club.city, club.state].filter(Boolean).join(", ")}
+                        </Text>
+                      )}
+
+                      {/* Description */}
+                      {club.description && (
+                        <Text
+                          variant="bodyMedium"
+                          style={styles.clubDescription}
+                          numberOfLines={2}
+                        >
+                          {club.description}
+                        </Text>
+                      )}
+
+                      {/* Stats */}
+                      <View style={styles.clubStats}>
+                        <View style={styles.statItem}>
+                          <Text style={styles.statValue}>
+                            {club.member_count || 0}
+                          </Text>
+                          <Text style={styles.statLabel}>Members</Text>
+                        </View>
+                        <View style={styles.statItem}>
+                          <Text style={styles.statValue}>
+                            {club.event_count || 0}
+                          </Text>
+                          <Text style={styles.statLabel}>Events</Text>
+                        </View>
+                        {nextEvent && (
+                          <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{nextEvent}</Text>
+                            <Text style={styles.statLabel}>Next Event</Text>
+                          </View>
+                        )}
+                      </View>
+                    </Card.Content>
+
+                    <Card.Actions>
                       <Button
                         mode="text"
-                        onPress={() => Linking.openURL(club.website_url)}
+                        onPress={() =>
+                          navigation.navigate("ClubDetails", {
+                            clubId: club.id,
+                          })
+                        }
                       >
-                        Website
+                        View Details
                       </Button>
-                    )}
-                  </Card.Actions>
-                </Card>
-              );
-            })}
-          </View>
-        )}
+                      {club.website_url && (
+                        <Button
+                          mode="text"
+                          onPress={() => Linking.openURL(club.website_url)}
+                        >
+                          Website
+                        </Button>
+                      )}
+                    </Card.Actions>
+                  </Card>
+                );
+              })}
+            </View>
+          )}
 
-        <View style={styles.spacer} />
+          <View style={styles.spacer} />
+        </ScreenContainer>
       </ScrollView>
     </View>
   );
