@@ -129,8 +129,11 @@ export default function NewMatchScreen({ navigation, route }) {
   const [showPreGame, setShowPreGame] = useState(false);
   const [firstThrower, setFirstThrower] = useState(null); // 1 or 2
   const [coinFlipWinner, setCoinFlipWinner] = useState(null); // 1 or 2
-  const [preGameStage, setPreGameStage] = useState("coin-flip"); // 'coin-flip', 'choice', 'side-selection-winner', 'side-selection-loser'
+  const [preGameStage, setPreGameStage] = useState("coin-flip"); // 'coin-flip', 'winner-choice', 'winner-side-selection', 'loser-order-selection', 'winner-order-selection', 'loser-side-selection'
   const [playerSides, setPlayerSides] = useState({ 1: null, 2: null }); // 'left' or 'right'
+  const [winnerFirstChoice, setWinnerFirstChoice] = useState(null); // 'side' or 'order' - what winner chose first
+  const [winnerChosenSide, setWinnerChosenSide] = useState(null); // 'left' or 'right' - side chosen by winner if they picked side first
+  const [winnerChosenOrder, setWinnerChosenOrder] = useState(null); // 1 or 2 - player going first if winner picked order first
   const [coinFlipAnimation, setCoinFlipAnimation] = useState(
     new Animated.Value(0),
   );
@@ -714,6 +717,9 @@ export default function NewMatchScreen({ navigation, route }) {
     setCoinFlipWinner(null);
     setPreGameStage("coin-flip");
     setPlayerSides({ 1: null, 2: null });
+    setWinnerFirstChoice(null);
+    setWinnerChosenSide(null);
+    setWinnerChosenOrder(null);
     setPlayers([]);
     setLobbyMatchType("friendly");
 
@@ -1073,7 +1079,7 @@ export default function NewMatchScreen({ navigation, route }) {
             // Reduced from 6 to 4 flashes
             clearInterval(flashInterval);
             setCoinFlipWinner(currentDisplay); // Final display
-            setPreGameStage("choice");
+            setPreGameStage("winner-choice");
           }
         }, 150); // Faster flash speed
       }
@@ -1083,33 +1089,60 @@ export default function NewMatchScreen({ navigation, route }) {
   };
 
   /**
-   * Finalizes side selection - assigns the chosen side to the selecting player
-   * and assigns the opposite side to the other player
+   * Finalizes a selection (side or order) based on which stage we're in
+   * Handles the two-choice system for coin flip winner
    */
-  const finalizeSideSelection = (playerNum, side) => {
-    const otherPlayer = playerNum === 1 ? 2 : 1;
-    const oppositeSide = side === "left" ? "right" : "left";
-
-    // Update player sides
-    setPlayerSides({
-      [playerNum]: side,
-      [otherPlayer]: oppositeSide,
-    });
-
-    // Determine first thrower based on who won the coin flip
-    if (preGameStage === "side-selection-winner") {
-      // Winner goes first when they choose their side
-      setFirstThrower(coinFlipWinner);
-    } else {
-      // Loser chose their side, so winner goes second but winner determined by coin flip
-      setFirstThrower(coinFlipWinner === 1 ? 2 : 1);
+  const finalizeSelection = (playerNum, choice, choiceType) => {
+    if (choiceType === "side") {
+      // Winner just picked their side
+      if (preGameStage === "winner-side-selection") {
+        const otherPlayer = playerNum === 1 ? 2 : 1;
+        const oppositeSide = choice === "left" ? "right" : "left";
+        setPlayerSides({
+          [playerNum]: choice,
+          [otherPlayer]: oppositeSide,
+        });
+        setWinnerChosenSide(choice);
+        // Now loser picks order (First/Second)
+        setPreGameStage("loser-order-selection");
+      } else if (preGameStage === "loser-side-selection") {
+        // Loser just picked their side after winner picked order
+        const otherPlayer = playerNum === 1 ? 2 : 1;
+        const oppositeSide = choice === "left" ? "right" : "left";
+        setPlayerSides({
+          [playerNum]: choice,
+          [otherPlayer]: oppositeSide,
+        });
+        // Start the match
+        setCoinFlipWinner(null);
+        setWinnerFirstChoice(null);
+        setWinnerChosenSide(null);
+        setWinnerChosenOrder(null);
+        setPreGameStage("coin-flip");
+        setShowPreGame(false);
+        setMatchStarted(true);
+      }
+    } else if (choiceType === "order") {
+      // Someone just picked the order (who goes first)
+      if (preGameStage === "winner-order-selection") {
+        // Winner just picked order
+        setWinnerChosenOrder(playerNum);
+        setFirstThrower(playerNum);
+        // Now loser picks side (Left/Right)
+        setPreGameStage("loser-side-selection");
+      } else if (preGameStage === "loser-order-selection") {
+        // Loser just picked order after winner picked side
+        setFirstThrower(playerNum);
+        // Start the match
+        setCoinFlipWinner(null);
+        setWinnerFirstChoice(null);
+        setWinnerChosenSide(null);
+        setWinnerChosenOrder(null);
+        setPreGameStage("coin-flip");
+        setShowPreGame(false);
+        setMatchStarted(true);
+      }
     }
-
-    // Start the match
-    setCoinFlipWinner(null);
-    setPreGameStage("coin-flip");
-    setShowPreGame(false);
-    setMatchStarted(true);
   };
 
   // Pre-Game Modal (rendered at component level)
@@ -1165,31 +1198,31 @@ export default function NewMatchScreen({ navigation, route }) {
           {coinFlipWinner === 1 ? player1Name : player2Name} Won!
         </Text>
         <Text style={styles.preGameInstruction}>
-          What would you like to do?
+          What would you like to choose first?
         </Text>
 
         <View style={styles.preGameButtonsColumn}>
           <TouchableOpacity
             style={styles.preGameChoiceButton}
             onPress={() => {
-              setPreGameStage("side-selection-loser");
+              setWinnerFirstChoice("side");
+              setPreGameStage("winner-side-selection");
             }}
           >
-            <Text style={styles.preGameChoiceButtonText}>Go First</Text>
-            <Text style={styles.preGameChoiceSubtext}>
-              Opponent chooses their side first
-            </Text>
+            <Text style={styles.preGameChoiceButtonText}>Pick Your Side</Text>
+            <Text style={styles.preGameChoiceSubtext}>Left or Right</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.preGameChoiceButton}
             onPress={() => {
-              setPreGameStage("side-selection-winner");
+              setWinnerFirstChoice("order");
+              setPreGameStage("winner-order-selection");
             }}
           >
-            <Text style={styles.preGameChoiceButtonText}>Go Second</Text>
+            <Text style={styles.preGameChoiceButtonText}>Pick Your Order</Text>
             <Text style={styles.preGameChoiceSubtext}>
-              You choose your side first
+              First or Second throw
             </Text>
           </TouchableOpacity>
         </View>
@@ -1197,7 +1230,7 @@ export default function NewMatchScreen({ navigation, route }) {
     );
 
     const renderSideSelectionStage = () => {
-      const isWinnerSelecting = preGameStage === "side-selection-winner";
+      const isWinnerSelecting = preGameStage === "winner-side-selection";
       const playerNum = isWinnerSelecting
         ? coinFlipWinner
         : coinFlipWinner === 1
@@ -1216,7 +1249,7 @@ export default function NewMatchScreen({ navigation, route }) {
             <TouchableOpacity
               style={styles.preGameChoiceButton}
               onPress={() => {
-                finalizeSideSelection(playerNum, "left");
+                finalizeSelection(playerNum, "left", "side");
               }}
             >
               <Text style={styles.preGameChoiceButtonText}>← Left</Text>
@@ -1225,10 +1258,57 @@ export default function NewMatchScreen({ navigation, route }) {
             <TouchableOpacity
               style={styles.preGameChoiceButton}
               onPress={() => {
-                finalizeSideSelection(playerNum, "right");
+                finalizeSelection(playerNum, "right", "side");
               }}
             >
               <Text style={styles.preGameChoiceButtonText}>Right →</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    };
+
+    const renderOrderSelectionStage = () => {
+      const isWinnerSelecting = preGameStage === "winner-order-selection";
+      const playerNum = isWinnerSelecting
+        ? coinFlipWinner
+        : coinFlipWinner === 1
+          ? 2
+          : 1;
+      const otherPlayerNum = playerNum === 1 ? 2 : 1;
+      const playerNameContent = playerNum === 1 ? player1Name : player2Name;
+      const otherPlayerName = otherPlayerNum === 1 ? player1Name : player2Name;
+
+      return (
+        <View style={styles.preGameContainer}>
+          <Text style={styles.preGameTitle}>Choose Throw Order</Text>
+          <Text style={styles.preGameInstruction}>
+            {playerNameContent}, who goes first?
+          </Text>
+
+          <View style={styles.preGameButtonsColumn}>
+            <TouchableOpacity
+              style={styles.preGameChoiceButton}
+              onPress={() => {
+                finalizeSelection(playerNum, undefined, "order");
+              }}
+            >
+              <Text style={styles.preGameChoiceButtonText}>
+                {playerNameContent}
+              </Text>
+              <Text style={styles.preGameChoiceSubtext}>Throws First</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.preGameChoiceButton}
+              onPress={() => {
+                finalizeSelection(otherPlayerNum, undefined, "order");
+              }}
+            >
+              <Text style={styles.preGameChoiceButtonText}>
+                {otherPlayerName}
+              </Text>
+              <Text style={styles.preGameChoiceSubtext}>Throws First</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1239,10 +1319,13 @@ export default function NewMatchScreen({ navigation, route }) {
       <Modal visible={showPreGame} animationType="slide" transparent>
         <View style={styles.preGameOverlay}>
           {preGameStage === "coin-flip" && renderCoinFlipStage()}
-          {preGameStage === "choice" && renderChoiceStage()}
-          {(preGameStage === "side-selection-winner" ||
-            preGameStage === "side-selection-loser") &&
+          {preGameStage === "winner-choice" && renderChoiceStage()}
+          {(preGameStage === "winner-side-selection" ||
+            preGameStage === "loser-side-selection") &&
             renderSideSelectionStage()}
+          {(preGameStage === "winner-order-selection" ||
+            preGameStage === "loser-order-selection") &&
+            renderOrderSelectionStage()}
         </View>
       </Modal>
     );
