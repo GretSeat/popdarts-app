@@ -6,6 +6,95 @@ This document tracks bugs, UI issues, and features that need improvement but are
 
 ## ✅ Recently Resolved
 
+### User Signup - RLS Policy Violation & Google OAuth Integration
+
+**Priority:** High  
+**Status:** RESOLVED ✅  
+**Date Added:** February 13, 2026  
+**Date Resolved:** February 13, 2026
+
+**Problems:**
+
+1. **RLS Error on Signup:** Users received "new row violates row-level security policy for table 'users'" error
+2. **Push Notification Error:** Web signup blocked with "You must provide `notification.vapidPublicKey` in `app.json`"
+3. **UX:** Email signup required multiple fields; users wanted faster authentication
+
+**Root Causes:**
+
+1. **RLS Issue:** AuthContext was trying to manually insert user profile from client, but RLS policy required `auth.uid() = id` which failed for unconfirmed users
+2. **Push Notifications:** `registerForPushNotificationsAsync` threw an error on web (VAPID key required), blocking the entire signup flow
+3. **UX:** No alternative authentication method
+
+**Solution Implemented:**
+
+1. **Fixed RLS by using database trigger:**
+   - Created `handle_new_user()` function with SECURITY DEFINER
+   - Automatically creates user profile when auth user is created
+   - Removed manual insert from AuthContext.signUp()
+
+2. **Fixed push notification blocking:**
+   - Wrapped push notification registration in try-catch
+   - Changed console.error to console.warn for unavailable push notifications
+   - Made push notifications optional (app works without them on web)
+   - Push token gracefully fails without blocking signup flow
+
+3. **Added Google OAuth Sign In:**
+   - Added `signInWithGoogle()` method to AuthContext
+   - Integrates with Supabase OAuth provider
+   - Added Google Sign In buttons to both Sign In and Sign Up screens
+   - Shows "or" divider between email auth and Google auth
+   - Works immediately - single click signup/signin
+
+**Database Changes:**
+
+```sql
+-- Executed in complete-signup-fix.sql
+- Dropped conflicting RLS policies
+- Created new policies allowing authenticated users to insert own profile
+- Set up handle_new_user trigger on auth.users table
+- Trigger automatically creates user profile with SECURITY DEFINER perms
+```
+
+**Code Changes:**
+
+- **AuthContext.js:**
+  - Added `signInWithGoogle()` method using `supabase.auth.signInWithOAuth()`
+  - Updated `registerPushNotifications()` to use console.warn instead of console.error
+  - Removed manual user profile insert from `signUp()`
+  - Added `signInWithGoogle` to context value export
+
+- **AuthScreen.js:**
+  - Added `handleGoogleSignIn()` function
+  - Imported `signInWithGoogle` from useAuth hook
+  - Added Google Sign In button to Sign In screen
+  - Added Google Sign In button to Sign Up screen
+  - Added "or" divider text between auth methods
+  - Added CSS styles: `divider`, `googleButton`
+
+**Requirements to Complete:**
+
+⚠️ **Must configure Google OAuth in Supabase:**
+
+1. Go to Supabase Project → Authentication → Providers
+2. Enable Google provider
+3. Add Google OAuth2 credentials from Google Cloud Console
+4. Configure redirect URLs (include localhost for development, production URL for deployment)
+
+**Result:**
+✅ Signup RLS error resolved - profiles created automatically by trigger  
+✅ Signup no longer blocked by push notification errors  
+✅ Push notifications work when available (mobile), gracefully disabled (web)  
+✅ Users can sign in with Google in one click  
+✅ Authentication flow is now faster and more user-friendly
+
+**Testing Notes:**
+
+- Email signup still works (with automatic profile creation)
+- Google signup requires Google OAuth configuration in Supabase
+- Push notifications fail gracefully on web without breaking signup
+
+---
+
 ### Tournament Setup - Quick Bracket Size Selector
 
 **Priority:** Medium  

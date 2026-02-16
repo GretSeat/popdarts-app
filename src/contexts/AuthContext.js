@@ -112,15 +112,18 @@ export const AuthProvider = ({ children }) => {
         console.log("[AuthContext] Push notifications registered successfully");
       }
     } catch (error) {
-      console.error(
-        "[AuthContext] Error registering push notifications:",
-        error,
+      // Push notifications may fail on web or if VAPID key is not configured
+      // This is not a critical error - app should still function
+      console.warn(
+        "[AuthContext] Push notifications unavailable (this is OK):",
+        error.message,
       );
     }
   };
 
   /**
    * Sign up with email and password
+   * Note: User profile is automatically created by Supabase trigger (handle_new_user)
    */
   const signUp = async (email, password, displayName) => {
     try {
@@ -135,17 +138,6 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (error) throw error;
-
-      // Create user profile
-      if (data.user) {
-        const { error: profileError } = await supabase.from("users").insert({
-          id: data.user.id,
-          email: email,
-          display_name: displayName,
-        });
-
-        if (profileError) throw profileError;
-      }
 
       // Register for push notifications after successful signup
       if (data.user) {
@@ -173,6 +165,28 @@ export const AuthProvider = ({ children }) => {
       return { data, error: null };
     } catch (error) {
       console.error("Sign in error:", error);
+      return { data: null, error };
+    }
+  };
+
+  /**
+   * Sign in with Google OAuth
+   */
+  const signInWithGoogle = async () => {
+    try {
+      console.log("[AuthContext] Starting Google OAuth sign in...");
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo:
+            typeof window !== "undefined" ? window.location.origin : undefined,
+        },
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      console.error("Google sign in error:", error);
       return { data: null, error };
     }
   };
@@ -255,6 +269,7 @@ export const AuthProvider = ({ children }) => {
     pushToken,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
     enableGuestMode,
     convertGuestToAccount,

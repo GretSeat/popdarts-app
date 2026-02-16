@@ -15,7 +15,7 @@ import ScreenContainer from "../components/ScreenContainer";
  */
 export default function AuthScreen() {
   const theme = useTheme();
-  const { signIn, signUp, enableGuestMode } = useAuth();
+  const { signIn, signInWithGoogle, signUp, enableGuestMode } = useAuth();
 
   const [mode, setMode] = useState("signin"); // 'signin', 'signup', 'guest'
   const [email, setEmail] = useState("");
@@ -87,6 +87,19 @@ export default function AuthScreen() {
     setLoading(false);
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError("");
+
+    const { error } = await signInWithGoogle();
+
+    if (error) {
+      setError(error.message || "Failed to sign in with Google");
+    }
+
+    setLoading(false);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -144,6 +157,17 @@ export default function AuthScreen() {
                   style={styles.button}
                 >
                   Sign In
+                </Button>
+
+                <Text style={styles.divider}>or</Text>
+
+                <Button
+                  mode="outlined"
+                  onPress={handleGoogleSignIn}
+                  loading={loading}
+                  style={styles.googleButton}
+                >
+                  Sign In with Google
                 </Button>
 
                 <Button
@@ -212,6 +236,17 @@ export default function AuthScreen() {
                   style={styles.button}
                 >
                   Sign Up
+                </Button>
+
+                <Text style={styles.divider}>or</Text>
+
+                <Button
+                  mode="outlined"
+                  onPress={handleGoogleSignIn}
+                  loading={loading}
+                  style={styles.googleButton}
+                >
+                  Sign Up with Google
                 </Button>
 
                 <Button
@@ -312,6 +347,16 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 8,
     marginBottom: 8,
+  },
+  googleButton: {
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  divider: {
+    textAlign: "center",
+    marginVertical: 12,
+    color: "#999",
+    fontSize: 12,
   },
   linkButton: {
     marginTop: 4,

@@ -6,8 +6,11 @@ DROP POLICY IF EXISTS "Users can read all profiles" ON users;
 DROP POLICY IF EXISTS "Users can update own profile" ON users;
 DROP POLICY IF EXISTS "Users can insert own profile" ON users;
 DROP POLICY IF EXISTS "Enable insert for authenticated users" ON users;
+DROP POLICY IF EXISTS "allow_read_all_profiles" ON users;
+DROP POLICY IF EXISTS "allow_update_own_profile" ON users;
+DROP POLICY IF EXISTS "allow_service_role_insert" ON users;
 
--- Step 2: Temporarily disable RLS to test
+-- Step 2: Disable RLS temporarily to clean up
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 
 -- Step 3: Re-enable RLS
@@ -28,12 +31,11 @@ CREATE POLICY "allow_update_own_profile"
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
--- Allow the trigger (SECURITY DEFINER function) to insert users
--- This is the key - we allow service role to insert
-CREATE POLICY "allow_service_role_insert"
+-- Allow authenticated users to insert their own profile
+CREATE POLICY "allow_authenticated_insert"
   ON users FOR INSERT
-  TO authenticated, service_role
-  WITH CHECK (true);
+  TO authenticated
+  WITH CHECK (auth.uid() = id);
 
 -- Step 5: Make sure the trigger function exists
 CREATE OR REPLACE FUNCTION public.handle_new_user()

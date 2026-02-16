@@ -112,14 +112,14 @@ export default function NewMatchScreen({ navigation, route }) {
 
   // Dart selection with specialty shots tracking
   const [p1DartStates, setP1DartStates] = useState([
-    { selected: false, specialtyShot: null },
-    { selected: false, specialtyShot: null },
-    { selected: false, specialtyShot: null },
+    { status: "empty", specialtyShot: null }, // 'empty', 'landed', or 'missed'
+    { status: "empty", specialtyShot: null },
+    { status: "empty", specialtyShot: null },
   ]);
   const [p2DartStates, setP2DartStates] = useState([
-    { selected: false, specialtyShot: null },
-    { selected: false, specialtyShot: null },
-    { selected: false, specialtyShot: null },
+    { status: "empty", specialtyShot: null }, // 'empty', 'landed', or 'missed'
+    { status: "empty", specialtyShot: null },
+    { status: "empty", specialtyShot: null },
   ]);
   const [showDartSpecialtyModal, setShowDartSpecialtyModal] = useState(false);
   const [selectedDartPlayer, setSelectedDartPlayer] = useState(null); // 1 or 2
@@ -129,6 +129,11 @@ export default function NewMatchScreen({ navigation, route }) {
   const [showPreGame, setShowPreGame] = useState(false);
   const [firstThrower, setFirstThrower] = useState(null); // 1 or 2
   const [coinFlipWinner, setCoinFlipWinner] = useState(null); // 1 or 2
+  const [preGameStage, setPreGameStage] = useState("coin-flip"); // 'coin-flip', 'choice', 'side-selection-winner', 'side-selection-loser'
+  const [playerSides, setPlayerSides] = useState({ 1: null, 2: null }); // 'left' or 'right'
+  const [coinFlipAnimation, setCoinFlipAnimation] = useState(
+    new Animated.Value(0),
+  );
 
   // Round tracking for Casual Competitive
   const [currentRound, setCurrentRound] = useState(1);
@@ -233,14 +238,13 @@ export default function NewMatchScreen({ navigation, route }) {
     else if (simplifiedP2Darts > 0 && simplifiedP1Darts === 0) {
       setClosestPlayer(2);
     }
-    // If both have darts, clear selection (require manual selection)
-    else if (simplifiedP1Darts > 0 && simplifiedP2Darts > 0) {
+    // If both have darts, keep the current selection so preview updates live
+    // User can manually select who is closest
+    else if (simplifiedP1Darts === 0 && simplifiedP2Darts === 0) {
       setClosestPlayer(null);
     }
-    // If neither has darts, clear selection
-    else {
-      setClosestPlayer(null);
-    }
+    // If both have darts and no selection yet, don't auto-select
+    // (user will click on a player to select)
   }, [simplifiedP1Darts, simplifiedP2Darts]);
 
   // Auto-show simplified overlay when both players have darts recorded
@@ -259,6 +263,15 @@ export default function NewMatchScreen({ navigation, route }) {
     simplifiedMode,
     showSimplifiedOverlay,
   ]);
+
+  // Sync dartStates with simplified dart counts for live preview
+  useEffect(() => {
+    const p1Count = p1DartStates.filter((d) => d.status === "landed").length;
+    const p2Count = p2DartStates.filter((d) => d.status === "landed").length;
+
+    setSimplifiedP1Darts(p1Count);
+    setSimplifiedP2Darts(p2Count);
+  }, [p1DartStates, p2DartStates]);
 
   /**
    * Handle Quick Play navigation params
@@ -699,6 +712,8 @@ export default function NewMatchScreen({ navigation, route }) {
     setShowSimplifiedOverlay(false);
     setFirstThrower(null);
     setCoinFlipWinner(null);
+    setPreGameStage("coin-flip");
+    setPlayerSides({ 1: null, 2: null });
     setPlayers([]);
     setLobbyMatchType("friendly");
 
@@ -1014,82 +1029,224 @@ export default function NewMatchScreen({ navigation, route }) {
     }
   };
 
-  // Pre-Game Modal (rendered at component level)
-  const renderPreGameModal = () => (
-    <Modal visible={showPreGame} animationType="slide" transparent>
-      <View style={styles.preGameOverlay}>
-        <View style={styles.preGameContainer}>
-          <Text style={styles.preGameTitle}>Pre-Game Setup</Text>
-          <Text style={styles.preGameInstruction}>
-            Flip a coin or play Rock-Paper-Scissors to determine who gets first
-            choice
-          </Text>
+  /**
+   * Animated coin flip that rapidly flashes between player names,
+   * then slows down and stops on a random winner
+   * Total duration: ~3 seconds (fast flips, then slow, then flash winner)
+   */
+  const startCoinFlipAnimation = () => {
+    setCoinFlipWinner(0); // Reset state
 
-          {/* Winner Selection */}
-          {coinFlipWinner === null ? (
-            <View style={styles.preGameWinnerSection}>
-              <Text style={styles.preGameLabel}>Who won?</Text>
-              <View style={styles.preGameButtonsRow}>
-                <TouchableOpacity
-                  style={styles.preGamePlayerButton}
-                  onPress={() => setCoinFlipWinner(1)}
-                >
-                  <Text style={styles.preGamePlayerButtonText}>
-                    {player1Name}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.preGamePlayerButton}
-                  onPress={() => setCoinFlipWinner(2)}
-                >
-                  <Text style={styles.preGamePlayerButtonText}>
-                    {player2Name}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.preGameWinnerText}>
-                {coinFlipWinner === 1 ? player1Name : player2Name} won!
+    let currentDisplay = 1;
+    let iteration = 0;
+    const maxIterations = 20; // Number of flashes - reduced for faster animation
+    let delay = 30; // Initial milliseconds between flashes
+
+    const runFlip = () => {
+      if (iteration < maxIterations) {
+        currentDisplay = currentDisplay === 1 ? 2 : 1;
+        setCoinFlipWinner(currentDisplay);
+
+        // Dramatically slow down the animation over time (ease out effect)
+        // Fast at start (30ms), slow to 250ms by the end
+        delay = 30 + (iteration / maxIterations) * 220;
+
+        setTimeout(() => {
+          iteration++;
+          runFlip();
+        }, delay);
+      } else {
+        // Final winner is the last displayed value
+        setCoinFlipWinner(currentDisplay);
+
+        // Flash the winner a few times with shorter duration
+        let flashCount = 0;
+        const flashInterval = setInterval(() => {
+          if (flashCount % 2 === 0) {
+            setCoinFlipWinner(0); // Hide
+          } else {
+            setCoinFlipWinner(currentDisplay); // Show
+          }
+
+          flashCount++;
+          if (flashCount >= 4) {
+            // Reduced from 6 to 4 flashes
+            clearInterval(flashInterval);
+            setCoinFlipWinner(currentDisplay); // Final display
+            setPreGameStage("choice");
+          }
+        }, 150); // Faster flash speed
+      }
+    };
+
+    runFlip();
+  };
+
+  /**
+   * Finalizes side selection - assigns the chosen side to the selecting player
+   * and assigns the opposite side to the other player
+   */
+  const finalizeSideSelection = (playerNum, side) => {
+    const otherPlayer = playerNum === 1 ? 2 : 1;
+    const oppositeSide = side === "left" ? "right" : "left";
+
+    // Update player sides
+    setPlayerSides({
+      [playerNum]: side,
+      [otherPlayer]: oppositeSide,
+    });
+
+    // Determine first thrower based on who won the coin flip
+    if (preGameStage === "side-selection-winner") {
+      // Winner goes first when they choose their side
+      setFirstThrower(coinFlipWinner);
+    } else {
+      // Loser chose their side, so winner goes second but winner determined by coin flip
+      setFirstThrower(coinFlipWinner === 1 ? 2 : 1);
+    }
+
+    // Start the match
+    setCoinFlipWinner(null);
+    setPreGameStage("coin-flip");
+    setShowPreGame(false);
+    setMatchStarted(true);
+  };
+
+  // Pre-Game Modal (rendered at component level)
+  const renderPreGameModal = () => {
+    const renderCoinFlipStage = () => (
+      <View style={styles.preGameContainer}>
+        <Text style={styles.preGameTitle}>Coin Flip</Text>
+
+        <View style={styles.coinFlipContainer}>
+          <View style={styles.playerNameContainer}>
+            <Text style={styles.playerName}>{player1Name}</Text>
+          </View>
+
+          <Animated.View style={[styles.winnerFlashContainer]}>
+            <View
+              style={[
+                styles.coinFlipDisplay,
+                {
+                  backgroundColor:
+                    coinFlipWinner === 0
+                      ? player1Color
+                      : coinFlipWinner === 1
+                        ? player1Color
+                        : player2Color,
+                },
+              ]}
+            >
+              <Text style={styles.coinFlipText}>
+                {coinFlipWinner === 0 || coinFlipWinner === 1
+                  ? player1Name
+                  : player2Name}
               </Text>
-              <Text style={styles.preGameChoiceLabel}>What do you choose?</Text>
-              <View style={styles.preGameButtonsColumn}>
-                <TouchableOpacity
-                  style={styles.preGameChoiceButton}
-                  onPress={() => {
-                    setFirstThrower(coinFlipWinner);
-                    setCoinFlipWinner(null);
-                    setShowPreGame(false);
-                    setMatchStarted(true);
-                  }}
-                >
-                  <Text style={styles.preGameChoiceButtonText}>Go First</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.preGameChoiceButton}
-                  onPress={() => {
-                    // If winner chooses side, opponent goes first
-                    setFirstThrower(coinFlipWinner === 1 ? 2 : 1);
-                    setCoinFlipWinner(null);
-                    setShowPreGame(false);
-                    setMatchStarted(true);
-                  }}
-                >
-                  <Text style={styles.preGameChoiceButtonText}>
-                    Choose Side
-                  </Text>
-                  <Text style={styles.preGameChoiceSubtext}>
-                    (Opponent goes first)
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
+            </View>
+          </Animated.View>
+
+          <View style={styles.playerNameContainer}>
+            <Text style={styles.playerName}>{player2Name}</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.preGameChoiceButton}
+          onPress={startCoinFlipAnimation}
+        >
+          <Text style={styles.preGameChoiceButtonText}>Begin Coin Flip</Text>
+        </TouchableOpacity>
+      </View>
+    );
+
+    const renderChoiceStage = () => (
+      <View style={styles.preGameContainer}>
+        <Text style={styles.preGameTitle}>
+          {coinFlipWinner === 1 ? player1Name : player2Name} Won!
+        </Text>
+        <Text style={styles.preGameInstruction}>
+          What would you like to do?
+        </Text>
+
+        <View style={styles.preGameButtonsColumn}>
+          <TouchableOpacity
+            style={styles.preGameChoiceButton}
+            onPress={() => {
+              setPreGameStage("side-selection-loser");
+            }}
+          >
+            <Text style={styles.preGameChoiceButtonText}>Go First</Text>
+            <Text style={styles.preGameChoiceSubtext}>
+              Opponent chooses their side first
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.preGameChoiceButton}
+            onPress={() => {
+              setPreGameStage("side-selection-winner");
+            }}
+          >
+            <Text style={styles.preGameChoiceButtonText}>Go Second</Text>
+            <Text style={styles.preGameChoiceSubtext}>
+              You choose your side first
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </Modal>
-  );
+    );
+
+    const renderSideSelectionStage = () => {
+      const isWinnerSelecting = preGameStage === "side-selection-winner";
+      const playerNum = isWinnerSelecting
+        ? coinFlipWinner
+        : coinFlipWinner === 1
+          ? 2
+          : 1;
+      const playerNameContent = playerNum === 1 ? player1Name : player2Name;
+
+      return (
+        <View style={styles.preGameContainer}>
+          <Text style={styles.preGameTitle}>Choose Side</Text>
+          <Text style={styles.preGameInstruction}>
+            {playerNameContent}, choose your side:
+          </Text>
+
+          <View style={styles.preGameButtonsColumn}>
+            <TouchableOpacity
+              style={styles.preGameChoiceButton}
+              onPress={() => {
+                finalizeSideSelection(playerNum, "left");
+              }}
+            >
+              <Text style={styles.preGameChoiceButtonText}>← Left</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.preGameChoiceButton}
+              onPress={() => {
+                finalizeSideSelection(playerNum, "right");
+              }}
+            >
+              <Text style={styles.preGameChoiceButtonText}>Right →</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    };
+
+    return (
+      <Modal visible={showPreGame} animationType="slide" transparent>
+        <View style={styles.preGameOverlay}>
+          {preGameStage === "coin-flip" && renderCoinFlipStage()}
+          {preGameStage === "choice" && renderChoiceStage()}
+          {(preGameStage === "side-selection-winner" ||
+            preGameStage === "side-selection-loser") &&
+            renderSideSelectionStage()}
+        </View>
+      </Modal>
+    );
+  };
 
   const renderMatchResultsModal = () => {
     if (!selectedMatchResults) return null;
@@ -2812,10 +2969,14 @@ export default function NewMatchScreen({ navigation, route }) {
                 matchMode === "1v1" &&
                 lobbyMatchType === "casual-competitive"
               ) {
-                // Casual Competitive: show pre-game (RPS/side pick), enable stat tracking
+                // Casual Competitive: show pre-game (coin flip animation), enable stat tracking
+                setPreGameStage("coin-flip");
+                setPlayerSides({ 1: null, 2: null });
                 setShowPreGame(true);
               } else {
                 // Default: show pre-game for other modes
+                setPreGameStage("coin-flip");
+                setPlayerSides({ 1: null, 2: null });
                 setShowPreGame(true);
               }
             }}
@@ -2895,15 +3056,17 @@ export default function NewMatchScreen({ navigation, route }) {
               <IconButton icon="arrow-left" size={24} iconColor="#333" />
             </TouchableOpacity>
 
-            {/* Simple Scoring Button */}
-            <TouchableOpacity
-              onPress={() => setShowSimplifiedOverlay(true)}
-              disabled={winner !== null}
-              style={[styles.simpleScoreButton, { top: 40 + insets.top }]}
-            >
-              <Text style={styles.simpleScoreButtonText}>QUICK</Text>
-              <Text style={styles.simpleScoreButtonText}>SCORE</Text>
-            </TouchableOpacity>
+            {/* Simple Scoring Button - Hidden in Casual Competitive */}
+            {lobbyMatchType !== "casual-competitive" && (
+              <TouchableOpacity
+                onPress={() => setShowSimplifiedOverlay(true)}
+                disabled={winner !== null}
+                style={[styles.simpleScoreButton, { top: 40 + insets.top }]}
+              >
+                <Text style={styles.simpleScoreButtonText}>QUICK</Text>
+                <Text style={styles.simpleScoreButtonText}>SCORE</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Player Name */}
             <Text style={styles.playerNameTop}>
@@ -2936,20 +3099,22 @@ export default function NewMatchScreen({ navigation, route }) {
               </TouchableOpacity>
             </View>
 
-            {/* Stat Track Button */}
-            <TouchableOpacity
-              onPress={() =>
-                isStatTrackingEnabled && setShowStatsDialog("player1")
-              }
-              style={[
-                styles.statTrackButtonSquare,
-                !isStatTrackingEnabled && { opacity: 0.4 },
-              ]}
-              disabled={!isStatTrackingEnabled}
-            >
-              <Text style={styles.statTrackText}>STAT</Text>
-              <Text style={styles.statTrackText}>TRACK</Text>
-            </TouchableOpacity>
+            {/* Stat Track Button - Hidden in Casual Competitive */}
+            {lobbyMatchType !== "casual-competitive" && (
+              <TouchableOpacity
+                onPress={() =>
+                  isStatTrackingEnabled && setShowStatsDialog("player1")
+                }
+                style={[
+                  styles.statTrackButtonSquare,
+                  !isStatTrackingEnabled && { opacity: 0.4 },
+                ]}
+                disabled={!isStatTrackingEnabled}
+              >
+                <Text style={styles.statTrackText}>STAT</Text>
+                <Text style={styles.statTrackText}>TRACK</Text>
+              </TouchableOpacity>
+            )}
 
             {/* +2, +3, +4, +5 Grid */}
             <View style={styles.incrementGrid}>
@@ -3034,14 +3199,16 @@ export default function NewMatchScreen({ navigation, route }) {
               </TouchableOpacity>
             </View>
 
-            {/* Stat Track Button */}
-            <TouchableOpacity
-              onPress={() => setShowStatsDialog("player2")}
-              style={styles.statTrackButtonSquare}
-            >
-              <Text style={styles.statTrackText}>STAT</Text>
-              <Text style={styles.statTrackText}>TRACK</Text>
-            </TouchableOpacity>
+            {/* Stat Track Button - Hidden in Casual Competitive */}
+            {lobbyMatchType !== "casual-competitive" && (
+              <TouchableOpacity
+                onPress={() => setShowStatsDialog("player2")}
+                style={styles.statTrackButtonSquare}
+              >
+                <Text style={styles.statTrackText}>STAT</Text>
+                <Text style={styles.statTrackText}>TRACK</Text>
+              </TouchableOpacity>
+            )}
 
             {/* +2, +3, +4, +5 Grid */}
             <View style={styles.incrementGrid}>
@@ -3531,400 +3698,437 @@ export default function NewMatchScreen({ navigation, route }) {
           transparent
         >
           <View style={styles.quickScoreOverlay}>
-            <View style={styles.quickScoreContainer}>
-              <Text style={styles.quickScoreTitle}>Quick Score</Text>
-              <Text style={styles.quickScoreSubtitle}>
-                Enter dart counts for quick scoring
-              </Text>
-
-              {/* Player 1 */}
-              <View style={styles.quickScorePlayerSection}>
-                <View style={styles.quickScorePlayerHeader}>
-                  <Text style={styles.quickScorePlayerName}>{player1Name}</Text>
-                  {p1DartStates.filter((d) => d.selected).length > 0 && (
-                    <Text style={styles.quickScorePlayerCalculation}>
-                      {(() => {
-                        const dartsLanded = p1DartStates.filter(
-                          (d) => d.selected,
-                        ).length;
-                        const isClosest = closestPlayer === 1;
-                        if (dartsLanded === 1) {
-                          return isClosest ? "= 3" : "= 1";
-                        }
-                        let calc = isClosest ? "3" : "1";
-                        for (let i = 1; i < dartsLanded; i++) {
-                          calc += " + 1";
-                        }
-                        return `= ${calc}`;
-                      })()}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.quickScoreInputRow}>
-                  <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
-                  <View style={styles.dartSelectorGrid}>
-                    {p1DartStates.map((dart, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        onLongPress={() => {
-                          setSelectedDartPlayer(1);
-                          setSelectedDartIndex(index);
-                          setShowDartSpecialtyModal(true);
-                        }}
-                        onPress={() => {
-                          const newStates = [...p1DartStates];
-                          newStates[index] = {
-                            ...newStates[index],
-                            selected: !newStates[index].selected,
-                            specialtyShot: !newStates[index].selected
-                              ? null
-                              : newStates[index].specialtyShot,
-                          };
-                          setP1DartStates(newStates);
-                        }}
-                        style={[
-                          styles.dartSquare,
-                          dart.selected && styles.dartSquareSelected,
-                          dart.specialtyShot && styles.dartSquareWithSpecialty,
-                        ]}
-                      >
-                        {dart.specialtyShot && (
-                          <Text style={styles.dartSpecialtyIndicator}>★</Text>
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </View>
-
-              {/* Player 2 */}
-              <View style={styles.quickScorePlayerSection}>
-                <View style={styles.quickScorePlayerHeader}>
-                  <Text style={styles.quickScorePlayerName}>{player2Name}</Text>
-                  {p2DartStates.filter((d) => d.selected).length > 0 && (
-                    <Text style={styles.quickScorePlayerCalculation}>
-                      {(() => {
-                        const dartsLanded = p2DartStates.filter(
-                          (d) => d.selected,
-                        ).length;
-                        const isClosest = closestPlayer === 2;
-                        if (dartsLanded === 1) {
-                          return isClosest ? "= 3" : "= 1";
-                        }
-                        let calc = isClosest ? "3" : "1";
-                        for (let i = 1; i < dartsLanded; i++) {
-                          calc += " + 1";
-                        }
-                        return `= ${calc}`;
-                      })()}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.quickScoreInputRow}>
-                  <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
-                  <View style={styles.dartSelectorGrid}>
-                    {p2DartStates.map((dart, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        onLongPress={() => {
-                          setSelectedDartPlayer(2);
-                          setSelectedDartIndex(index);
-                          setShowDartSpecialtyModal(true);
-                        }}
-                        onPress={() => {
-                          const newStates = [...p2DartStates];
-                          newStates[index] = {
-                            ...newStates[index],
-                            selected: !newStates[index].selected,
-                            specialtyShot: !newStates[index].selected
-                              ? null
-                              : newStates[index].specialtyShot,
-                          };
-                          setP2DartStates(newStates);
-                        }}
-                        style={[
-                          styles.dartSquare,
-                          dart.selected && styles.dartSquareSelected,
-                          dart.specialtyShot && styles.dartSquareWithSpecialty,
-                        ]}
-                      >
-                        {dart.specialtyShot && (
-                          <Text style={styles.dartSpecialtyIndicator}>★</Text>
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </View>
-
-              {/* Closest Player */}
-              <View style={styles.quickScoreClosestSection}>
-                <Text style={styles.quickScoreLabel}>
-                  Closest to Target Marker:
+            <ScrollView
+              contentContainerStyle={styles.quickScoreScrollContainer}
+            >
+              <View style={styles.quickScoreContainer}>
+                <Text style={styles.quickScoreTitle}>Quick Score</Text>
+                <Text style={styles.quickScoreSubtitle}>
+                  Enter dart counts for quick scoring
                 </Text>
-                <View style={styles.quickScoreClosestButtons}>
-                  <TouchableOpacity
-                    disabled={simplifiedP1Darts === 0}
-                    style={[
-                      styles.quickScorePlayerButton,
-                      closestPlayer === 1 &&
-                        styles.quickScorePlayerButtonSelected,
-                      simplifiedP1Darts === 0 &&
-                        styles.quickScorePlayerButtonDisabled,
-                    ]}
-                    onPress={() => setClosestPlayer(1)}
-                  >
-                    <Text
-                      style={[
-                        styles.quickScorePlayerButtonText,
-                        simplifiedP1Darts === 0 &&
-                          styles.quickScorePlayerButtonTextDisabled,
-                      ]}
-                    >
+
+                {/* Player 1 */}
+                <View style={styles.quickScorePlayerSection}>
+                  <View style={styles.quickScorePlayerHeader}>
+                    <Text style={styles.quickScorePlayerName}>
                       {player1Name}
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    disabled={simplifiedP2Darts === 0}
-                    style={[
-                      styles.quickScorePlayerButton,
-                      closestPlayer === 2 &&
-                        styles.quickScorePlayerButtonSelected,
-                      simplifiedP2Darts === 0 &&
-                        styles.quickScorePlayerButtonDisabled,
-                    ]}
-                    onPress={() => setClosestPlayer(2)}
-                  >
-                    <Text
-                      style={[
-                        styles.quickScorePlayerButtonText,
-                        simplifiedP2Darts === 0 &&
-                          styles.quickScorePlayerButtonTextDisabled,
-                      ]}
-                    >
+                    {p1DartStates.filter((d) => d.status === "landed").length >
+                      0 && (
+                      <Text style={styles.quickScorePlayerCalculation}>
+                        {(() => {
+                          const dartsLanded = p1DartStates.filter(
+                            (d) => d.status === "landed",
+                          ).length;
+                          const isClosest = closestPlayer === 1;
+                          if (dartsLanded === 1) {
+                            return isClosest ? "= 3" : "= 1";
+                          }
+                          let calc = isClosest ? "3" : "1";
+                          for (let i = 1; i < dartsLanded; i++) {
+                            calc += " + 1";
+                          }
+                          return `= ${calc}`;
+                        })()}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.quickScoreInputRow}>
+                    <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
+                    <View style={styles.dartSelectorGrid}>
+                      {p1DartStates.map((dart, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          onLongPress={() => {
+                            setSelectedDartPlayer(1);
+                            setSelectedDartIndex(index);
+                            setShowDartSpecialtyModal(true);
+                          }}
+                          onPress={() => {
+                            const newStates = [...p1DartStates];
+                            // Cycle through states: empty -> landed -> missed -> empty
+                            const currentStatus = newStates[index].status;
+                            let nextStatus = "landed";
+                            if (currentStatus === "landed") {
+                              nextStatus = "missed";
+                            } else if (currentStatus === "missed") {
+                              nextStatus = "empty";
+                            }
+
+                            newStates[index] = {
+                              ...newStates[index],
+                              status: nextStatus,
+                              specialtyShot:
+                                nextStatus === "empty"
+                                  ? null
+                                  : newStates[index].specialtyShot,
+                            };
+                            setP1DartStates(newStates);
+                          }}
+                          style={[
+                            styles.dartSquare,
+                            dart.status === "landed" &&
+                              styles.dartSquareSelected,
+                            dart.status === "missed" && styles.dartSquareMissed,
+                            dart.specialtyShot &&
+                              styles.dartSquareWithSpecialty,
+                          ]}
+                        >
+                          {dart.status === "missed" && (
+                            <Text style={styles.dartMissedX}>✕</Text>
+                          )}
+                          {dart.specialtyShot && dart.status === "landed" && (
+                            <Text style={styles.dartSpecialtyIndicator}>★</Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Player 2 */}
+                <View style={styles.quickScorePlayerSection}>
+                  <View style={styles.quickScorePlayerHeader}>
+                    <Text style={styles.quickScorePlayerName}>
                       {player2Name}
                     </Text>
+                    {p2DartStates.filter((d) => d.status === "landed").length >
+                      0 && (
+                      <Text style={styles.quickScorePlayerCalculation}>
+                        {(() => {
+                          const dartsLanded = p2DartStates.filter(
+                            (d) => d.status === "landed",
+                          ).length;
+                          const isClosest = closestPlayer === 2;
+                          if (dartsLanded === 1) {
+                            return isClosest ? "= 3" : "= 1";
+                          }
+                          let calc = isClosest ? "3" : "1";
+                          for (let i = 1; i < dartsLanded; i++) {
+                            calc += " + 1";
+                          }
+                          return `= ${calc}`;
+                        })()}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.quickScoreInputRow}>
+                    <Text style={styles.quickScoreLabel}>Darts Landed:</Text>
+                    <View style={styles.dartSelectorGrid}>
+                      {p2DartStates.map((dart, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          onLongPress={() => {
+                            setSelectedDartPlayer(2);
+                            setSelectedDartIndex(index);
+                            setShowDartSpecialtyModal(true);
+                          }}
+                          onPress={() => {
+                            const newStates = [...p2DartStates];
+                            // Cycle through states: empty -> landed -> missed -> empty
+                            const currentStatus = newStates[index].status;
+                            let nextStatus = "landed";
+                            if (currentStatus === "landed") {
+                              nextStatus = "missed";
+                            } else if (currentStatus === "missed") {
+                              nextStatus = "empty";
+                            }
+
+                            newStates[index] = {
+                              ...newStates[index],
+                              status: nextStatus,
+                              specialtyShot:
+                                nextStatus === "empty"
+                                  ? null
+                                  : newStates[index].specialtyShot,
+                            };
+                            setP2DartStates(newStates);
+                          }}
+                          style={[
+                            styles.dartSquare,
+                            dart.status === "landed" &&
+                              styles.dartSquareSelected,
+                            dart.status === "missed" && styles.dartSquareMissed,
+                            dart.specialtyShot &&
+                              styles.dartSquareWithSpecialty,
+                          ]}
+                        >
+                          {dart.status === "missed" && (
+                            <Text style={styles.dartMissedX}>✕</Text>
+                          )}
+                          {dart.specialtyShot && dart.status === "landed" && (
+                            <Text style={styles.dartSpecialtyIndicator}>★</Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Closest Player */}
+                <View style={styles.quickScoreClosestSection}>
+                  <Text style={styles.quickScoreLabel}>
+                    Closest to Target Marker:
+                  </Text>
+                  <View style={styles.quickScoreClosestButtons}>
+                    <TouchableOpacity
+                      disabled={
+                        p1DartStates.filter((d) => d.status === "landed")
+                          .length === 0
+                      }
+                      style={[
+                        styles.quickScorePlayerButton,
+                        closestPlayer === 1 &&
+                          styles.quickScorePlayerButtonSelected,
+                        p1DartStates.filter((d) => d.status === "landed")
+                          .length === 0 &&
+                          styles.quickScorePlayerButtonDisabled,
+                      ]}
+                      onPress={() => setClosestPlayer(1)}
+                    >
+                      <Text
+                        style={[
+                          styles.quickScorePlayerButtonText,
+                          p1DartStates.filter((d) => d.status === "landed")
+                            .length === 0 &&
+                            styles.quickScorePlayerButtonTextDisabled,
+                        ]}
+                      >
+                        {player1Name}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      disabled={
+                        p2DartStates.filter((d) => d.status === "landed")
+                          .length === 0
+                      }
+                      style={[
+                        styles.quickScorePlayerButton,
+                        closestPlayer === 2 &&
+                          styles.quickScorePlayerButtonSelected,
+                        p2DartStates.filter((d) => d.status === "landed")
+                          .length === 0 &&
+                          styles.quickScorePlayerButtonDisabled,
+                      ]}
+                      onPress={() => setClosestPlayer(2)}
+                    >
+                      <Text
+                        style={[
+                          styles.quickScorePlayerButtonText,
+                          p2DartStates.filter((d) => d.status === "landed")
+                            .length === 0 &&
+                            styles.quickScorePlayerButtonTextDisabled,
+                        ]}
+                      >
+                        {player2Name}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Calculation Preview */}
+                {(simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
+                  closestPlayer && (
+                    <View style={styles.quickScoreCalculationSection}>
+                      <Text style={styles.quickScoreCalculationText}>
+                        {(() => {
+                          let p1Score = simplifiedP1Darts;
+                          let p2Score = simplifiedP2Darts;
+
+                          // Add bonus for closest
+                          if (closestPlayer === 1 && p1Score > 0) {
+                            p1Score += 2;
+                          } else if (closestPlayer === 2 && p2Score > 0) {
+                            p2Score += 2;
+                          }
+
+                          // Calculate net score
+                          const netPoints = Math.abs(p1Score - p2Score);
+                          const winner =
+                            p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0;
+
+                          if (winner === 0) {
+                            return "Tie - No points awarded";
+                          }
+
+                          const winnerName =
+                            winner === 1 ? player1Name : player2Name;
+
+                          return `${netPoints} Point${
+                            netPoints !== 1 ? "s" : ""
+                          } for ${winnerName}`;
+                        })()}
+                      </Text>
+                    </View>
+                  )}
+
+                {/* Action Buttons */}
+                <View style={styles.quickScoreActions}>
+                  <TouchableOpacity
+                    style={styles.quickScoreCancelButton}
+                    onPress={() => {
+                      setShowSimplifiedOverlay(false);
+                      setSimplifiedP1Darts(0);
+                      setSimplifiedP2Darts(0);
+                      setClosestPlayer(null);
+                      setP1DartStates([
+                        { status: "empty", specialtyShot: null },
+                        { status: "empty", specialtyShot: null },
+                        { status: "empty", specialtyShot: null },
+                      ]);
+                      setP2DartStates([
+                        { status: "empty", specialtyShot: null },
+                        { status: "empty", specialtyShot: null },
+                        { status: "empty", specialtyShot: null },
+                      ]);
+                    }}
+                  >
+                    <Text style={styles.quickScoreCancelButtonText}>
+                      CANCEL
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.quickScoreApplyButton,
+                      (p1DartStates.filter((d) => d.status === "landed")
+                        .length > 0 ||
+                        p2DartStates.filter((d) => d.status === "landed")
+                          .length > 0) &&
+                      closestPlayer === null
+                        ? styles.quickScoreApplyButtonDisabled
+                        : null,
+                    ]}
+                    onPress={() => {
+                      const p1DartsLanded = p1DartStates.filter(
+                        (d) => d.status === "landed",
+                      ).length;
+                      const p2DartsLanded = p2DartStates.filter(
+                        (d) => d.status === "landed",
+                      ).length;
+
+                      // Validate that closest player is selected if darts were landed
+                      if (
+                        (p1DartsLanded > 0 || p2DartsLanded > 0) &&
+                        closestPlayer === null
+                      ) {
+                        console.log(
+                          "Cannot submit - darts landed but no closest player selected",
+                        );
+                        return;
+                      }
+
+                      console.log("APPLY button pressed in Quick Score");
+
+                      // Check for wash round (both players with 0 darts)
+                      if (p1DartsLanded === 0 && p2DartsLanded === 0) {
+                        console.log(
+                          "No darts landed - showing wash confirmation",
+                        );
+                        setShowWashConfirmation(true);
+                        return;
+                      }
+
+                      // Calculate scores with cancellation scoring
+                      let p1Score = p1DartsLanded;
+                      let p2Score = p2DartsLanded;
+
+                      // Add 3 points for closest dart (if any darts landed)
+                      if (closestPlayer === 1 && p1Score > 0) {
+                        p1Score += 2; // +2 because closest is worth 3 total (1 for landing + 2 bonus)
+                      } else if (closestPlayer === 2 && p2Score > 0) {
+                        p2Score += 2;
+                      }
+
+                      // Cancellation scoring: only winner gets net points
+                      let newP1Score = player1Score;
+                      let newP2Score = player2Score;
+
+                      if (p1Score > p2Score) {
+                        console.log(
+                          "Player 1 wins this round. Adding",
+                          p1Score - p2Score,
+                          "points",
+                        );
+                        newP1Score = player1Score + (p1Score - p2Score);
+                        setPlayer1Stats((prev) => ({
+                          ...prev,
+                          roundsWon: prev.roundsWon + 1,
+                        }));
+                        setFirstThrower(1); // Winner goes first next round
+                      } else if (p2Score > p1Score) {
+                        console.log(
+                          "Player 2 wins this round. Adding",
+                          p2Score - p1Score,
+                          "points",
+                        );
+                        newP2Score = player2Score + (p2Score - p1Score);
+                        setPlayer2Stats((prev) => ({
+                          ...prev,
+                          roundsWon: prev.roundsWon + 1,
+                        }));
+                        setFirstThrower(2);
+                      } else {
+                        console.log("Tie round - no points awarded");
+                      }
+                      // If tie, no points awarded, first thrower stays same
+
+                      // Cap scores at 21
+                      newP1Score = Math.min(newP1Score, 21);
+                      newP2Score = Math.min(newP2Score, 21);
+
+                      setPlayer1Score(newP1Score);
+                      setPlayer2Score(newP2Score);
+
+                      // Save round to history
+                      const roundData = {
+                        roundNumber: currentRound,
+                        p1Darts: p1DartsLanded,
+                        p2Darts: p2DartsLanded,
+                        p1Points: p1Score,
+                        p2Points: p2Score,
+                        closestPlayer,
+                        roundWinner:
+                          p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0,
+                        p1DartStates: [...p1DartStates],
+                        p2DartStates: [...p2DartStates],
+                      };
+                      setRoundHistory((prev) => [...prev, roundData]);
+                      console.log("Saved round to history:", roundData);
+
+                      // Check for winner (first to 21)
+                      if (newP1Score >= 21) {
+                        console.log("Player 1 wins the match!");
+                        setWinner(1);
+                      } else if (newP2Score >= 21) {
+                        console.log("Player 2 wins the match!");
+                        setWinner(2);
+                      } else {
+                        // Increment round number only if match is still going
+                        setCurrentRound((prev) => {
+                          const newRound = prev + 1;
+                          console.log(
+                            "Incrementing round from",
+                            prev,
+                            "to",
+                            newRound,
+                          );
+                          return newRound;
+                        });
+                      }
+
+                      setShowSimplifiedOverlay(false);
+                      setSimplifiedP1Darts(0);
+                      setSimplifiedP2Darts(0);
+                      setClosestPlayer(null);
+                      setP1SpecialtyShots([]);
+                      setP2SpecialtyShots([]);
+                    }}
+                  >
+                    <Text style={styles.quickScoreApplyButtonText}>APPLY</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-
-              {/* Stat Tracker Button */}
-              <View style={styles.quickScoreStatTrackerSection}>
-                <TouchableOpacity
-                  onPress={() => setShowStatTrackerModal(true)}
-                  style={styles.quickScoreStatTrackerButton}
-                >
-                  <Text style={styles.quickScoreStatTrackerText}>
-                    Specialty Shots
-                  </Text>
-                  {(p1SpecialtyShots.length > 0 ||
-                    p2SpecialtyShots.length > 0) && (
-                    <Text style={styles.quickScoreStatTrackerActiveText}>
-                      {p1SpecialtyShots.length + p2SpecialtyShots.length}{" "}
-                      tracked
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* Calculation Preview */}
-              {(simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
-                closestPlayer && (
-                  <View style={styles.quickScoreCalculationSection}>
-                    <Text style={styles.quickScoreCalculationText}>
-                      {(() => {
-                        let p1Score = simplifiedP1Darts;
-                        let p2Score = simplifiedP2Darts;
-
-                        // Add bonus for closest
-                        if (closestPlayer === 1 && p1Score > 0) {
-                          p1Score += 2;
-                        } else if (closestPlayer === 2 && p2Score > 0) {
-                          p2Score += 2;
-                        }
-
-                        // Calculate net score
-                        const netPoints = Math.abs(p1Score - p2Score);
-                        const winner =
-                          p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0;
-
-                        if (winner === 0) {
-                          return "Tie - No points awarded";
-                        }
-
-                        const winnerName =
-                          winner === 1 ? player1Name : player2Name;
-
-                        return `${netPoints} Point${
-                          netPoints !== 1 ? "s" : ""
-                        } for ${winnerName}`;
-                      })()}
-                    </Text>
-                  </View>
-                )}
-
-              {/* Action Buttons */}
-              <View style={styles.quickScoreActions}>
-                <TouchableOpacity
-                  style={styles.quickScoreCancelButton}
-                  onPress={() => {
-                    setShowSimplifiedOverlay(false);
-                    setSimplifiedP1Darts(0);
-                    setSimplifiedP2Darts(0);
-                    setClosestPlayer(null);
-                    setP1DartStates([
-                      { selected: false, specialtyShot: null },
-                      { selected: false, specialtyShot: null },
-                      { selected: false, specialtyShot: null },
-                    ]);
-                    setP2DartStates([
-                      { selected: false, specialtyShot: null },
-                      { selected: false, specialtyShot: null },
-                      { selected: false, specialtyShot: null },
-                    ]);
-                  }}
-                >
-                  <Text style={styles.quickScoreCancelButtonText}>CANCEL</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.quickScoreApplyButton,
-                    (p1DartStates.filter((d) => d.selected).length > 0 ||
-                      p2DartStates.filter((d) => d.selected).length > 0) &&
-                    closestPlayer === null
-                      ? styles.quickScoreApplyButtonDisabled
-                      : null,
-                  ]}
-                  onPress={() => {
-                    const p1DartsLanded = p1DartStates.filter(
-                      (d) => d.selected,
-                    ).length;
-                    const p2DartsLanded = p2DartStates.filter(
-                      (d) => d.selected,
-                    ).length;
-
-                    // Validate that closest player is selected if darts were landed
-                    if (
-                      (p1DartsLanded > 0 || p2DartsLanded > 0) &&
-                      closestPlayer === null
-                    ) {
-                      console.log(
-                        "Cannot submit - darts landed but no closest player selected",
-                      );
-                      return;
-                    }
-
-                    console.log("APPLY button pressed in Quick Score");
-
-                    // Check for wash round (both players with 0 darts)
-                    if (p1DartsLanded === 0 && p2DartsLanded === 0) {
-                      console.log(
-                        "No darts landed - showing wash confirmation",
-                      );
-                      setShowWashConfirmation(true);
-                      return;
-                    }
-
-                    // Calculate scores with cancellation scoring
-                    let p1Score = p1DartsLanded;
-                    let p2Score = p2DartsLanded;
-
-                    // Add 3 points for closest dart (if any darts landed)
-                    if (closestPlayer === 1 && p1Score > 0) {
-                      p1Score += 2; // +2 because closest is worth 3 total (1 for landing + 2 bonus)
-                    } else if (closestPlayer === 2 && p2Score > 0) {
-                      p2Score += 2;
-                    }
-
-                    // Cancellation scoring: only winner gets net points
-                    let newP1Score = player1Score;
-                    let newP2Score = player2Score;
-
-                    if (p1Score > p2Score) {
-                      console.log(
-                        "Player 1 wins this round. Adding",
-                        p1Score - p2Score,
-                        "points",
-                      );
-                      newP1Score = player1Score + (p1Score - p2Score);
-                      setPlayer1Stats((prev) => ({
-                        ...prev,
-                        roundsWon: prev.roundsWon + 1,
-                      }));
-                      setFirstThrower(1); // Winner goes first next round
-                    } else if (p2Score > p1Score) {
-                      console.log(
-                        "Player 2 wins this round. Adding",
-                        p2Score - p1Score,
-                        "points",
-                      );
-                      newP2Score = player2Score + (p2Score - p1Score);
-                      setPlayer2Stats((prev) => ({
-                        ...prev,
-                        roundsWon: prev.roundsWon + 1,
-                      }));
-                      setFirstThrower(2);
-                    } else {
-                      console.log("Tie round - no points awarded");
-                    }
-                    // If tie, no points awarded, first thrower stays same
-
-                    // Cap scores at 21
-                    newP1Score = Math.min(newP1Score, 21);
-                    newP2Score = Math.min(newP2Score, 21);
-
-                    setPlayer1Score(newP1Score);
-                    setPlayer2Score(newP2Score);
-
-                    // Save round to history
-                    const roundData = {
-                      roundNumber: currentRound,
-                      p1Darts: p1DartsLanded,
-                      p2Darts: p2DartsLanded,
-                      p1Points: p1Score,
-                      p2Points: p2Score,
-                      closestPlayer,
-                      roundWinner:
-                        p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0,
-                      p1DartStates: [...p1DartStates],
-                      p2DartStates: [...p2DartStates],
-                    };
-                    setRoundHistory((prev) => [...prev, roundData]);
-                    console.log("Saved round to history:", roundData);
-
-                    // Check for winner (first to 21)
-                    if (newP1Score >= 21) {
-                      console.log("Player 1 wins the match!");
-                      setWinner(1);
-                    } else if (newP2Score >= 21) {
-                      console.log("Player 2 wins the match!");
-                      setWinner(2);
-                    } else {
-                      // Increment round number only if match is still going
-                      setCurrentRound((prev) => {
-                        const newRound = prev + 1;
-                        console.log(
-                          "Incrementing round from",
-                          prev,
-                          "to",
-                          newRound,
-                        );
-                        return newRound;
-                      });
-                    }
-
-                    setShowSimplifiedOverlay(false);
-                    setSimplifiedP1Darts(0);
-                    setSimplifiedP2Darts(0);
-                    setClosestPlayer(null);
-                    setP1SpecialtyShots([]);
-                    setP2SpecialtyShots([]);
-                  }}
-                >
-                  <Text style={styles.quickScoreApplyButtonText}>APPLY</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </ScrollView>
           </View>
         </Modal>
 
@@ -4382,14 +4586,14 @@ export default function NewMatchScreen({ navigation, route }) {
                   setSimplifiedP2Darts(0);
                   setClosestPlayer(null);
                   setP1DartStates([
-                    { selected: false, specialtyShot: null },
-                    { selected: false, specialtyShot: null },
-                    { selected: false, specialtyShot: null },
+                    { status: "empty", specialtyShot: null },
+                    { status: "empty", specialtyShot: null },
+                    { status: "empty", specialtyShot: null },
                   ]);
                   setP2DartStates([
-                    { selected: false, specialtyShot: null },
-                    { selected: false, specialtyShot: null },
-                    { selected: false, specialtyShot: null },
+                    { status: "empty", specialtyShot: null },
+                    { status: "empty", specialtyShot: null },
+                    { status: "empty", specialtyShot: null },
                   ]);
                 }}
                 buttonColor="#4CAF50"
@@ -4510,6 +4714,16 @@ const styles = StyleSheet.create({
   dartSpecialtyIndicator: {
     fontSize: 20,
     color: "#FF9800",
+  },
+  dartSquareMissed: {
+    borderColor: "#FF4444",
+    backgroundColor: "#5A2A2A",
+    borderWidth: 3,
+  },
+  dartMissedX: {
+    fontSize: 32,
+    color: "#FF4444",
+    fontWeight: "bold",
   },
   // Dart Specialty Modal Styles
   dartSpecialtyOverlay: {
@@ -5564,6 +5778,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  quickScoreScrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+  },
   quickScoreContainer: {
     backgroundColor: "#1A1A1A",
     borderRadius: 20,
@@ -5880,6 +6100,50 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: "italic",
     marginTop: 4,
+  },
+  coinFlipContainer: {
+    width: "100%",
+    height: 300,
+    justifyContent: "space-around",
+    alignItems: "center",
+    marginVertical: 30,
+  },
+  playerNameContainer: {
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playerName: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#CCC",
+    textAlign: "center",
+  },
+  winnerFlashContainer: {
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  coinFlipDisplay: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#FFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  coinFlipText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFF",
+    textAlign: "center",
+    paddingHorizontal: 10,
   },
   // Tournament Styles
   tournamentRound: {

@@ -6,6 +6,10 @@
  */
 
 export const POPDARTS_COLORS = [
+  // Pop Golf Set
+    { name: "Golf Orange", colors: ["#ff7300"], isGradient: false },
+  { name: "Golf White", colors: ["#FFFFFF"], isGradient: false },
+
   // Black & Red Set (Solid Colors)
   { name: "Black", colors: ["#2A2A2A"], isGradient: false },
   { name: "Red", colors: ["#CF2740"], isGradient: false },
