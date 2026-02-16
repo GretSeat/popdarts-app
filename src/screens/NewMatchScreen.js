@@ -32,12 +32,12 @@ import { POPDARTS_COLORS } from "../constants/colors";
 
 // Specialty shots that can be tracked in a round
 const SPECIALTY_SHOTS = [
-  { id: "t-nobber", name: "T-Nobber" },
-  { id: "tower", name: "Tower" },
-  { id: "lippy", name: "Lippy" },
-  { id: "wiggle-nobber", name: "Wiggle Nobber" },
-  { id: "outer-bull", name: "Outer Bull" },
-  { id: "inner-bull", name: "Inner Bull" },
+  { id: "lippy", name: "Lippy", abbr: "L" },
+  { id: "wiggle-nobber", name: "Wiggle Nobber", abbr: "WN" },
+  { id: "t-nobber", name: "T-Nobber", abbr: "TN" },
+  { id: "tower", name: "Tower", abbr: "T" },
+  { id: "fender-bender", name: "Fender Bender", abbr: "FB" },
+  { id: "inch-worm", name: "Inch Worm", abbr: "IW" },
 ];
 
 /**
@@ -3800,18 +3800,28 @@ export default function NewMatchScreen({ navigation, route }) {
                       0 && (
                       <Text style={styles.quickScorePlayerCalculation}>
                         {(() => {
-                          const dartsLanded = p1DartStates.filter(
-                            (d) => d.status === "landed",
-                          ).length;
-                          const isClosest = closestPlayer === 1;
-                          if (dartsLanded === 1) {
-                            return isClosest ? "= 3" : "= 1";
-                          }
-                          let calc = isClosest ? "3" : "1";
-                          for (let i = 1; i < dartsLanded; i++) {
-                            calc += " + 1";
-                          }
-                          return `= ${calc}`;
+                          const calculations = [];
+                          let total = 0;
+
+                          p1DartStates.forEach((dart, idx) => {
+                            if (dart.status === "landed") {
+                              let dartValue =
+                                dart.specialtyShot === "tower" ? 5 : 1;
+
+                              // Add closest bonus only to first landed dart
+                              if (
+                                closestPlayer === 1 &&
+                                calculations.length === 0
+                              ) {
+                                dartValue += 2;
+                              }
+
+                              calculations.push(dartValue.toString());
+                              total += dartValue;
+                            }
+                          });
+
+                          return `= ${calculations.join(" + ")}`;
                         })()}
                       </Text>
                     )}
@@ -3861,7 +3871,11 @@ export default function NewMatchScreen({ navigation, route }) {
                             <Text style={styles.dartMissedX}>✕</Text>
                           )}
                           {dart.specialtyShot && dart.status === "landed" && (
-                            <Text style={styles.dartSpecialtyIndicator}>★</Text>
+                            <Text style={styles.dartSpecialtyIndicator}>
+                              {SPECIALTY_SHOTS.find(
+                                (s) => s.id === dart.specialtyShot,
+                              )?.abbr || ""}
+                            </Text>
                           )}
                         </TouchableOpacity>
                       ))}
@@ -3879,18 +3893,28 @@ export default function NewMatchScreen({ navigation, route }) {
                       0 && (
                       <Text style={styles.quickScorePlayerCalculation}>
                         {(() => {
-                          const dartsLanded = p2DartStates.filter(
-                            (d) => d.status === "landed",
-                          ).length;
-                          const isClosest = closestPlayer === 2;
-                          if (dartsLanded === 1) {
-                            return isClosest ? "= 3" : "= 1";
-                          }
-                          let calc = isClosest ? "3" : "1";
-                          for (let i = 1; i < dartsLanded; i++) {
-                            calc += " + 1";
-                          }
-                          return `= ${calc}`;
+                          const calculations = [];
+                          let total = 0;
+
+                          p2DartStates.forEach((dart, idx) => {
+                            if (dart.status === "landed") {
+                              let dartValue =
+                                dart.specialtyShot === "tower" ? 5 : 1;
+
+                              // Add closest bonus only to first landed dart
+                              if (
+                                closestPlayer === 2 &&
+                                calculations.length === 0
+                              ) {
+                                dartValue += 2;
+                              }
+
+                              calculations.push(dartValue.toString());
+                              total += dartValue;
+                            }
+                          });
+
+                          return `= ${calculations.join(" + ")}`;
                         })()}
                       </Text>
                     )}
@@ -3940,7 +3964,11 @@ export default function NewMatchScreen({ navigation, route }) {
                             <Text style={styles.dartMissedX}>✕</Text>
                           )}
                           {dart.specialtyShot && dart.status === "landed" && (
-                            <Text style={styles.dartSpecialtyIndicator}>★</Text>
+                            <Text style={styles.dartSpecialtyIndicator}>
+                              {SPECIALTY_SHOTS.find(
+                                (s) => s.id === dart.specialtyShot,
+                              )?.abbr || ""}
+                            </Text>
                           )}
                         </TouchableOpacity>
                       ))}
@@ -4010,13 +4038,38 @@ export default function NewMatchScreen({ navigation, route }) {
                 </View>
 
                 {/* Calculation Preview */}
-                {(simplifiedP1Darts > 0 || simplifiedP2Darts > 0) &&
+                {(p1DartStates.filter((d) => d.status === "landed").length >
+                  0 ||
+                  p2DartStates.filter((d) => d.status === "landed").length >
+                    0) &&
                   closestPlayer && (
                     <View style={styles.quickScoreCalculationSection}>
                       <Text style={styles.quickScoreCalculationText}>
                         {(() => {
-                          let p1Score = simplifiedP1Darts;
-                          let p2Score = simplifiedP2Darts;
+                          let p1Score = 0;
+                          let p2Score = 0;
+
+                          // Calculate score for player 1
+                          p1DartStates.forEach((dart) => {
+                            if (dart.status === "landed") {
+                              if (dart.specialtyShot === "tower") {
+                                p1Score += 5;
+                              } else {
+                                p1Score += 1;
+                              }
+                            }
+                          });
+
+                          // Calculate score for player 2
+                          p2DartStates.forEach((dart) => {
+                            if (dart.status === "landed") {
+                              if (dart.specialtyShot === "tower") {
+                                p2Score += 5;
+                              } else {
+                                p2Score += 1;
+                              }
+                            }
+                          });
 
                           // Add bonus for closest
                           if (closestPlayer === 1 && p1Score > 0) {
@@ -4112,15 +4165,35 @@ export default function NewMatchScreen({ navigation, route }) {
                       }
 
                       // Calculate scores with cancellation scoring
-                      let p1Score = p1DartsLanded;
-                      let p2Score = p2DartsLanded;
+                      // Score each dart: 1 point normally, 5 points if Tower
+                      let p1Score = 0;
+                      let p2Score = 0;
+                      let p1ClosestHandled = false;
+                      let p2ClosestHandled = false;
 
-                      // Add 3 points for closest dart (if any darts landed)
-                      if (closestPlayer === 1 && p1Score > 0) {
-                        p1Score += 2; // +2 because closest is worth 3 total (1 for landing + 2 bonus)
-                      } else if (closestPlayer === 2 && p2Score > 0) {
-                        p2Score += 2;
-                      }
+                      p1DartStates.forEach((dart) => {
+                        if (dart.status === "landed") {
+                          let points = dart.specialtyShot === "tower" ? 5 : 1;
+                          // Add closest bonus to first dart only
+                          if (closestPlayer === 1 && !p1ClosestHandled) {
+                            points += 2;
+                            p1ClosestHandled = true;
+                          }
+                          p1Score += points;
+                        }
+                      });
+
+                      p2DartStates.forEach((dart) => {
+                        if (dart.status === "landed") {
+                          let points = dart.specialtyShot === "tower" ? 5 : 1;
+                          // Add closest bonus to first dart only
+                          if (closestPlayer === 2 && !p2ClosestHandled) {
+                            points += 2;
+                            p2ClosestHandled = true;
+                          }
+                          p2Score += points;
+                        }
+                      });
 
                       // Cancellation scoring: only winner gets net points
                       let newP1Score = player1Score;
@@ -4721,6 +4794,7 @@ export default function NewMatchScreen({ navigation, route }) {
                     const newStates = [...dartStates];
                     newStates[selectedDartIndex] = {
                       ...newStates[selectedDartIndex],
+                      status: "landed",
                       specialtyShot: shot.id,
                     };
                     setDartStates(newStates);
@@ -4791,12 +4865,14 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   dartSquareWithSpecialty: {
-    borderColor: "#FF9800",
-    backgroundColor: "#4A3A1A",
+    borderColor: "#4CAF50",
+    backgroundColor: "#2A5A2A",
+    borderWidth: 3,
   },
   dartSpecialtyIndicator: {
-    fontSize: 20,
-    color: "#FF9800",
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
   dartSquareMissed: {
     borderColor: "#FF4444",
