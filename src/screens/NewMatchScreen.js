@@ -35,6 +35,7 @@ const SPECIALTY_SHOTS = [
   { id: "lippy", name: "Lippy", abbr: "L" },
   { id: "wiggle-nobber", name: "Wiggle Nobber", abbr: "WN" },
   { id: "t-nobber", name: "T-Nobber", abbr: "TN" },
+  { id: "triple-nobber", name: "Triple Nobber", abbr: "TNX" },
   { id: "tower", name: "Tower", abbr: "T" },
   { id: "fender-bender", name: "Fender Bender", abbr: "FB" },
   { id: "inch-worm", name: "Inch Worm", abbr: "IW" },
@@ -47,8 +48,12 @@ const SPECIALTY_SHOTS = [
 export default function NewMatchScreen({ navigation, route }) {
   const theme = useTheme();
   const { user, isGuest, guestName } = useAuth();
-  const { ownedColors, favoriteHomeColor, favoriteAwayColor } =
-    usePlayerPreferences();
+  const {
+    ownedColors,
+    favoriteHomeColor,
+    favoriteAwayColor,
+    advancedClosestTracking,
+  } = usePlayerPreferences();
   const insets = useSafeAreaInsets();
 
   const currentUserName =
@@ -103,7 +108,8 @@ export default function NewMatchScreen({ navigation, route }) {
 
   // Simplified scoring inputs (overlay)
   const [showSimplifiedOverlay, setShowSimplifiedOverlay] = useState(false);
-  const [closestPlayer, setClosestPlayer] = useState(null); // 1 or 2
+  const [closestPlayer, setClosestPlayer] = useState(null); // 1 or 2 (casual mode)
+  const [closestDart, setClosestDart] = useState(null); // { playerNum: 1|2, dartIndex: 0-2 } (advanced mode)
   const [simplifiedP1Darts, setSimplifiedP1Darts] = useState(0);
   const [simplifiedP2Darts, setSimplifiedP2Darts] = useState(0);
   const [showStatTrackerModal, setShowStatTrackerModal] = useState(false);
@@ -112,16 +118,48 @@ export default function NewMatchScreen({ navigation, route }) {
 
   // Dart selection with specialty shots tracking
   const [p1DartStates, setP1DartStates] = useState([
-    { status: "empty", specialtyShot: null }, // 'empty', 'landed', or 'missed'
-    { status: "empty", specialtyShot: null },
-    { status: "empty", specialtyShot: null },
+    {
+      status: "empty",
+      specialtyShot: null,
+      landingOnDart: null,
+      isClosest: false,
+    }, // 'empty', 'landed', or 'missed'
+    {
+      status: "empty",
+      specialtyShot: null,
+      landingOnDart: null,
+      isClosest: false,
+    },
+    {
+      status: "empty",
+      specialtyShot: null,
+      landingOnDart: null,
+      isClosest: false,
+    },
   ]);
   const [p2DartStates, setP2DartStates] = useState([
-    { status: "empty", specialtyShot: null }, // 'empty', 'landed', or 'missed'
-    { status: "empty", specialtyShot: null },
-    { status: "empty", specialtyShot: null },
+    {
+      status: "empty",
+      specialtyShot: null,
+      landingOnDart: null,
+      isClosest: false,
+    }, // 'empty', 'landed', or 'missed'
+    {
+      status: "empty",
+      specialtyShot: null,
+      landingOnDart: null,
+      isClosest: false,
+    },
+    {
+      status: "empty",
+      specialtyShot: null,
+      landingOnDart: null,
+      isClosest: false,
+    },
   ]);
   const [showDartSpecialtyModal, setShowDartSpecialtyModal] = useState(false);
+  const [showWiggleNobberTargetModal, setShowWiggleNobberTargetModal] =
+    useState(false);
   const [selectedDartPlayer, setSelectedDartPlayer] = useState(null); // 1 or 2
   const [selectedDartIndex, setSelectedDartIndex] = useState(null); // 0-2
 
@@ -176,6 +214,17 @@ export default function NewMatchScreen({ navigation, route }) {
 
   // Pulsing animation for paused matches
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  /**
+   * Helper function to get the closest player number for scoring
+   * In advanced mode, derives from closestDart; in casual mode, uses closestPlayer
+   */
+  const getClosestPlayerNum = () => {
+    if (advancedClosestTracking && closestDart?.playerNum) {
+      return closestDart.playerNum;
+    }
+    return closestPlayer;
+  };
 
   // Hide tab bar when in active gameplay (1v1 match or viewing bracket), show it during setup/lobby
   useEffect(() => {
@@ -3724,7 +3773,7 @@ export default function NewMatchScreen({ navigation, route }) {
               {/* Round Winner */}
               <View style={styles.roundWinnerSection}>
                 {pendingRoundData?.winner === 0 ? (
-                  <Text style={styles.roundTieText}>It's a Tie!</Text>
+                  <Text style={styles.roundTieText}>It's a Wash</Text>
                 ) : (
                   <>
                     <Text style={styles.roundWinnerLabel}>Round Winner</Text>
@@ -3801,23 +3850,134 @@ export default function NewMatchScreen({ navigation, route }) {
                       <Text style={styles.quickScorePlayerCalculation}>
                         {(() => {
                           const calculations = [];
-                          let total = 0;
 
-                          p1DartStates.forEach((dart, idx) => {
+                          // Check if any dart is a T-Nobber or Inch Worm (disables closest bonus)
+                          const hasT_Nobber =
+                            p1DartStates.some(
+                              (d) =>
+                                d.specialtyShot === "t-nobber" ||
+                                d.specialtyShot === "inch-worm",
+                            ) ||
+                            p2DartStates.some(
+                              (d) =>
+                                d.specialtyShot === "t-nobber" ||
+                                d.specialtyShot === "inch-worm",
+                            );
+
+                          // Check if Lippies are present for competitive closest logic
+                          const p1HasLippy = p1DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const p2HasLippy = p2DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const lippiesPresent = p1HasLippy || p2HasLippy;
+
+                          p1DartStates.forEach((dart, dartIndex) => {
                             if (dart.status === "landed") {
-                              let dartValue =
-                                dart.specialtyShot === "tower" ? 5 : 1;
-
-                              // Add closest bonus only to first landed dart
-                              if (
-                                closestPlayer === 1 &&
-                                calculations.length === 0
+                              if (dart.specialtyShot === "wiggle-nobber") {
+                                // Wiggle Nobber: double the target dart's value
+                                if (
+                                  dart.landingOnDart?.playerNum &&
+                                  dart.landingOnDart?.dartIndex !== undefined
+                                ) {
+                                  const targetStates =
+                                    dart.landingOnDart.playerNum === 1
+                                      ? p1DartStates
+                                      : p2DartStates;
+                                  const targetDart =
+                                    targetStates[dart.landingOnDart.dartIndex];
+                                  let targetValue = 1;
+                                  if (targetDart?.specialtyShot === "lippy") {
+                                    targetValue =
+                                      closestPlayer ===
+                                        dart.landingOnDart.playerNum &&
+                                      !hasT_Nobber
+                                        ? 4
+                                        : 2;
+                                  } else if (
+                                    targetDart?.specialtyShot === "tower"
+                                  ) {
+                                    targetValue = 5;
+                                  } else if (
+                                    targetDart?.specialtyShot ===
+                                    "fender-bender"
+                                  ) {
+                                    targetValue = 2;
+                                  } else if (
+                                    targetDart?.specialtyShot === "t-nobber"
+                                  ) {
+                                    targetValue = 10;
+                                  } else if (
+                                    targetDart?.specialtyShot === "inch-worm"
+                                  ) {
+                                    targetValue = 11;
+                                  } else if (
+                                    targetDart?.specialtyShot ===
+                                    "triple-nobber"
+                                  ) {
+                                    targetValue = 20;
+                                  } else {
+                                    targetValue =
+                                      closestPlayer ===
+                                        dart.landingOnDart.playerNum &&
+                                      !hasT_Nobber
+                                        ? 3
+                                        : 1;
+                                  }
+                                  calculations.push(`(${targetValue}*2)`);
+                                }
+                              } else if (dart.specialtyShot === "lippy") {
+                                // Lippy: competes for closest status (but not if T-Nobber disables it)
+                                if (closestPlayer === 1 && !hasT_Nobber) {
+                                  calculations.push("(3+1)");
+                                } else {
+                                  calculations.push("(1+1)");
+                                }
+                              } else if (
+                                dart.specialtyShot === "fender-bender"
                               ) {
-                                dartValue += 2;
+                                // Fender Bender: show breakdown
+                                let parts = ["1", "+1"];
+                                if (
+                                  closestPlayer === 1 &&
+                                  calculations.length === 0 &&
+                                  !hasT_Nobber &&
+                                  !lippiesPresent
+                                ) {
+                                  parts.push("+2");
+                                }
+                                calculations.push(`(${parts.join("")})`);
+                              } else if (dart.specialtyShot === "tower") {
+                                // Tower: just 5 in parentheses
+                                calculations.push("(5)");
+                              } else if (dart.specialtyShot === "t-nobber") {
+                                // T-Nobber: 10 points flat
+                                calculations.push("(10)");
+                              } else if (dart.specialtyShot === "inch-worm") {
+                                // Inch Worm: 10+1 breakdown
+                                calculations.push("(10+1)");
+                              } else if (
+                                dart.specialtyShot === "triple-nobber"
+                              ) {
+                                // Triple Nobber: 20 points flat
+                                calculations.push("(20)");
+                              } else if (dart.specialtyShot) {
+                                // Other specialty shots: in parentheses (value TBD)
+                                calculations.push("(?)");
+                              } else {
+                                // Regular dart
+                                let value = 1;
+                                if (
+                                  closestPlayer === 1 &&
+                                  calculations.length === 0 &&
+                                  !hasT_Nobber &&
+                                  !lippiesPresent
+                                ) {
+                                  value = 3;
+                                }
+                                calculations.push(value.toString());
                               }
-
-                              calculations.push(dartValue.toString());
-                              total += dartValue;
                             }
                           });
 
@@ -3839,29 +3999,81 @@ export default function NewMatchScreen({ navigation, route }) {
                           }}
                           onPress={() => {
                             const newStates = [...p1DartStates];
-                            // Cycle through states: empty -> landed -> missed -> empty
                             const currentStatus = newStates[index].status;
-                            let nextStatus = "landed";
-                            if (currentStatus === "landed") {
-                              nextStatus = "missed";
-                            } else if (currentStatus === "missed") {
-                              nextStatus = "empty";
+
+                            if (advancedClosestTracking) {
+                              // Advanced mode: 3-tap interaction
+                              // Empty → Landed → Closest → Missed → Empty
+                              let nextStatus = "landed";
+                              let isClosest = false;
+
+                              if (currentStatus === "empty") {
+                                nextStatus = "landed";
+                                isClosest = false;
+                              } else if (currentStatus === "landed") {
+                                // Tap 2: Make this dart closest (remove closest from others)
+                                nextStatus = "landed";
+                                isClosest = true;
+                                // Update closestDart for scoring purposes
+                                setClosestDart({
+                                  playerNum: 1,
+                                  dartIndex: index,
+                                });
+                                // Clear closest from other darts
+                                newStates.forEach((d) => (d.isClosest = false));
+                                p2DartStates.forEach(
+                                  (d) => (d.isClosest = false),
+                                );
+                              } else if (currentStatus === "missed") {
+                                nextStatus = "empty";
+                                isClosest = false;
+                              } else {
+                                // From closest or landed, next is missed
+                                nextStatus = "missed";
+                                isClosest = false;
+                                // Clear closestDart if this was the closest dart
+                                if (newStates[index].isClosest) {
+                                  setClosestDart(null);
+                                }
+                              }
+
+                              newStates[index] = {
+                                ...newStates[index],
+                                status: nextStatus,
+                                isClosest,
+                                specialtyShot:
+                                  nextStatus === "empty"
+                                    ? null
+                                    : newStates[index].specialtyShot,
+                              };
+                            } else {
+                              // Casual mode: simple 3-state cycle
+                              let nextStatus = "landed";
+                              if (currentStatus === "landed") {
+                                nextStatus = "missed";
+                              } else if (currentStatus === "missed") {
+                                nextStatus = "empty";
+                              }
+
+                              newStates[index] = {
+                                ...newStates[index],
+                                status: nextStatus,
+                                isClosest: false,
+                                specialtyShot:
+                                  nextStatus === "empty"
+                                    ? null
+                                    : newStates[index].specialtyShot,
+                              };
                             }
 
-                            newStates[index] = {
-                              ...newStates[index],
-                              status: nextStatus,
-                              specialtyShot:
-                                nextStatus === "empty"
-                                  ? null
-                                  : newStates[index].specialtyShot,
-                            };
                             setP1DartStates(newStates);
                           }}
                           style={[
                             styles.dartSquare,
                             dart.status === "landed" &&
+                              !dart.isClosest &&
                               styles.dartSquareSelected,
+                            dart.isClosest && styles.dartSquareClosest,
                             dart.status === "missed" && styles.dartSquareMissed,
                             dart.specialtyShot &&
                               styles.dartSquareWithSpecialty,
@@ -3870,13 +4082,18 @@ export default function NewMatchScreen({ navigation, route }) {
                           {dart.status === "missed" && (
                             <Text style={styles.dartMissedX}>✕</Text>
                           )}
-                          {dart.specialtyShot && dart.status === "landed" && (
-                            <Text style={styles.dartSpecialtyIndicator}>
-                              {SPECIALTY_SHOTS.find(
-                                (s) => s.id === dart.specialtyShot,
-                              )?.abbr || ""}
-                            </Text>
+                          {dart.isClosest && (
+                            <Text style={styles.dartClosestCheckmark}>✓</Text>
                           )}
+                          {dart.specialtyShot &&
+                            dart.status === "landed" &&
+                            !dart.isClosest && (
+                              <Text style={styles.dartSpecialtyIndicator}>
+                                {SPECIALTY_SHOTS.find(
+                                  (s) => s.id === dart.specialtyShot,
+                                )?.abbr || ""}
+                              </Text>
+                            )}
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -3894,23 +4111,134 @@ export default function NewMatchScreen({ navigation, route }) {
                       <Text style={styles.quickScorePlayerCalculation}>
                         {(() => {
                           const calculations = [];
-                          let total = 0;
 
-                          p2DartStates.forEach((dart, idx) => {
+                          // Check if any dart is a T-Nobber or Inch Worm (disables closest bonus)
+                          const hasT_Nobber =
+                            p1DartStates.some(
+                              (d) =>
+                                d.specialtyShot === "t-nobber" ||
+                                d.specialtyShot === "inch-worm",
+                            ) ||
+                            p2DartStates.some(
+                              (d) =>
+                                d.specialtyShot === "t-nobber" ||
+                                d.specialtyShot === "inch-worm",
+                            );
+
+                          // Check if Lippies are present for competitive closest logic
+                          const p1HasLippy = p1DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const p2HasLippy = p2DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const lippiesPresent = p1HasLippy || p2HasLippy;
+
+                          p2DartStates.forEach((dart, dartIndex) => {
                             if (dart.status === "landed") {
-                              let dartValue =
-                                dart.specialtyShot === "tower" ? 5 : 1;
-
-                              // Add closest bonus only to first landed dart
-                              if (
-                                closestPlayer === 2 &&
-                                calculations.length === 0
+                              if (dart.specialtyShot === "wiggle-nobber") {
+                                // Wiggle Nobber: double the target dart's value
+                                if (
+                                  dart.landingOnDart?.playerNum &&
+                                  dart.landingOnDart?.dartIndex !== undefined
+                                ) {
+                                  const targetStates =
+                                    dart.landingOnDart.playerNum === 1
+                                      ? p1DartStates
+                                      : p2DartStates;
+                                  const targetDart =
+                                    targetStates[dart.landingOnDart.dartIndex];
+                                  let targetValue = 1;
+                                  if (targetDart?.specialtyShot === "lippy") {
+                                    targetValue =
+                                      closestPlayer ===
+                                        dart.landingOnDart.playerNum &&
+                                      !hasT_Nobber
+                                        ? 4
+                                        : 2;
+                                  } else if (
+                                    targetDart?.specialtyShot === "tower"
+                                  ) {
+                                    targetValue = 5;
+                                  } else if (
+                                    targetDart?.specialtyShot ===
+                                    "fender-bender"
+                                  ) {
+                                    targetValue = 2;
+                                  } else if (
+                                    targetDart?.specialtyShot === "t-nobber"
+                                  ) {
+                                    targetValue = 10;
+                                  } else if (
+                                    targetDart?.specialtyShot === "inch-worm"
+                                  ) {
+                                    targetValue = 11;
+                                  } else if (
+                                    targetDart?.specialtyShot ===
+                                    "triple-nobber"
+                                  ) {
+                                    targetValue = 20;
+                                  } else {
+                                    targetValue =
+                                      closestPlayer ===
+                                        dart.landingOnDart.playerNum &&
+                                      !hasT_Nobber
+                                        ? 3
+                                        : 1;
+                                  }
+                                  calculations.push(`(${targetValue}*2)`);
+                                }
+                              } else if (dart.specialtyShot === "lippy") {
+                                // Lippy: competes for closest status (but not if T-Nobber disables it)
+                                if (closestPlayer === 2 && !hasT_Nobber) {
+                                  calculations.push("(3+1)");
+                                } else {
+                                  calculations.push("(1+1)");
+                                }
+                              } else if (
+                                dart.specialtyShot === "fender-bender"
                               ) {
-                                dartValue += 2;
+                                // Fender Bender: show breakdown
+                                let parts = ["1", "+1"];
+                                if (
+                                  closestPlayer === 2 &&
+                                  calculations.length === 0 &&
+                                  !hasT_Nobber &&
+                                  !lippiesPresent
+                                ) {
+                                  parts.push("+2");
+                                }
+                                calculations.push(`(${parts.join("")})`);
+                              } else if (dart.specialtyShot === "tower") {
+                                // Tower: just 5 in parentheses
+                                calculations.push("(5)");
+                              } else if (dart.specialtyShot === "t-nobber") {
+                                // T-Nobber: 10 points flat
+                                calculations.push("(10)");
+                              } else if (dart.specialtyShot === "inch-worm") {
+                                // Inch Worm: 10+1 breakdown
+                                calculations.push("(10+1)");
+                              } else if (
+                                dart.specialtyShot === "triple-nobber"
+                              ) {
+                                // Triple Nobber: 20 points flat
+                                calculations.push("(20)");
+                              } else if (dart.specialtyShot) {
+                                // Other specialty shots: in parentheses (value TBD)
+                                calculations.push("(?)");
+                              } else {
+                                // Regular dart
+                                let value = 1;
+                                if (
+                                  closestPlayer === 2 &&
+                                  calculations.length === 0 &&
+                                  !hasT_Nobber &&
+                                  !lippiesPresent
+                                ) {
+                                  value = 3;
+                                }
+                                calculations.push(value.toString());
                               }
-
-                              calculations.push(dartValue.toString());
-                              total += dartValue;
                             }
                           });
 
@@ -3932,29 +4260,81 @@ export default function NewMatchScreen({ navigation, route }) {
                           }}
                           onPress={() => {
                             const newStates = [...p2DartStates];
-                            // Cycle through states: empty -> landed -> missed -> empty
                             const currentStatus = newStates[index].status;
-                            let nextStatus = "landed";
-                            if (currentStatus === "landed") {
-                              nextStatus = "missed";
-                            } else if (currentStatus === "missed") {
-                              nextStatus = "empty";
+
+                            if (advancedClosestTracking) {
+                              // Advanced mode: 3-tap interaction
+                              // Empty → Landed → Closest → Missed → Empty
+                              let nextStatus = "landed";
+                              let isClosest = false;
+
+                              if (currentStatus === "empty") {
+                                nextStatus = "landed";
+                                isClosest = false;
+                              } else if (currentStatus === "landed") {
+                                // Tap 2: Make this dart closest (remove closest from others)
+                                nextStatus = "landed";
+                                isClosest = true;
+                                // Update closestDart for scoring purposes
+                                setClosestDart({
+                                  playerNum: 2,
+                                  dartIndex: index,
+                                });
+                                // Clear closest from other darts
+                                p1DartStates.forEach(
+                                  (d) => (d.isClosest = false),
+                                );
+                                newStates.forEach((d) => (d.isClosest = false));
+                              } else if (currentStatus === "missed") {
+                                nextStatus = "empty";
+                                isClosest = false;
+                              } else {
+                                // From closest or landed, next is missed
+                                nextStatus = "missed";
+                                isClosest = false;
+                                // Clear closestDart if this was the closest dart
+                                if (newStates[index].isClosest) {
+                                  setClosestDart(null);
+                                }
+                              }
+
+                              newStates[index] = {
+                                ...newStates[index],
+                                status: nextStatus,
+                                isClosest,
+                                specialtyShot:
+                                  nextStatus === "empty"
+                                    ? null
+                                    : newStates[index].specialtyShot,
+                              };
+                            } else {
+                              // Casual mode: simple 3-state cycle
+                              let nextStatus = "landed";
+                              if (currentStatus === "landed") {
+                                nextStatus = "missed";
+                              } else if (currentStatus === "missed") {
+                                nextStatus = "empty";
+                              }
+
+                              newStates[index] = {
+                                ...newStates[index],
+                                status: nextStatus,
+                                isClosest: false,
+                                specialtyShot:
+                                  nextStatus === "empty"
+                                    ? null
+                                    : newStates[index].specialtyShot,
+                              };
                             }
 
-                            newStates[index] = {
-                              ...newStates[index],
-                              status: nextStatus,
-                              specialtyShot:
-                                nextStatus === "empty"
-                                  ? null
-                                  : newStates[index].specialtyShot,
-                            };
                             setP2DartStates(newStates);
                           }}
                           style={[
                             styles.dartSquare,
                             dart.status === "landed" &&
+                              !dart.isClosest &&
                               styles.dartSquareSelected,
+                            dart.isClosest && styles.dartSquareClosest,
                             dart.status === "missed" && styles.dartSquareMissed,
                             dart.specialtyShot &&
                               styles.dartSquareWithSpecialty,
@@ -3963,13 +4343,18 @@ export default function NewMatchScreen({ navigation, route }) {
                           {dart.status === "missed" && (
                             <Text style={styles.dartMissedX}>✕</Text>
                           )}
-                          {dart.specialtyShot && dart.status === "landed" && (
-                            <Text style={styles.dartSpecialtyIndicator}>
-                              {SPECIALTY_SHOTS.find(
-                                (s) => s.id === dart.specialtyShot,
-                              )?.abbr || ""}
-                            </Text>
+                          {dart.isClosest && (
+                            <Text style={styles.dartClosestCheckmark}>✓</Text>
                           )}
+                          {dart.specialtyShot &&
+                            dart.status === "landed" &&
+                            !dart.isClosest && (
+                              <Text style={styles.dartSpecialtyIndicator}>
+                                {SPECIALTY_SHOTS.find(
+                                  (s) => s.id === dart.specialtyShot,
+                                )?.abbr || ""}
+                              </Text>
+                            )}
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -3977,65 +4362,94 @@ export default function NewMatchScreen({ navigation, route }) {
                 </View>
 
                 {/* Closest Player */}
-                <View style={styles.quickScoreClosestSection}>
-                  <Text style={styles.quickScoreLabel}>
-                    Closest to Target Marker:
-                  </Text>
-                  <View style={styles.quickScoreClosestButtons}>
-                    <TouchableOpacity
-                      disabled={
-                        p1DartStates.filter((d) => d.status === "landed")
-                          .length === 0
-                      }
-                      style={[
-                        styles.quickScorePlayerButton,
-                        closestPlayer === 1 &&
-                          styles.quickScorePlayerButtonSelected,
-                        p1DartStates.filter((d) => d.status === "landed")
-                          .length === 0 &&
-                          styles.quickScorePlayerButtonDisabled,
-                      ]}
-                      onPress={() => setClosestPlayer(1)}
-                    >
+                {(() => {
+                  const hasT_Nobber =
+                    p1DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    ) ||
+                    p2DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    );
+                  return (
+                    <View style={styles.quickScoreClosestSection}>
                       <Text
                         style={[
-                          styles.quickScorePlayerButtonText,
-                          p1DartStates.filter((d) => d.status === "landed")
-                            .length === 0 &&
-                            styles.quickScorePlayerButtonTextDisabled,
+                          styles.quickScoreLabel,
+                          hasT_Nobber && { opacity: 0.4, color: "#999" },
                         ]}
                       >
-                        {player1Name}
+                        Closest to Target Marker:
                       </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      disabled={
-                        p2DartStates.filter((d) => d.status === "landed")
-                          .length === 0
-                      }
-                      style={[
-                        styles.quickScorePlayerButton,
-                        closestPlayer === 2 &&
-                          styles.quickScorePlayerButtonSelected,
-                        p2DartStates.filter((d) => d.status === "landed")
-                          .length === 0 &&
-                          styles.quickScorePlayerButtonDisabled,
-                      ]}
-                      onPress={() => setClosestPlayer(2)}
-                    >
-                      <Text
+                      <View
                         style={[
-                          styles.quickScorePlayerButtonText,
-                          p2DartStates.filter((d) => d.status === "landed")
-                            .length === 0 &&
-                            styles.quickScorePlayerButtonTextDisabled,
+                          styles.quickScoreClosestButtons,
+                          hasT_Nobber && { opacity: 0.4 },
                         ]}
                       >
-                        {player2Name}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                        <TouchableOpacity
+                          disabled={
+                            p1DartStates.filter((d) => d.status === "landed")
+                              .length === 0 || hasT_Nobber
+                          }
+                          style={[
+                            styles.quickScorePlayerButton,
+                            closestPlayer === 1 &&
+                              styles.quickScorePlayerButtonSelected,
+                            (p1DartStates.filter((d) => d.status === "landed")
+                              .length === 0 ||
+                              hasT_Nobber) &&
+                              styles.quickScorePlayerButtonDisabled,
+                          ]}
+                          onPress={() => setClosestPlayer(1)}
+                        >
+                          <Text
+                            style={[
+                              styles.quickScorePlayerButtonText,
+                              (p1DartStates.filter((d) => d.status === "landed")
+                                .length === 0 ||
+                                hasT_Nobber) &&
+                                styles.quickScorePlayerButtonTextDisabled,
+                            ]}
+                          >
+                            {player1Name}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          disabled={
+                            p2DartStates.filter((d) => d.status === "landed")
+                              .length === 0 || hasT_Nobber
+                          }
+                          style={[
+                            styles.quickScorePlayerButton,
+                            closestPlayer === 2 &&
+                              styles.quickScorePlayerButtonSelected,
+                            (p2DartStates.filter((d) => d.status === "landed")
+                              .length === 0 ||
+                              hasT_Nobber) &&
+                              styles.quickScorePlayerButtonDisabled,
+                          ]}
+                          onPress={() => setClosestPlayer(2)}
+                        >
+                          <Text
+                            style={[
+                              styles.quickScorePlayerButtonText,
+                              (p2DartStates.filter((d) => d.status === "landed")
+                                .length === 0 ||
+                                hasT_Nobber) &&
+                                styles.quickScorePlayerButtonTextDisabled,
+                            ]}
+                          >
+                            {player2Name}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })()}
 
                 {/* Calculation Preview */}
                 {(p1DartStates.filter((d) => d.status === "landed").length >
@@ -4049,33 +4463,186 @@ export default function NewMatchScreen({ navigation, route }) {
                           let p1Score = 0;
                           let p2Score = 0;
 
+                          // Check if any dart is a T-Nobber or Inch Worm (disables closest bonus)
+                          const hasT_Nobber =
+                            p1DartStates.some(
+                              (d) =>
+                                d.specialtyShot === "t-nobber" ||
+                                d.specialtyShot === "inch-worm",
+                            ) ||
+                            p2DartStates.some(
+                              (d) =>
+                                d.specialtyShot === "t-nobber" ||
+                                d.specialtyShot === "inch-worm",
+                            );
+
                           // Calculate score for player 1
-                          p1DartStates.forEach((dart) => {
+                          p1DartStates.forEach((dart, dartIndex) => {
                             if (dart.status === "landed") {
-                              if (dart.specialtyShot === "tower") {
-                                p1Score += 5;
-                              } else {
-                                p1Score += 1;
+                              let points = 1;
+                              if (
+                                dart.specialtyShot === "wiggle-nobber" &&
+                                dart.landingOnDart?.playerNum &&
+                                dart.landingOnDart?.dartIndex !== undefined
+                              ) {
+                                // Wiggle Nobber: double the target dart's value
+                                const targetStates =
+                                  dart.landingOnDart.playerNum === 1
+                                    ? p1DartStates
+                                    : p2DartStates;
+                                const targetDart =
+                                  targetStates[dart.landingOnDart.dartIndex];
+                                let targetValue = 1;
+                                if (targetDart?.specialtyShot === "lippy") {
+                                  targetValue =
+                                    closestPlayer ===
+                                      dart.landingOnDart.playerNum &&
+                                    !hasT_Nobber
+                                      ? 4
+                                      : 2;
+                                } else if (
+                                  targetDart?.specialtyShot === "tower"
+                                ) {
+                                  targetValue = 5;
+                                } else if (
+                                  targetDart?.specialtyShot === "fender-bender"
+                                ) {
+                                  targetValue = 2;
+                                } else if (
+                                  targetDart?.specialtyShot === "t-nobber"
+                                ) {
+                                  targetValue = 10;
+                                } else if (
+                                  targetDart?.specialtyShot === "inch-worm"
+                                ) {
+                                  targetValue = 11;
+                                } else if (
+                                  targetDart?.specialtyShot === "triple-nobber"
+                                ) {
+                                  targetValue = 20;
+                                } else {
+                                  targetValue =
+                                    closestPlayer ===
+                                      dart.landingOnDart.playerNum &&
+                                    !hasT_Nobber
+                                      ? 3
+                                      : 1;
+                                }
+                                points = targetValue * 2;
+                              } else if (dart.specialtyShot === "lippy") {
+                                // Lippy: 1+1 base, or 3+1 if closest (but not if T-Nobber disables it)
+                                points =
+                                  closestPlayer === 1 && !hasT_Nobber ? 4 : 2;
+                              } else if (dart.specialtyShot === "tower") {
+                                points = 5;
+                              } else if (
+                                dart.specialtyShot === "fender-bender"
+                              ) {
+                                points = 2;
+                              } else if (dart.specialtyShot === "t-nobber") {
+                                points = 10;
+                              } else if (dart.specialtyShot === "inch-worm") {
+                                points = 11;
+                              } else if (
+                                dart.specialtyShot === "triple-nobber"
+                              ) {
+                                points = 20;
                               }
+                              p1Score += points;
                             }
                           });
 
                           // Calculate score for player 2
-                          p2DartStates.forEach((dart) => {
+                          p2DartStates.forEach((dart, dartIndex) => {
                             if (dart.status === "landed") {
-                              if (dart.specialtyShot === "tower") {
-                                p2Score += 5;
-                              } else {
-                                p2Score += 1;
+                              let points = 1;
+                              if (
+                                dart.specialtyShot === "wiggle-nobber" &&
+                                dart.landingOnDart?.playerNum &&
+                                dart.landingOnDart?.dartIndex !== undefined
+                              ) {
+                                // Wiggle Nobber: double the target dart's value
+                                const targetStates =
+                                  dart.landingOnDart.playerNum === 1
+                                    ? p1DartStates
+                                    : p2DartStates;
+                                const targetDart =
+                                  targetStates[dart.landingOnDart.dartIndex];
+                                let targetValue = 1;
+                                if (targetDart?.specialtyShot === "lippy") {
+                                  targetValue =
+                                    closestPlayer ===
+                                      dart.landingOnDart.playerNum &&
+                                    !hasT_Nobber
+                                      ? 4
+                                      : 2;
+                                } else if (
+                                  targetDart?.specialtyShot === "tower"
+                                ) {
+                                  targetValue = 5;
+                                } else if (
+                                  targetDart?.specialtyShot === "fender-bender"
+                                ) {
+                                  targetValue = 2;
+                                } else if (
+                                  targetDart?.specialtyShot === "t-nobber"
+                                ) {
+                                  targetValue = 10;
+                                } else if (
+                                  targetDart?.specialtyShot === "inch-worm"
+                                ) {
+                                  targetValue = 11;
+                                } else if (
+                                  targetDart?.specialtyShot === "triple-nobber"
+                                ) {
+                                  targetValue = 20;
+                                } else {
+                                  targetValue =
+                                    closestPlayer ===
+                                      dart.landingOnDart.playerNum &&
+                                    !hasT_Nobber
+                                      ? 3
+                                      : 1;
+                                }
+                                points = targetValue * 2;
+                              } else if (dart.specialtyShot === "lippy") {
+                                // Lippy: 1+1 base, or 3+1 if closest (but not if T-Nobber disables it)
+                                points =
+                                  closestPlayer === 2 && !hasT_Nobber ? 4 : 2;
+                              } else if (dart.specialtyShot === "tower") {
+                                points = 5;
+                              } else if (
+                                dart.specialtyShot === "fender-bender"
+                              ) {
+                                points = 2;
+                              } else if (dart.specialtyShot === "t-nobber") {
+                                points = 10;
+                              } else if (dart.specialtyShot === "inch-worm") {
+                                points = 11;
+                              } else if (
+                                dart.specialtyShot === "triple-nobber"
+                              ) {
+                                points = 20;
                               }
+                              p2Score += points;
                             }
                           });
 
-                          // Add bonus for closest
-                          if (closestPlayer === 1 && p1Score > 0) {
-                            p1Score += 2;
-                          } else if (closestPlayer === 2 && p2Score > 0) {
-                            p2Score += 2;
+                          // Add bonus for closest (only if no T-Nobber/Inch Worm and no Lippies present)
+                          const p1HasLippy = p1DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const p2HasLippy = p2DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const lippiesPresent = p1HasLippy || p2HasLippy;
+
+                          if (!hasT_Nobber && !lippiesPresent) {
+                            if (closestPlayer === 1 && p1Score > 0) {
+                              p1Score += 2;
+                            } else if (closestPlayer === 2 && p2Score > 0) {
+                              p2Score += 2;
+                            }
                           }
 
                           // Calculate net score
@@ -4084,7 +4651,7 @@ export default function NewMatchScreen({ navigation, route }) {
                             p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0;
 
                           if (winner === 0) {
-                            return "Tie - No points awarded";
+                            return "Wash - No Points Awarded";
                           }
 
                           const winnerName =
@@ -4107,15 +4674,46 @@ export default function NewMatchScreen({ navigation, route }) {
                       setSimplifiedP1Darts(0);
                       setSimplifiedP2Darts(0);
                       setClosestPlayer(null);
+                      setClosestDart(null);
                       setP1DartStates([
-                        { status: "empty", specialtyShot: null },
-                        { status: "empty", specialtyShot: null },
-                        { status: "empty", specialtyShot: null },
+                        {
+                          status: "empty",
+                          specialtyShot: null,
+                          landingOnDart: null,
+                          isClosest: false,
+                        },
+                        {
+                          status: "empty",
+                          specialtyShot: null,
+                          landingOnDart: null,
+                          isClosest: false,
+                        },
+                        {
+                          status: "empty",
+                          specialtyShot: null,
+                          landingOnDart: null,
+                          isClosest: false,
+                        },
                       ]);
                       setP2DartStates([
-                        { status: "empty", specialtyShot: null },
-                        { status: "empty", specialtyShot: null },
-                        { status: "empty", specialtyShot: null },
+                        {
+                          status: "empty",
+                          specialtyShot: null,
+                          landingOnDart: null,
+                          isClosest: false,
+                        },
+                        {
+                          status: "empty",
+                          specialtyShot: null,
+                          landingOnDart: null,
+                          isClosest: false,
+                        },
+                        {
+                          status: "empty",
+                          specialtyShot: null,
+                          landingOnDart: null,
+                          isClosest: false,
+                        },
                       ]);
                     }}
                   >
@@ -4165,17 +4763,104 @@ export default function NewMatchScreen({ navigation, route }) {
                       }
 
                       // Calculate scores with cancellation scoring
-                      // Score each dart: 1 point normally, 5 points if Tower
+                      // Score each dart: 1 point normally, 2 for Fender Bender, 5 for Tower, 10 for T-Nobber
                       let p1Score = 0;
                       let p2Score = 0;
                       let p1ClosestHandled = false;
                       let p2ClosestHandled = false;
 
+                      // Check if any dart is a T-Nobber or Inch Worm (disables closest bonus)
+                      const hasT_Nobber =
+                        p1DartStates.some(
+                          (d) =>
+                            d.specialtyShot === "t-nobber" ||
+                            d.specialtyShot === "inch-worm",
+                        ) ||
+                        p2DartStates.some(
+                          (d) =>
+                            d.specialtyShot === "t-nobber" ||
+                            d.specialtyShot === "inch-worm",
+                        );
+
+                      // Check if Lippies are present (competes for closest)
+                      const p1HasLippy = p1DartStates.some(
+                        (d) => d.specialtyShot === "lippy",
+                      );
+                      const p2HasLippy = p2DartStates.some(
+                        (d) => d.specialtyShot === "lippy",
+                      );
+                      const lippiesPresent = p1HasLippy || p2HasLippy;
+
                       p1DartStates.forEach((dart) => {
                         if (dart.status === "landed") {
-                          let points = dart.specialtyShot === "tower" ? 5 : 1;
-                          // Add closest bonus to first dart only
-                          if (closestPlayer === 1 && !p1ClosestHandled) {
+                          let points = 1;
+                          if (
+                            dart.specialtyShot === "wiggle-nobber" &&
+                            dart.landingOnDart?.playerNum &&
+                            dart.landingOnDart?.dartIndex !== undefined
+                          ) {
+                            // Wiggle Nobber: double the target dart's value
+                            const targetStates =
+                              dart.landingOnDart.playerNum === 1
+                                ? p1DartStates
+                                : p2DartStates;
+                            const targetDart =
+                              targetStates[dart.landingOnDart.dartIndex];
+                            let targetValue = 1;
+                            if (targetDart?.specialtyShot === "lippy") {
+                              targetValue =
+                                closestPlayer ===
+                                  dart.landingOnDart.playerNum && !hasT_Nobber
+                                  ? 4
+                                  : 2;
+                            } else if (targetDart?.specialtyShot === "tower") {
+                              targetValue = 5;
+                            } else if (
+                              targetDart?.specialtyShot === "fender-bender"
+                            ) {
+                              targetValue = 2;
+                            } else if (
+                              targetDart?.specialtyShot === "t-nobber"
+                            ) {
+                              targetValue = 10;
+                            } else if (
+                              targetDart?.specialtyShot === "inch-worm"
+                            ) {
+                              targetValue = 11;
+                            } else if (
+                              targetDart?.specialtyShot === "triple-nobber"
+                            ) {
+                              targetValue = 20;
+                            } else {
+                              targetValue =
+                                closestPlayer ===
+                                  dart.landingOnDart.playerNum && !hasT_Nobber
+                                  ? 3
+                                  : 1;
+                            }
+                            points = targetValue * 2;
+                          } else if (dart.specialtyShot === "lippy") {
+                            // Lippy: 4 if closest (and no T-Nobber), 2 otherwise
+                            points =
+                              closestPlayer === 1 && !hasT_Nobber ? 4 : 2;
+                          } else if (dart.specialtyShot === "tower") {
+                            points = 5;
+                          } else if (dart.specialtyShot === "fender-bender") {
+                            points = 2;
+                          } else if (dart.specialtyShot === "t-nobber") {
+                            points = 10;
+                          } else if (dart.specialtyShot === "inch-worm") {
+                            points = 11;
+                          } else if (dart.specialtyShot === "triple-nobber") {
+                            points = 20;
+                          }
+                          // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
+                          if (
+                            closestPlayer === 1 &&
+                            !p1ClosestHandled &&
+                            !hasT_Nobber &&
+                            !lippiesPresent
+                          ) {
                             points += 2;
                             p1ClosestHandled = true;
                           }
@@ -4185,9 +4870,74 @@ export default function NewMatchScreen({ navigation, route }) {
 
                       p2DartStates.forEach((dart) => {
                         if (dart.status === "landed") {
-                          let points = dart.specialtyShot === "tower" ? 5 : 1;
-                          // Add closest bonus to first dart only
-                          if (closestPlayer === 2 && !p2ClosestHandled) {
+                          let points = 1;
+                          if (
+                            dart.specialtyShot === "wiggle-nobber" &&
+                            dart.landingOnDart?.playerNum &&
+                            dart.landingOnDart?.dartIndex !== undefined
+                          ) {
+                            // Wiggle Nobber: double the target dart's value
+                            const targetStates =
+                              dart.landingOnDart.playerNum === 1
+                                ? p1DartStates
+                                : p2DartStates;
+                            const targetDart =
+                              targetStates[dart.landingOnDart.dartIndex];
+                            let targetValue = 1;
+                            if (targetDart?.specialtyShot === "lippy") {
+                              targetValue =
+                                closestPlayer ===
+                                  dart.landingOnDart.playerNum && !hasT_Nobber
+                                  ? 4
+                                  : 2;
+                            } else if (targetDart?.specialtyShot === "tower") {
+                              targetValue = 5;
+                            } else if (
+                              targetDart?.specialtyShot === "fender-bender"
+                            ) {
+                              targetValue = 2;
+                            } else if (
+                              targetDart?.specialtyShot === "t-nobber"
+                            ) {
+                              targetValue = 10;
+                            } else if (
+                              targetDart?.specialtyShot === "inch-worm"
+                            ) {
+                              targetValue = 11;
+                            } else if (
+                              targetDart?.specialtyShot === "triple-nobber"
+                            ) {
+                              targetValue = 20;
+                            } else {
+                              targetValue =
+                                closestPlayer ===
+                                  dart.landingOnDart.playerNum && !hasT_Nobber
+                                  ? 3
+                                  : 1;
+                            }
+                            points = targetValue * 2;
+                          } else if (dart.specialtyShot === "lippy") {
+                            // Lippy: 4 if closest (and no T-Nobber), 2 otherwise
+                            points =
+                              closestPlayer === 2 && !hasT_Nobber ? 4 : 2;
+                          } else if (dart.specialtyShot === "tower") {
+                            points = 5;
+                          } else if (dart.specialtyShot === "fender-bender") {
+                            points = 2;
+                          } else if (dart.specialtyShot === "t-nobber") {
+                            points = 10;
+                          } else if (dart.specialtyShot === "inch-worm") {
+                            points = 11;
+                          } else if (dart.specialtyShot === "triple-nobber") {
+                            points = 20;
+                          }
+                          // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
+                          if (
+                            closestPlayer === 2 &&
+                            !p2ClosestHandled &&
+                            !hasT_Nobber &&
+                            !lippiesPresent
+                          ) {
                             points += 2;
                             p2ClosestHandled = true;
                           }
@@ -4224,7 +4974,7 @@ export default function NewMatchScreen({ navigation, route }) {
                         }));
                         setFirstThrower(2);
                       } else {
-                        console.log("Tie round - no points awarded");
+                        console.log("Wash - No Points Awarded");
                       }
                       // If tie, no points awarded, first thrower stays same
 
@@ -4741,15 +5491,46 @@ export default function NewMatchScreen({ navigation, route }) {
                   setSimplifiedP1Darts(0);
                   setSimplifiedP2Darts(0);
                   setClosestPlayer(null);
+                  setClosestDart(null);
                   setP1DartStates([
-                    { status: "empty", specialtyShot: null },
-                    { status: "empty", specialtyShot: null },
-                    { status: "empty", specialtyShot: null },
+                    {
+                      status: "empty",
+                      specialtyShot: null,
+                      landingOnDart: null,
+                      isClosest: false,
+                    },
+                    {
+                      status: "empty",
+                      specialtyShot: null,
+                      landingOnDart: null,
+                      isClosest: false,
+                    },
+                    {
+                      status: "empty",
+                      specialtyShot: null,
+                      landingOnDart: null,
+                      isClosest: false,
+                    },
                   ]);
                   setP2DartStates([
-                    { status: "empty", specialtyShot: null },
-                    { status: "empty", specialtyShot: null },
-                    { status: "empty", specialtyShot: null },
+                    {
+                      status: "empty",
+                      specialtyShot: null,
+                      landingOnDart: null,
+                      isClosest: false,
+                    },
+                    {
+                      status: "empty",
+                      specialtyShot: null,
+                      landingOnDart: null,
+                      isClosest: false,
+                    },
+                    {
+                      status: "empty",
+                      specialtyShot: null,
+                      landingOnDart: null,
+                      isClosest: false,
+                    },
                   ]);
                 }}
                 buttonColor="#4CAF50"
@@ -4781,30 +5562,85 @@ export default function NewMatchScreen({ navigation, route }) {
             </Text>
 
             <View style={styles.dartSpecialtyShotsGrid}>
-              {SPECIALTY_SHOTS.map((shot) => (
-                <TouchableOpacity
-                  key={shot.id}
-                  onPress={() => {
-                    const dartStates =
-                      selectedDartPlayer === 1 ? p1DartStates : p2DartStates;
-                    const setDartStates =
-                      selectedDartPlayer === 1
-                        ? setP1DartStates
-                        : setP2DartStates;
-                    const newStates = [...dartStates];
-                    newStates[selectedDartIndex] = {
-                      ...newStates[selectedDartIndex],
-                      status: "landed",
-                      specialtyShot: shot.id,
-                    };
-                    setDartStates(newStates);
-                    setShowDartSpecialtyModal(false);
-                  }}
-                  style={styles.dartSpecialtyShotButton}
-                >
-                  <Text style={styles.dartSpecialtyShotName}>{shot.name}</Text>
-                </TouchableOpacity>
-              ))}
+              {SPECIALTY_SHOTS.map((shot) => {
+                // Hide wiggle-nobber if there are no other darts on the board
+                const totalDartsLanded =
+                  p1DartStates.filter((d) => d.status === "landed").length +
+                  p2DartStates.filter((d) => d.status === "landed").length;
+                if (shot.id === "wiggle-nobber" && totalDartsLanded < 1) {
+                  return null;
+                }
+                // Check for T-Nobber and Inch Worm presence
+                const hasInchWorm =
+                  p1DartStates.some((d) => d.specialtyShot === "inch-worm") ||
+                  p2DartStates.some((d) => d.specialtyShot === "inch-worm");
+                const hasTNobber =
+                  p1DartStates.some((d) => d.specialtyShot === "t-nobber") ||
+                  p2DartStates.some((d) => d.specialtyShot === "t-nobber");
+
+                // Hide T-Nobber if Inch Worm OR another T-Nobber is on board
+                if (shot.id === "t-nobber" && (hasInchWorm || hasTNobber)) {
+                  return null;
+                }
+                // Hide Triple Nobber unless T-Nobber is on board
+                if (shot.id === "triple-nobber" && !hasTNobber) {
+                  return null;
+                }
+                // Hide Inch Worm if one is already on the board
+                if (shot.id === "inch-worm" && hasInchWorm) {
+                  return null;
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={shot.id}
+                    onPress={() => {
+                      const dartStates =
+                        selectedDartPlayer === 1 ? p1DartStates : p2DartStates;
+                      const setDartStates =
+                        selectedDartPlayer === 1
+                          ? setP1DartStates
+                          : setP2DartStates;
+                      const newStates = [...dartStates];
+                      newStates[selectedDartIndex] = {
+                        ...newStates[selectedDartIndex],
+                        status: "landed",
+                        specialtyShot: shot.id,
+                        landingOnDart: null,
+                      };
+                      setDartStates(newStates);
+
+                      // If Wiggle Nobber, show target selection modal
+                      if (shot.id === "wiggle-nobber") {
+                        setShowDartSpecialtyModal(false);
+                        setShowWiggleNobberTargetModal(true);
+                      } else {
+                        setShowDartSpecialtyModal(false);
+                      }
+                    }}
+                    style={[
+                      styles.dartSpecialtyShotButton,
+                      shot.id === "triple-nobber" && {
+                        backgroundColor: "#FFD700",
+                        borderWidth: 3,
+                        borderColor: "#FF8C00",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dartSpecialtyShotName,
+                        shot.id === "triple-nobber" && {
+                          color: "#FF8C00",
+                          fontWeight: "bold",
+                        },
+                      ]}
+                    >
+                      {shot.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <TouchableOpacity
@@ -4833,6 +5669,194 @@ export default function NewMatchScreen({ navigation, route }) {
               style={styles.dartSpecialtyCloseButton}
             >
               <Text style={styles.dartSpecialtyCloseButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Wiggle Nobber Target Selection Modal */}
+      <Modal
+        visible={showWiggleNobberTargetModal}
+        onRequestClose={() => setShowWiggleNobberTargetModal(false)}
+        animationType="fade"
+        transparent
+      >
+        <View style={styles.dartSpecialtyOverlay}>
+          <View style={styles.dartSpecialtyContainer}>
+            <Text style={styles.dartSpecialtyTitle}>Wiggle Nobber Target</Text>
+            <Text style={styles.dartSpecialtySubtitle}>
+              Which dart does it land on?
+            </Text>
+
+            <View style={styles.dartSpecialtyShotsGrid}>
+              {/* Player 1 darts */}
+              {p1DartStates.map((dart, index) => {
+                const targetLanded = dart.status === "landed";
+                // Don't allow Wiggle Nobber to target itself
+                const isCurrentDart =
+                  selectedDartPlayer === 1 && selectedDartIndex === index;
+                if (!targetLanded || isCurrentDart) return null;
+
+                // Calculate value of target dart for preview
+                let targetValue = 1;
+                if (dart.specialtyShot === "lippy") {
+                  const isClosest = closestPlayer === 1;
+                  targetValue =
+                    isClosest &&
+                    !p1DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    ) &&
+                    !p2DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    )
+                      ? 4
+                      : 2;
+                } else if (dart.specialtyShot === "tower") {
+                  targetValue = 5;
+                } else if (dart.specialtyShot === "fender-bender") {
+                  targetValue = 2;
+                } else if (dart.specialtyShot === "t-nobber") {
+                  targetValue = 10;
+                } else if (dart.specialtyShot === "inch-worm") {
+                  targetValue = 11;
+                } else if (dart.specialtyShot === "triple-nobber") {
+                  targetValue = 20;
+                } else {
+                  const isClosest = closestPlayer === 1;
+                  targetValue =
+                    isClosest &&
+                    !p1DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    ) &&
+                    !p2DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    )
+                      ? 3
+                      : 1;
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={`p1-${index}`}
+                    onPress={() => {
+                      const dartStates =
+                        selectedDartPlayer === 1 ? p1DartStates : p2DartStates;
+                      const setDartStates =
+                        selectedDartPlayer === 1
+                          ? setP1DartStates
+                          : setP2DartStates;
+                      const newStates = [...dartStates];
+                      newStates[selectedDartIndex] = {
+                        ...newStates[selectedDartIndex],
+                        landingOnDart: { playerNum: 1, dartIndex: index },
+                      };
+                      setDartStates(newStates);
+                      setShowWiggleNobberTargetModal(false);
+                    }}
+                    style={styles.dartSpecialtyShotButton}
+                  >
+                    <Text style={styles.dartSpecialtyShotName}>
+                      {player1Name} Dart {index + 1} ({targetValue}pt)
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* Player 2 darts */}
+              {p2DartStates.map((dart, index) => {
+                const targetLanded = dart.status === "landed";
+                // Don't allow Wiggle Nobber to target itself
+                const isCurrentDart =
+                  selectedDartPlayer === 2 && selectedDartIndex === index;
+                if (!targetLanded || isCurrentDart) return null;
+
+                // Calculate value of target dart for preview
+                let targetValue = 1;
+                if (dart.specialtyShot === "lippy") {
+                  const isClosest = closestPlayer === 2;
+                  targetValue =
+                    isClosest &&
+                    !p1DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    ) &&
+                    !p2DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    )
+                      ? 4
+                      : 2;
+                } else if (dart.specialtyShot === "tower") {
+                  targetValue = 5;
+                } else if (dart.specialtyShot === "fender-bender") {
+                  targetValue = 2;
+                } else if (dart.specialtyShot === "t-nobber") {
+                  targetValue = 10;
+                } else if (dart.specialtyShot === "inch-worm") {
+                  targetValue = 11;
+                } else if (dart.specialtyShot === "triple-nobber") {
+                  targetValue = 20;
+                } else {
+                  const isClosest = closestPlayer === 2;
+                  targetValue =
+                    isClosest &&
+                    !p1DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    ) &&
+                    !p2DartStates.some(
+                      (d) =>
+                        d.specialtyShot === "t-nobber" ||
+                        d.specialtyShot === "inch-worm",
+                    )
+                      ? 3
+                      : 1;
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={`p2-${index}`}
+                    onPress={() => {
+                      const dartStates =
+                        selectedDartPlayer === 1 ? p1DartStates : p2DartStates;
+                      const setDartStates =
+                        selectedDartPlayer === 1
+                          ? setP1DartStates
+                          : setP2DartStates;
+                      const newStates = [...dartStates];
+                      newStates[selectedDartIndex] = {
+                        ...newStates[selectedDartIndex],
+                        landingOnDart: { playerNum: 2, dartIndex: index },
+                      };
+                      setDartStates(newStates);
+                      setShowWiggleNobberTargetModal(false);
+                    }}
+                    style={styles.dartSpecialtyShotButton}
+                  >
+                    <Text style={styles.dartSpecialtyShotName}>
+                      {player2Name} Dart {index + 1} ({targetValue}pt)
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setShowWiggleNobberTargetModal(false)}
+              style={styles.dartSpecialtyClearButton}
+            >
+              <Text style={styles.dartSpecialtyClearButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -4882,6 +5906,16 @@ const styles = StyleSheet.create({
   dartMissedX: {
     fontSize: 32,
     color: "#FF4444",
+    fontWeight: "bold",
+  },
+  dartSquareClosest: {
+    borderColor: "#FFD700",
+    backgroundColor: "#3A3A00",
+    borderWidth: 3,
+  },
+  dartClosestCheckmark: {
+    fontSize: 24,
+    color: "#FFD700",
     fontWeight: "bold",
   },
   // Dart Specialty Modal Styles

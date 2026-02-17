@@ -27,6 +27,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
   const [favoriteAwayColor, setFavoriteAwayColor] = useState(null); // Color index
   const [ownedJerseys, setOwnedJerseys] = useState([]); // Array of jersey IDs
   const [favoriteJersey, setFavoriteJersey] = useState(null); // Jersey ID
+  const [advancedClosestTracking, setAdvancedClosestTracking] = useState(false); // Competitive setting
   const [loading, setLoading] = useState(true);
 
   // Storage keys
@@ -36,6 +37,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
     FAVORITE_AWAY: "@popdarts_favorite_away",
     OWNED_JERSEYS: "@popdarts_owned_jerseys",
     FAVORITE_JERSEY: "@popdarts_favorite_jersey",
+    ADVANCED_CLOSEST_TRACKING: "@popdarts_advanced_closest_tracking",
   };
 
   /**
@@ -50,19 +52,23 @@ export const PlayerPreferencesProvider = ({ children }) => {
    */
   const loadPreferences = async () => {
     try {
-      const [owned, home, away, jerseys, jersey] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.OWNED_COLORS),
-        AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_HOME),
-        AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_AWAY),
-        AsyncStorage.getItem(STORAGE_KEYS.OWNED_JERSEYS),
-        AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_JERSEY),
-      ]);
+      const [owned, home, away, jerseys, jersey, advancedTracking] =
+        await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.OWNED_COLORS),
+          AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_HOME),
+          AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_AWAY),
+          AsyncStorage.getItem(STORAGE_KEYS.OWNED_JERSEYS),
+          AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_JERSEY),
+          AsyncStorage.getItem(STORAGE_KEYS.ADVANCED_CLOSEST_TRACKING),
+        ]);
 
       if (owned) setOwnedColors(JSON.parse(owned));
       if (home) setFavoriteHomeColor(JSON.parse(home));
       if (away) setFavoriteAwayColor(JSON.parse(away));
       if (jerseys) setOwnedJerseys(JSON.parse(jerseys));
       if (jersey) setFavoriteJersey(JSON.parse(jersey));
+      if (advancedTracking)
+        setAdvancedClosestTracking(JSON.parse(advancedTracking));
     } catch (error) {
       console.error("Error loading player preferences:", error);
     } finally {
@@ -146,6 +152,24 @@ export const PlayerPreferencesProvider = ({ children }) => {
   };
 
   /**
+   * Save advanced closest tracking preference to storage
+   */
+  const saveAdvancedClosestTracking = async (value) => {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.ADVANCED_CLOSEST_TRACKING,
+        JSON.stringify(value),
+      );
+      setAdvancedClosestTracking(value);
+    } catch (error) {
+      console.error(
+        "Error saving advanced closest tracking preference:",
+        error,
+      );
+    }
+  };
+
+  /**
    * Clear all preferences (useful for sign out)
    */
   const clearPreferences = async () => {
@@ -156,12 +180,14 @@ export const PlayerPreferencesProvider = ({ children }) => {
         STORAGE_KEYS.FAVORITE_AWAY,
         STORAGE_KEYS.OWNED_JERSEYS,
         STORAGE_KEYS.FAVORITE_JERSEY,
+        STORAGE_KEYS.ADVANCED_CLOSEST_TRACKING,
       ]);
       setOwnedColors([]);
       setFavoriteHomeColor(null);
       setFavoriteAwayColor(null);
       setOwnedJerseys([]);
       setFavoriteJersey(null);
+      setAdvancedClosestTracking(false);
     } catch (error) {
       console.error("Error clearing preferences:", error);
     }
@@ -178,6 +204,8 @@ export const PlayerPreferencesProvider = ({ children }) => {
     setOwnedJerseys: saveOwnedJerseys,
     favoriteJersey,
     setFavoriteJersey: saveFavoriteJersey,
+    advancedClosestTracking,
+    setAdvancedClosestTracking: saveAdvancedClosestTracking,
     clearPreferences,
     loading,
   };

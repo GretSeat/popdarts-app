@@ -52,6 +52,8 @@ export default function ProfileScreen() {
     setOwnedJerseys,
     favoriteJersey,
     setFavoriteJersey,
+    advancedClosestTracking,
+    setAdvancedClosestTracking,
   } = usePlayerPreferences();
 
   // Use favorite home dart color for avatar and preview
@@ -1156,6 +1158,31 @@ export default function ProfileScreen() {
           </View>
         </Surface>
       )}
+
+      {/* Competitive Settings */}
+      <Surface style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            🏆 Competitive Settings
+          </Text>
+        </View>
+        <Text variant="bodySmall" style={{ color: "#666", marginBottom: 16 }}>
+          Advanced options for tracking play-by-play data
+        </Text>
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Advanced Closest Tracking</Text>
+            <Text style={styles.settingDescription}>
+              Track which specific dart is closest (enables 3-tap dart entry)
+            </Text>
+          </View>
+          <Switch
+            value={advancedClosestTracking}
+            onValueChange={setAdvancedClosestTracking}
+          />
+        </View>
+      </Surface>
 
       {/* Account Settings */}
       <Surface style={styles.section}>
