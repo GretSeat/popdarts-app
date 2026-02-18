@@ -9,93 +9,117 @@ import {
   Dimensions,
 } from "react-native";
 import { Text, Button, IconButton } from "react-native-paper";
+import { LinearGradient } from "expo-linear-gradient";
 
 /**
  * Jersey designs available to players
  * Maps to image files in assets/jerseys/
+ * Each jersey is mapped to its corresponding color gradient(s) from POPDARTS_COLORS
  */
 const JERSEY_DESIGNS = [
   {
     id: 0,
     name: "Bleen",
     image: require("../../assets/jerseys/bleenjersey.png"),
-    backgroundColor: "#0000FF", // Blue
+    colors: ["#0000FF", "#67f00b"], // Bleen gradient
+    isGradient: true,
   },
   {
     id: 1,
     name: "Explore",
     image: require("../../assets/jerseys/explorejersey.png"),
-    backgroundColor: "#4A90E2", // Light Blue
+    colors: ["#F4AFA4", "#3D5672"], // Explore Ocean gradient
+    isGradient: true,
   },
   {
     id: 2,
     name: "Fire & Ice",
     image: require("../../assets/jerseys/fireicejersey.png"),
-    backgroundColor: "#F04B25", // Fire Red
+    colors: ["#F04B25", "#282F85"], // Fire to Ice
+    isGradient: true,
   },
   {
     id: 3,
     name: "FRDi",
     image: require("../../assets/jerseys/FRDijersey.png"),
-    backgroundColor: "#225879", // Dark Blue
+    colors: ["#225879", "#E7D13E"], // FRDI Nick to FRDI Cakes
+    isGradient: true,
   },
   {
     id: 4,
     name: "Halloween",
     image: require("../../assets/jerseys/halloweenjersey.png"),
-    backgroundColor: "#FF6B35", // Orange
+    colors: ["#CD680C", "#AAD225"], // Halloween Pumpkin to Halloween Ghost
+    isGradient: true,
   },
   {
     id: 5,
     name: "Neon",
     image: require("../../assets/jerseys/neonjersey.png"),
-    backgroundColor: "#00FF00", // Neon Green
+    colors: ["#2091C1", "#F0067E"], // Neon Green to Neon Pink
+    isGradient: true,
   },
   {
     id: 6,
     name: "Pink Grey",
     image: require("../../assets/jerseys/pinkgreyjersey.png"),
-    backgroundColor: "#FFAAD8", // Pink
+    colors: ["#FFAAD8", "#494949"], // Pink to Grey
+    isGradient: true,
   },
   {
     id: 7,
     name: "Red Black",
     image: require("../../assets/jerseys/redblackjersey.png"),
-    backgroundColor: "#CF2740", // Red
+    colors: ["#CF2740", "#2A2A2A"], // Red to Black
+    isGradient: true,
   },
   {
     id: 8,
     name: "Retro",
     image: require("../../assets/jerseys/retrojersey.png"),
-    backgroundColor: "#4ACCC7", // Teal
+    colors: ["#4ACCC7", "#4605B0"], // Retro Teal to Retro Purple
+    isGradient: true,
   },
   {
     id: 9,
     name: "Rizzle",
     image: require("../../assets/jerseys/rizzlejersey.png"),
-    backgroundColor: "#FE509D", // Pink
+    colors: ["#FE509D", "#2C2C2C"], // Rizzle Pink to Rizzle Black
+    isGradient: true,
   },
   {
     id: 10,
     name: "USA",
     image: require("../../assets/jerseys/usajersey.png"),
-    backgroundColor: "#0000FF", // Blue
+    colors: ["#FFFFFF", "#CF2740"], // USA white/blue to red
+    isGradient: true,
   },
   {
     id: 11,
     name: "Yurple",
     image: require("../../assets/jerseys/yurplejersey.png"),
-    backgroundColor: "#800080", // Purple
+    colors: ["#800080", "#f7f307"], // Yurple purple to yellow
+    isGradient: true,
   },
 ];
 
 /**
  * Get jersey design by ID
  * @param {number} jerseyId - Jersey ID
- * @returns {object} Jersey design object
+ * @returns {object} Jersey design object with colors array and isGradient flag
  */
 export const getJerseyById = (jerseyId) => {
   return JERSEY_DESIGNS.find((j) => j.id === jerseyId) || JERSEY_DESIGNS[0];
+};
+
+/**
+ * Get gradient colors for a jersey (for LinearGradient component)
+ * @param {number} jerseyId - Jersey ID
+ * @returns {array} Array of colors for gradient
+ */
+export const getJerseyGradientColors = (jerseyId) => {
+  const jersey = getJerseyById(jerseyId);
+  return jersey.colors || ["#000000", "#000000"];
 };
 
 /**
@@ -227,7 +251,6 @@ export default function JerseyColorManager({
                     style={[
                       styles.jerseyCard,
                       { width: jerseySize, height: jerseySize },
-                      isOwned && styles.ownedCard,
                       isFavorite && styles.favoriteCard,
                     ]}
                     onPress={() => {
@@ -238,11 +261,21 @@ export default function JerseyColorManager({
                       }
                     }}
                   >
-                    <Image
-                      source={jersey.image}
-                      style={styles.jerseyImage}
-                      resizeMode="contain"
-                    />
+                    <LinearGradient
+                      colors={jersey.colors}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[
+                        styles.jerseyGradientBackground,
+                        isOwned && styles.ownedCardGradient,
+                      ]}
+                    >
+                      <Image
+                        source={jersey.image}
+                        style={styles.jerseyImage}
+                        resizeMode="contain"
+                      />
+                    </LinearGradient>
                     <Text
                       variant="labelSmall"
                       style={[
@@ -349,15 +382,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   jerseyCard: {
-    backgroundColor: "white",
     borderRadius: 12,
-    padding: 8,
     marginBottom: 16,
     elevation: 2,
     borderWidth: 2,
     borderColor: "#e0e0e0",
+    padding: 8,
+    overflow: "hidden",
+  },
+  jerseyGradientBackground: {
+    flex: 1,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 4,
+  },
+  ownedCardGradient: {
+    borderWidth: 2,
+    borderColor: "#4CAF50",
   },
   ownedCard: {
     borderColor: "#4CAF50",

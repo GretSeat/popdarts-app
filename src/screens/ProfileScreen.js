@@ -67,9 +67,14 @@ export default function ProfileScreen() {
   // Get jersey background color if favorite jersey is set
   const selectedJersey =
     favoriteJersey !== null ? getJerseyById(favoriteJersey) : null;
-  const jerseyBackgroundColor = selectedJersey
-    ? selectedJersey.backgroundColor
-    : POPDARTS_COLORS[0].colors[0]; // Default to black if no jersey selected
+  const jerseyBackgroundColors = selectedJersey
+    ? selectedJersey.colors
+    : POPDARTS_COLORS[0].colors; // Default to first color set if no jersey selected
+
+  // For backward compatibility, get first color for single-color backgrounds
+  const jerseyBackgroundColor = Array.isArray(jerseyBackgroundColors)
+    ? jerseyBackgroundColors[0]
+    : jerseyBackgroundColors;
 
   // Use favorite away color as jersey color preview (fallback to blue)
   const jerseyColorObj =
@@ -252,7 +257,12 @@ export default function ProfileScreen() {
   const renderProfileTab = () => (
     <ScrollView>
       {/* Header with Avatar, Name, Club, Dart/Jersey Colors */}
-      <View style={[styles.header, { backgroundColor: jerseyBackgroundColor }]}>
+      <LinearGradient
+        colors={jerseyBackgroundColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <View style={{ alignItems: "center", marginBottom: 8 }}>
           {/* Avatar with favorite home dart color */}
           <View style={styles.avatarPreviewBox}>
@@ -342,12 +352,14 @@ export default function ProfileScreen() {
                 {selectedJersey.name}
               </Text>
             ) : (
-              <View
+              <LinearGradient
+                colors={jerseyBackgroundColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={{
                   width: 36,
                   height: 18,
                   borderRadius: 6,
-                  backgroundColor: jerseyBackgroundColor,
                   borderWidth: 1,
                   borderColor: "#fff",
                 }}
@@ -365,9 +377,9 @@ export default function ProfileScreen() {
           <Text style={{ fontSize: 12, color: "#fff", marginRight: 12 }}>
             Dart Color
           </Text>
-          <Text style={{ fontSize: 12, color: "#fff" }}>Jersey Color</Text>
+          <Text style={{ fontSize: 12, color: "#fff" }}>Jersey</Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Compact Summary Stats */}
       <View style={styles.quickStatsContainerCompact}>
