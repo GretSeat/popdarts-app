@@ -196,7 +196,7 @@ function MainNavigator() {
         name="Local"
         component={LocalStack}
         options={{
-          tabBarLabel: "Local",
+          tabBarLabel: "Community",
           tabBarIcon: ({ color }) => (
             <Appbar.Action icon="map-marker" color={color} />
           ),

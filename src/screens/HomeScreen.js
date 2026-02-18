@@ -109,7 +109,7 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
               <Card.Cover
                 source={require("../../assets/APL_Hero_2.0_Banner.jpg")}
-                style={{ height: 120, resizeMode: "cover" }}
+                style={styles.aplCardImage}
               />
               <Card.Content>
                 <Text variant="titleMedium" style={styles.contextTitle}>
@@ -215,6 +215,102 @@ export default function HomeScreen({ navigation }) {
             </Card>
           )}
 
+          {/* Viral Videos Card */}
+          {shouldShowCard("viral_videos") && (
+            <Card style={styles.contextCard} mode="elevated">
+              <TouchableOpacity
+                style={styles.dismissButton}
+                onPress={() => dismissCard("viral_videos")}
+              >
+                <IconButton icon="close" size={16} />
+              </TouchableOpacity>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.contextTitle}>
+                  🎬 Viral Popdarts Videos
+                </Text>
+                <Text variant="bodyMedium" style={styles.contextDescription}>
+                  Check out trending clips from the Popdarts community. Epic
+                  moments and incredible shots!
+                </Text>
+                <Text variant="bodySmall" style={styles.comingSoonBadge}>
+                  Coming Soon
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* Best Trick Shots Card */}
+          {shouldShowCard("trick_shots") && (
+            <Card style={styles.contextCard} mode="elevated">
+              <TouchableOpacity
+                style={styles.dismissButton}
+                onPress={() => dismissCard("trick_shots")}
+              >
+                <IconButton icon="close" size={16} />
+              </TouchableOpacity>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.contextTitle}>
+                  🎯 Best Trick Shots
+                </Text>
+                <Text variant="bodyMedium" style={styles.contextDescription}>
+                  Watch amazing trick shots, unbelievable angles, and
+                  jaw-dropping plays from top players.
+                </Text>
+                <Text variant="bodySmall" style={styles.comingSoonBadge}>
+                  Coming Soon
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* How to Throw Guide Card */}
+          {shouldShowCard("how_to_throw") && (
+            <Card style={styles.contextCard} mode="elevated">
+              <TouchableOpacity
+                style={styles.dismissButton}
+                onPress={() => dismissCard("how_to_throw")}
+              >
+                <IconButton icon="close" size={16} />
+              </TouchableOpacity>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.contextTitle}>
+                  🎲 How to Throw Your Darts
+                </Text>
+                <Text variant="bodyMedium" style={styles.contextDescription}>
+                  Master the fundamentals. Learn grip, stance, and release
+                  techniques from pro players.
+                </Text>
+                <Text variant="bodySmall" style={styles.comingSoonBadge}>
+                  Coming Soon
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* Pro Tips Card */}
+          {shouldShowCard("pro_tips") && (
+            <Card style={styles.contextCard} mode="elevated">
+              <TouchableOpacity
+                style={styles.dismissButton}
+                onPress={() => dismissCard("pro_tips")}
+              >
+                <IconButton icon="close" size={16} />
+              </TouchableOpacity>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.contextTitle}>
+                  💡 Pro Tips & Strategy
+                </Text>
+                <Text variant="bodyMedium" style={styles.contextDescription}>
+                  Level up your game. Learn from the pros, with tips on
+                  strategy, mental game, and advanced techniques.
+                </Text>
+                <Text variant="bodySmall" style={styles.comingSoonBadge}>
+                  Coming Soon
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
+
           <View style={styles.spacer} />
         </ScreenContainer>
       </ScrollView>
@@ -266,9 +362,16 @@ const styles = StyleSheet.create({
   // CONTEXTUAL CARDS
   contextCard: {
     margin: 16,
+    marginTop: 20,
     marginBottom: 12,
     backgroundColor: "#2A2A2A",
     position: "relative",
+    overflow: "hidden",
+  },
+  aplCardImage: {
+    height: 120,
+    maxWidth: "100%",
+    alignSelf: "center",
   },
   dismissButton: {
     position: "absolute",
@@ -279,6 +382,7 @@ const styles = StyleSheet.create({
   contextTitle: {
     color: "#FFFFFF",
     fontWeight: "600",
+    marginTop: 12,
     marginBottom: 8,
   },
   contextDescription: {

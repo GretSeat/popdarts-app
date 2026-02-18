@@ -100,22 +100,68 @@ export default function DartColorManager({
             >
               Own ({ownedColors.length})
             </Button>
-            <Button
-              mode={mode === "home" ? "contained" : "outlined"}
-              onPress={() => setMode("home")}
-              style={styles.modeButton}
-              compact
-            >
-              Home Fav
-            </Button>
-            <Button
-              mode={mode === "away" ? "contained" : "outlined"}
-              onPress={() => setMode("away")}
-              style={styles.modeButton}
-              compact
-            >
-              Away Fav
-            </Button>
+            {/* Home Fav Button with Gradient Background */}
+            <View style={styles.modeButtonWrapper}>
+              {favoriteHomeColor !== null && (
+                <LinearGradient
+                  colors={POPDARTS_COLORS[favoriteHomeColor].colors}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modeButtonGradientBackground}
+                >
+                  <Button
+                    mode={mode === "home" ? "contained" : "outlined"}
+                    onPress={() => setMode("home")}
+                    style={styles.modeButton}
+                    compact
+                    labelStyle={styles.modeButtonLabel}
+                  >
+                    Home Fav
+                  </Button>
+                </LinearGradient>
+              )}
+              {favoriteHomeColor === null && (
+                <Button
+                  mode={mode === "home" ? "contained" : "outlined"}
+                  onPress={() => setMode("home")}
+                  style={styles.modeButton}
+                  compact
+                >
+                  Home Fav
+                </Button>
+              )}
+            </View>
+            {/* Away Fav Button with Gradient Background */}
+            <View style={styles.modeButtonWrapper}>
+              {favoriteAwayColor !== null && (
+                <LinearGradient
+                  colors={POPDARTS_COLORS[favoriteAwayColor].colors}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modeButtonGradientBackground}
+                >
+                  <Button
+                    mode={mode === "away" ? "contained" : "outlined"}
+                    onPress={() => setMode("away")}
+                    style={styles.modeButton}
+                    compact
+                    labelStyle={styles.modeButtonLabel}
+                  >
+                    Away Fav
+                  </Button>
+                </LinearGradient>
+              )}
+              {favoriteAwayColor === null && (
+                <Button
+                  mode={mode === "away" ? "contained" : "outlined"}
+                  onPress={() => setMode("away")}
+                  style={styles.modeButton}
+                  compact
+                >
+                  Away Fav
+                </Button>
+              )}
+            </View>
           </View>
 
           {/* Instructions */}
@@ -140,114 +186,163 @@ export default function DartColorManager({
             )}
           </View>
 
-          {/* Current Favorites Display */}
-          <View style={styles.favoritesDisplay}>
-            <View style={styles.favoriteItem}>
-              <Text variant="labelSmall" style={styles.favoriteLabel}>
-                HOME:
-              </Text>
-              <Text variant="bodySmall" style={styles.favoriteValue}>
-                {favoriteHomeColor !== null
-                  ? POPDARTS_COLORS[favoriteHomeColor].name
-                  : "None"}
-              </Text>
-            </View>
-            <View style={styles.favoriteItem}>
-              <Text variant="labelSmall" style={styles.favoriteLabel}>
-                AWAY:
-              </Text>
-              <Text variant="bodySmall" style={styles.favoriteValue}>
-                {favoriteAwayColor !== null
-                  ? POPDARTS_COLORS[favoriteAwayColor].name
-                  : "None"}
-              </Text>
-            </View>
-          </View>
-
           {/* Color Grid */}
           <ScrollView style={styles.scrollView}>
             <View style={styles.colorGrid}>
-              {POPDARTS_COLORS.map((colorObj, colorIndex) => {
-                const isOwned = ownedColors.includes(colorIndex);
-                const isHomeFavorite = favoriteHomeColor === colorIndex;
-                const isAwayFavorite = favoriteAwayColor === colorIndex;
+              {Array.from({
+                length: Math.ceil(POPDARTS_COLORS.length / 2),
+              }).map((_, setIndex) => {
+                const colorIndex1 = setIndex * 2;
+                const colorIndex2 = setIndex * 2 + 1;
+                const color1 = POPDARTS_COLORS[colorIndex1];
+                const color2 = POPDARTS_COLORS[colorIndex2];
 
-                // Filter: Only show owned colors in home/away favorite modes
-                if ((mode === "home" || mode === "away") && !isOwned) {
+                // Check if both colors should be hidden in favorite modes
+                const isColor1Owned = ownedColors.includes(colorIndex1);
+                const isColor2Owned = ownedColors.includes(colorIndex2);
+                const shouldHideSet =
+                  (mode === "home" || mode === "away") &&
+                  !isColor1Owned &&
+                  !isColor2Owned;
+
+                if (shouldHideSet) {
                   return null;
                 }
 
                 return (
-                  <TouchableOpacity
-                    key={colorIndex}
-                    onPress={() => {
-                      if (mode === "ownership") {
-                        toggleOwnership(colorIndex);
-                      } else if (mode === "home") {
-                        setHomeFavorite(colorIndex);
-                      } else if (mode === "away") {
-                        setAwayFavorite(colorIndex);
-                      }
-                    }}
-                    style={[
-                      styles.colorSquare,
-                      isOwned && mode === "ownership" && styles.colorOwned,
-                      isHomeFavorite &&
-                        mode === "home" &&
-                        styles.colorFavoriteHome,
-                      isAwayFavorite &&
-                        mode === "away" &&
-                        styles.colorFavoriteAway,
-                    ]}
-                  >
-                    {/* Gradient or Solid Background */}
-                    {colorObj.isGradient ? (
-                      <LinearGradient
-                        colors={colorObj.colors}
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
-                        locations={[0, 1]}
-                        style={styles.colorGradient}
-                      />
-                    ) : (
-                      <View
+                  <View key={setIndex} style={styles.colorSet}>
+                    {/* First Color */}
+                    {color1 && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (mode === "ownership") {
+                            toggleOwnership(colorIndex1);
+                          } else if (mode === "home") {
+                            setHomeFavorite(colorIndex1);
+                          } else if (mode === "away") {
+                            setAwayFavorite(colorIndex1);
+                          }
+                        }}
                         style={[
-                          styles.colorGradient,
-                          { backgroundColor: colorObj.colors[0] },
+                          styles.colorSquare,
+                          isColor1Owned &&
+                            mode === "ownership" &&
+                            styles.colorOwned,
+                          favoriteHomeColor === colorIndex1 &&
+                            mode === "home" &&
+                            styles.colorFavoriteHome,
+                          favoriteAwayColor === colorIndex1 &&
+                            mode === "away" &&
+                            styles.colorFavoriteAway,
                         ]}
-                      />
-                    )}
-
-                    {/* Color Name */}
-                    <View style={styles.colorNameContainer}>
-                      <Text style={styles.colorName}>{colorObj.name}</Text>
-                    </View>
-
-                    {/* Ownership Indicator */}
-                    {isOwned && mode === "ownership" && (
-                      <View style={styles.ownedIndicator}>
-                        <View style={styles.checkmarkCircle}>
-                          <Text style={styles.checkmarkText}>✓</Text>
+                      >
+                        {color1.isGradient ? (
+                          <LinearGradient
+                            colors={color1.colors}
+                            start={{ x: 0, y: 0.5 }}
+                            end={{ x: 1, y: 0.5 }}
+                            locations={[0, 1]}
+                            style={styles.colorGradient}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.colorGradient,
+                              { backgroundColor: color1.colors[0] },
+                            ]}
+                          />
+                        )}
+                        <View style={styles.colorNameContainer}>
+                          <Text style={styles.colorName}>{color1.name}</Text>
                         </View>
-                      </View>
+                        {isColor1Owned && mode === "ownership" && (
+                          <View style={styles.ownedIndicator}>
+                            <View style={styles.checkmarkCircle}>
+                              <Text style={styles.checkmarkText}>✓</Text>
+                            </View>
+                          </View>
+                        )}
+                        {favoriteHomeColor === colorIndex1 && (
+                          <View style={styles.favoriteIndicatorHome}>
+                            <Text style={styles.favoriteIcon}>⭐</Text>
+                            <Text style={styles.favoriteText}>HOME</Text>
+                          </View>
+                        )}
+                        {favoriteAwayColor === colorIndex1 && (
+                          <View style={styles.favoriteIndicatorAway}>
+                            <Text style={styles.favoriteIcon}>⭐</Text>
+                            <Text style={styles.favoriteText}>AWAY</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
                     )}
 
-                    {/* Home Favorite Star */}
-                    {isHomeFavorite && (
-                      <View style={styles.favoriteIndicatorHome}>
-                        <Text style={styles.favoriteIcon}>⭐</Text>
-                        <Text style={styles.favoriteText}>HOME</Text>
-                      </View>
+                    {/* Second Color */}
+                    {color2 && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (mode === "ownership") {
+                            toggleOwnership(colorIndex2);
+                          } else if (mode === "home") {
+                            setHomeFavorite(colorIndex2);
+                          } else if (mode === "away") {
+                            setAwayFavorite(colorIndex2);
+                          }
+                        }}
+                        style={[
+                          styles.colorSquare,
+                          isColor2Owned &&
+                            mode === "ownership" &&
+                            styles.colorOwned,
+                          favoriteHomeColor === colorIndex2 &&
+                            mode === "home" &&
+                            styles.colorFavoriteHome,
+                          favoriteAwayColor === colorIndex2 &&
+                            mode === "away" &&
+                            styles.colorFavoriteAway,
+                        ]}
+                      >
+                        {color2.isGradient ? (
+                          <LinearGradient
+                            colors={color2.colors}
+                            start={{ x: 0, y: 0.5 }}
+                            end={{ x: 1, y: 0.5 }}
+                            locations={[0, 1]}
+                            style={styles.colorGradient}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.colorGradient,
+                              { backgroundColor: color2.colors[0] },
+                            ]}
+                          />
+                        )}
+                        <View style={styles.colorNameContainer}>
+                          <Text style={styles.colorName}>{color2.name}</Text>
+                        </View>
+                        {isColor2Owned && mode === "ownership" && (
+                          <View style={styles.ownedIndicator}>
+                            <View style={styles.checkmarkCircle}>
+                              <Text style={styles.checkmarkText}>✓</Text>
+                            </View>
+                          </View>
+                        )}
+                        {favoriteHomeColor === colorIndex2 && (
+                          <View style={styles.favoriteIndicatorHome}>
+                            <Text style={styles.favoriteIcon}>⭐</Text>
+                            <Text style={styles.favoriteText}>HOME</Text>
+                          </View>
+                        )}
+                        {favoriteAwayColor === colorIndex2 && (
+                          <View style={styles.favoriteIndicatorAway}>
+                            <Text style={styles.favoriteIcon}>⭐</Text>
+                            <Text style={styles.favoriteText}>AWAY</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
                     )}
-
-                    {/* Away Favorite Star */}
-                    {isAwayFavorite && (
-                      <View style={styles.favoriteIndicatorAway}>
-                        <Text style={styles.favoriteIcon}>⭐</Text>
-                        <Text style={styles.favoriteText}>AWAY</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
+                  </View>
                 );
               })}
             </View>
@@ -298,6 +393,19 @@ const styles = StyleSheet.create({
   modeButton: {
     flex: 1,
   },
+  modeButtonWrapper: {
+    flex: 1,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  modeButtonGradientBackground: {
+    borderRadius: 6,
+    padding: 1,
+  },
+  modeButtonLabel: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+  },
   instructions: {
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -307,41 +415,31 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#666",
   },
-  favoritesDisplay: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: "#fafafa",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  favoriteItem: {
-    alignItems: "center",
-  },
-  favoriteLabel: {
-    fontWeight: "bold",
-    color: "#666",
-    marginBottom: 4,
-  },
-  favoriteValue: {
-    color: "#333",
-  },
   scrollView: {
     flex: 1,
   },
   colorGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
+    justifyContent: "center",
+    paddingHorizontal: 0,
     paddingTop: 15,
     paddingBottom: 20,
+    gap: 12,
+    width: "100%",
+  },
+  colorSet: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 12,
+    padding: 8,
+    gap: 8,
+    width: "31%",
   },
   colorSquare: {
-    width: "48%",
+    width: "50%",
     height: 140,
-    marginBottom: 15,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: "#cccccc",

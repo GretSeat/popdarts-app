@@ -6,14 +6,6 @@
  */
 
 export const POPDARTS_COLORS = [
-  // Pop Golf Set
-    { name: "Golf Orange", colors: ["#ff7300"], isGradient: false },
-  { name: "Golf White", colors: ["#FFFFFF"], isGradient: false },
-
-  // Black & Red Set (Solid Colors)
-  { name: "Black", colors: ["#2A2A2A"], isGradient: false },
-  { name: "Red", colors: ["#CF2740"], isGradient: false },
-
   // Grey & Pink Set
   { name: "Grey", colors: ["#494949", "#D2D0D0"], isGradient: true },
   { name: "Pink", colors: ["#FFAAD8", "#D2D0D0"], isGradient: true },
@@ -21,14 +13,6 @@ export const POPDARTS_COLORS = [
   // FRDi Set (Nick is black/blue, Cakes is yellow/black)
   { name: "FRDI Nick", colors: ["#225879", "#020201"], isGradient: true },
   { name: "FRDI Cakes", colors: ["#E7D13E", "#020201"], isGradient: true },
-
-  // Party Set
-  {
-    name: "Party Chocolate",
-    colors: ["#443326ff", "#050505ff"],
-    isGradient: true,
-  },
-  { name: "Party Vanilla", colors: ["#FFFFFF", "#F3E5AB"], isGradient: true },
 
   // Fire & Ice Set
   { name: "Fire", colors: ["#F04B25", "#CCC029"], isGradient: true },
@@ -50,18 +34,6 @@ export const POPDARTS_COLORS = [
   { name: "Retro Teal", colors: ["#FFFFFF", "#4ACCC7"], isGradient: true },
   { name: "Retro Purple", colors: ["#FFFFFF", "#4605B0"], isGradient: true },
 
-  // Gold & Silver Set
-  { name: "Gold", colors: ["#FFD700"], isGradient: false },
-  { name: "Silver", colors: ["#C0C0C0"], isGradient: false },
-
-  // Blue & Green Set
-  { name: "Blue", colors: ["#429FC0"], isGradient: false },
-  { name: "Green", colors: ["#68B843"], isGradient: false },
-
-  // Purple & Yellow Set
-  { name: "Purple", colors: ["#745EAE"], isGradient: false },
-  { name: "Yellow", colors: ["#D6BE54"], isGradient: false },
-
   // Explore Set
   { name: "Explore Ocean", colors: ["#F4AFA4", "#3D5672"], isGradient: true },
   { name: "Explore Forest", colors: ["#ADC48E", "#3D5672"], isGradient: true },
@@ -81,6 +53,36 @@ export const POPDARTS_COLORS = [
     isGradient: true,
   },
   { name: "Halloween Ghost", colors: ["#AAD225", "#4A0A96"], isGradient: true },
+
+  // Blue & Green Set
+  { name: "Blue", colors: ["#429FC0"], isGradient: false },
+  { name: "Green", colors: ["#68B843"], isGradient: false },
+
+  // Purple & Yellow Set
+  { name: "Purple", colors: ["#745EAE"], isGradient: false },
+  { name: "Yellow", colors: ["#D6BE54"], isGradient: false },
+
+  // Black & Red Set (Solid Colors)
+  { name: "Black", colors: ["#2A2A2A"], isGradient: false },
+  { name: "Red", colors: ["#CF2740"], isGradient: false },
+
+  // Pop Golf Set
+  { name: "Golf Orange", colors: ["#ff7300"], isGradient: false },
+  { name: "Golf White", colors: ["#FFFFFF"], isGradient: false },
+
+  // Gold & Silver Set
+  { name: "Gold", colors: ["#FFD700"], isGradient: false },
+  { name: "Silver", colors: ["#C0C0C0"], isGradient: false },
+
+  // Party Set
+  {
+    name: "Party Chocolate",
+    colors: ["#443326ff", "#050505ff"],
+    isGradient: true,
+  },
+  { name: "Party Vanilla", colors: ["#FFFFFF", "#F3E5AB"], isGradient: true },
+
+  { name: "USA Blue", colors: ["#1a2981"], isGradient: false },
 ];
 
 /**

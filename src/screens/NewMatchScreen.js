@@ -1285,7 +1285,8 @@ export default function NewMatchScreen({ navigation, route }) {
           </View>
 
           <Animated.View style={[styles.winnerFlashContainer]}>
-            <View
+            <TouchableOpacity
+              onPress={startCoinFlipAnimation}
               style={[
                 styles.coinFlipDisplay,
                 {
@@ -1298,25 +1299,20 @@ export default function NewMatchScreen({ navigation, route }) {
                 },
               ]}
             >
-              <Text style={styles.coinFlipText}>
-                {coinFlipWinner === 0 || coinFlipWinner === 1
-                  ? player1Name
-                  : player2Name}
-              </Text>
-            </View>
+              {coinFlipWinner === 0 ? (
+                <Text style={styles.coinFlipButtonText}>FLIP</Text>
+              ) : (
+                <Text style={styles.coinFlipText}>
+                  {coinFlipWinner === 1 ? player1Name : player2Name}
+                </Text>
+              )}
+            </TouchableOpacity>
           </Animated.View>
 
           <View style={styles.playerNameContainer}>
             <Text style={styles.playerName}>{player2Name}</Text>
           </View>
         </View>
-
-        <TouchableOpacity
-          style={styles.preGameChoiceButton}
-          onPress={startCoinFlipAnimation}
-        >
-          <Text style={styles.preGameChoiceButtonText}>Begin Coin Flip</Text>
-        </TouchableOpacity>
       </View>
     );
 
@@ -2858,7 +2854,7 @@ export default function NewMatchScreen({ navigation, route }) {
                     textAlign: "center",
                   }}
                 >
-                  Quick, just for fun
+                  Quick, Just for Fun
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -2894,7 +2890,7 @@ export default function NewMatchScreen({ navigation, route }) {
                     textAlign: "center",
                   }}
                 >
-                  Practice w/ stats & RPS
+                  Resembles a League Match
                 </Text>
               </TouchableOpacity>
             </View>
@@ -3133,23 +3129,20 @@ export default function NewMatchScreen({ navigation, route }) {
                             />
                           )}
 
-                          {/* Selection Indicator with Name */}
-                          {isSelected && (
-                            <>
-                              {/* Vertical Color Name on Left - Only when selected */}
-                              <View style={styles.colorNameVerticalContainer}>
-                                <Text style={styles.colorNameVertical}>
-                                  {colorObj.name}
-                                </Text>
-                              </View>
+                          {/* Vertical Color Name on Left - Always visible */}
+                          <View style={styles.colorNameVerticalContainer}>
+                            <Text style={styles.colorNameVertical}>
+                              {colorObj.name}
+                            </Text>
+                          </View>
 
-                              {/* Checkmark */}
-                              <View style={styles.selectionIndicator}>
-                                <View style={styles.checkmarkCircle}>
-                                  <Text style={styles.checkmarkText}>✓</Text>
-                                </View>
+                          {/* Selection Checkmark - Only when selected */}
+                          {isSelected && (
+                            <View style={styles.selectionIndicator}>
+                              <View style={styles.checkmarkCircle}>
+                                <Text style={styles.checkmarkText}>✓</Text>
                               </View>
-                            </>
+                            </View>
                           )}
 
                           {/* Other Player Selected Overlay */}
@@ -3370,31 +3363,40 @@ export default function NewMatchScreen({ navigation, route }) {
               {player1Name.toUpperCase()}
             </Text>
 
-            {/* Large Tap Areas for Score */}
-            <View style={styles.scoreSectionFullscreen}>
-              {/* Left Half - Minus */}
-              <TouchableOpacity
-                onPress={() => decrementScore(1)}
-                disabled={winner !== null}
-                style={styles.scoreHalfTapArea}
-              >
-                <Text style={styles.minusPlusTextLarge}>–</Text>
-              </TouchableOpacity>
+            {/* Large Tap Areas for Score - Hidden in Casual Competitive */}
+            {lobbyMatchType !== "casual-competitive" && (
+              <View style={styles.scoreSectionFullscreen}>
+                {/* Left Half - Minus */}
+                <TouchableOpacity
+                  onPress={() => decrementScore(1)}
+                  disabled={winner !== null}
+                  style={styles.scoreHalfTapArea}
+                >
+                  <Text style={styles.minusPlusTextLarge}>–</Text>
+                </TouchableOpacity>
 
-              {/* Center - Score */}
+                {/* Center - Score */}
+                <View style={styles.scoreCenter}>
+                  <Text style={styles.scoreNumberLarge}>{player1Score}</Text>
+                </View>
+
+                {/* Right Half - Plus */}
+                <TouchableOpacity
+                  onPress={() => incrementScore(1)}
+                  disabled={winner !== null}
+                  style={styles.scoreHalfTapArea}
+                >
+                  <Text style={styles.minusPlusTextLarge}>+</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Center Score Display for Casual Competitive */}
+            {lobbyMatchType === "casual-competitive" && (
               <View style={styles.scoreCenter}>
                 <Text style={styles.scoreNumberLarge}>{player1Score}</Text>
               </View>
-
-              {/* Right Half - Plus */}
-              <TouchableOpacity
-                onPress={() => incrementScore(1)}
-                disabled={winner !== null}
-                style={styles.scoreHalfTapArea}
-              >
-                <Text style={styles.minusPlusTextLarge}>+</Text>
-              </TouchableOpacity>
-            </View>
+            )}
 
             {/* Stat Track Button - Hidden in Casual Competitive */}
             {lobbyMatchType !== "casual-competitive" && (
@@ -3413,19 +3415,21 @@ export default function NewMatchScreen({ navigation, route }) {
               </TouchableOpacity>
             )}
 
-            {/* +2, +3, +4, +5 Grid */}
-            <View style={styles.incrementGrid}>
-              {[2, 3, 4, 5].map((points) => (
-                <TouchableOpacity
-                  key={points}
-                  onPress={() => addPoints(1, points)}
-                  disabled={winner !== null}
-                  style={styles.incrementButton}
-                >
-                  <Text style={styles.incrementButtonText}>+{points}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {/* +2, +3, +4, +5 Grid - Hidden in Casual Competitive */}
+            {lobbyMatchType !== "casual-competitive" && (
+              <View style={styles.incrementGrid}>
+                {[2, 3, 4, 5].map((points) => (
+                  <TouchableOpacity
+                    key={points}
+                    onPress={() => addPoints(1, points)}
+                    disabled={winner !== null}
+                    style={styles.incrementButton}
+                  >
+                    <Text style={styles.incrementButtonText}>+{points}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         </View>
 
@@ -3470,31 +3474,40 @@ export default function NewMatchScreen({ navigation, route }) {
               {player2Name.toUpperCase()}
             </Text>
 
-            {/* Large Tap Areas for Score */}
-            <View style={styles.scoreSectionFullscreen}>
-              {/* Left Half - Minus */}
-              <TouchableOpacity
-                onPress={() => decrementScore(2)}
-                disabled={winner !== null}
-                style={styles.scoreHalfTapArea}
-              >
-                <Text style={styles.minusPlusTextLarge}>–</Text>
-              </TouchableOpacity>
+            {/* Large Tap Areas for Score - Hidden in Casual Competitive */}
+            {lobbyMatchType !== "casual-competitive" && (
+              <View style={styles.scoreSectionFullscreen}>
+                {/* Left Half - Minus */}
+                <TouchableOpacity
+                  onPress={() => decrementScore(2)}
+                  disabled={winner !== null}
+                  style={styles.scoreHalfTapArea}
+                >
+                  <Text style={styles.minusPlusTextLarge}>–</Text>
+                </TouchableOpacity>
 
-              {/* Center - Score */}
+                {/* Center - Score */}
+                <View style={styles.scoreCenter}>
+                  <Text style={styles.scoreNumberLarge}>{player2Score}</Text>
+                </View>
+
+                {/* Right Half - Plus */}
+                <TouchableOpacity
+                  onPress={() => incrementScore(2)}
+                  disabled={winner !== null}
+                  style={styles.scoreHalfTapArea}
+                >
+                  <Text style={styles.minusPlusTextLarge}>+</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Center Score Display for Casual Competitive */}
+            {lobbyMatchType === "casual-competitive" && (
               <View style={styles.scoreCenter}>
                 <Text style={styles.scoreNumberLarge}>{player2Score}</Text>
               </View>
-
-              {/* Right Half - Plus */}
-              <TouchableOpacity
-                onPress={() => incrementScore(2)}
-                disabled={winner !== null}
-                style={styles.scoreHalfTapArea}
-              >
-                <Text style={styles.minusPlusTextLarge}>+</Text>
-              </TouchableOpacity>
-            </View>
+            )}
 
             {/* Stat Track Button - Hidden in Casual Competitive */}
             {lobbyMatchType !== "casual-competitive" && (
@@ -3507,19 +3520,21 @@ export default function NewMatchScreen({ navigation, route }) {
               </TouchableOpacity>
             )}
 
-            {/* +2, +3, +4, +5 Grid */}
-            <View style={styles.incrementGrid}>
-              {[2, 3, 4, 5].map((points) => (
-                <TouchableOpacity
-                  key={points}
-                  onPress={() => addPoints(2, points)}
-                  disabled={winner !== null}
-                  style={styles.incrementButton}
-                >
-                  <Text style={styles.incrementButtonText}>+{points}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {/* +2, +3, +4, +5 Grid - Hidden in Casual Competitive */}
+            {lobbyMatchType !== "casual-competitive" && (
+              <View style={styles.incrementGrid}>
+                {[2, 3, 4, 5].map((points) => (
+                  <TouchableOpacity
+                    key={points}
+                    onPress={() => addPoints(2, points)}
+                    disabled={winner !== null}
+                    style={styles.incrementButton}
+                  >
+                    <Text style={styles.incrementButtonText}>+{points}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         </View>
 
@@ -4143,6 +4158,9 @@ export default function NewMatchScreen({ navigation, route }) {
                                 }
                                 calculations.push(value.toString());
                               }
+                            } else if (dart.status === "missed") {
+                              // Missed dart contributes 0 points
+                              calculations.push("0");
                             }
                           });
 
@@ -4212,23 +4230,32 @@ export default function NewMatchScreen({ navigation, route }) {
                                     : newStates[index].specialtyShot,
                               };
                             } else {
-                              // Casual mode: simple 3-state cycle
-                              let nextStatus = "landed";
-                              if (currentStatus === "landed") {
-                                nextStatus = "missed";
+                              // Casual mode: Position-based smart fill
+                              // Tapping at position N means "N+1 darts landed"
+                              if (currentStatus === "empty") {
+                                // Mark darts 0 to index as landed, index+1 onwards as missed
+                                for (let i = 0; i < newStates.length; i++) {
+                                  if (i <= index) {
+                                    if (newStates[i].status === "empty") {
+                                      newStates[i].status = "landed";
+                                    }
+                                  } else {
+                                    if (newStates[i].status === "empty") {
+                                      newStates[i].status = "missed";
+                                    }
+                                  }
+                                }
+                              } else if (currentStatus === "landed") {
+                                // Change to missed and cascade: all darts from this point onwards become missed
+                                for (let i = index; i < newStates.length; i++) {
+                                  newStates[i].status = "missed";
+                                }
                               } else if (currentStatus === "missed") {
-                                nextStatus = "empty";
+                                // Change to landed and cascade: all darts up to this point become landed
+                                for (let i = 0; i <= index; i++) {
+                                  newStates[i].status = "landed";
+                                }
                               }
-
-                              newStates[index] = {
-                                ...newStates[index],
-                                status: nextStatus,
-                                isClosest: false,
-                                specialtyShot:
-                                  nextStatus === "empty"
-                                    ? null
-                                    : newStates[index].specialtyShot,
-                              };
                             }
 
                             setP1DartStates(newStates);
@@ -4241,6 +4268,7 @@ export default function NewMatchScreen({ navigation, route }) {
                             dart.isClosest && styles.dartSquareClosest,
                             dart.status === "missed" && styles.dartSquareMissed,
                             dart.specialtyShot &&
+                              dart.status === "landed" &&
                               styles.dartSquareWithSpecialty,
                           ]}
                         >
@@ -4404,6 +4432,9 @@ export default function NewMatchScreen({ navigation, route }) {
                                 }
                                 calculations.push(value.toString());
                               }
+                            } else if (dart.status === "missed") {
+                              // Missed dart contributes 0 points
+                              calculations.push("0");
                             }
                           });
 
@@ -4473,23 +4504,32 @@ export default function NewMatchScreen({ navigation, route }) {
                                     : newStates[index].specialtyShot,
                               };
                             } else {
-                              // Casual mode: simple 3-state cycle
-                              let nextStatus = "landed";
-                              if (currentStatus === "landed") {
-                                nextStatus = "missed";
+                              // Casual mode: Position-based smart fill
+                              // Tapping at position N means "N+1 darts landed"
+                              if (currentStatus === "empty") {
+                                // Mark darts 0 to index as landed, index+1 onwards as missed
+                                for (let i = 0; i < newStates.length; i++) {
+                                  if (i <= index) {
+                                    if (newStates[i].status === "empty") {
+                                      newStates[i].status = "landed";
+                                    }
+                                  } else {
+                                    if (newStates[i].status === "empty") {
+                                      newStates[i].status = "missed";
+                                    }
+                                  }
+                                }
+                              } else if (currentStatus === "landed") {
+                                // Change to missed and cascade: all darts from this point onwards become missed
+                                for (let i = index; i < newStates.length; i++) {
+                                  newStates[i].status = "missed";
+                                }
                               } else if (currentStatus === "missed") {
-                                nextStatus = "empty";
+                                // Change to landed and cascade: all darts up to this point become landed
+                                for (let i = 0; i <= index; i++) {
+                                  newStates[i].status = "landed";
+                                }
                               }
-
-                              newStates[index] = {
-                                ...newStates[index],
-                                status: nextStatus,
-                                isClosest: false,
-                                specialtyShot:
-                                  nextStatus === "empty"
-                                    ? null
-                                    : newStates[index].specialtyShot,
-                              };
                             }
 
                             setP2DartStates(newStates);
@@ -4502,6 +4542,7 @@ export default function NewMatchScreen({ navigation, route }) {
                             dart.isClosest && styles.dartSquareClosest,
                             dart.status === "missed" && styles.dartSquareMissed,
                             dart.specialtyShot &&
+                              dart.status === "landed" &&
                               styles.dartSquareWithSpecialty,
                           ]}
                         >
@@ -5766,17 +5807,32 @@ export default function NewMatchScreen({ navigation, route }) {
                 const hasTNobber =
                   p1DartStates.some((d) => d.specialtyShot === "t-nobber") ||
                   p2DartStates.some((d) => d.specialtyShot === "t-nobber");
+                const hasTripleNobber =
+                  p1DartStates.some(
+                    (d) => d.specialtyShot === "triple-nobber",
+                  ) ||
+                  p2DartStates.some((d) => d.specialtyShot === "triple-nobber");
+                const hasTower =
+                  p1DartStates.some((d) => d.specialtyShot === "tower") ||
+                  p2DartStates.some((d) => d.specialtyShot === "tower");
 
                 // Hide T-Nobber if Inch Worm OR another T-Nobber is on board
                 if (shot.id === "t-nobber" && (hasInchWorm || hasTNobber)) {
                   return null;
                 }
-                // Hide Triple Nobber unless T-Nobber is on board
-                if (shot.id === "triple-nobber" && !hasTNobber) {
+                // Hide Triple Nobber unless T-Nobber is on board, or if one is already on board
+                if (
+                  shot.id === "triple-nobber" &&
+                  (!hasTNobber || hasTripleNobber)
+                ) {
                   return null;
                 }
                 // Hide Inch Worm if one is already on the board
                 if (shot.id === "inch-worm" && hasInchWorm) {
+                  return null;
+                }
+                // Hide Tower if one is already on the board
+                if (shot.id === "tower" && hasTower) {
                   return null;
                 }
 

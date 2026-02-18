@@ -6,6 +6,7 @@ import {
   Dimensions,
   TouchableOpacity,
   Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -54,6 +55,8 @@ export default function ProfileScreen() {
     setFavoriteJersey,
     advancedClosestTracking,
     setAdvancedClosestTracking,
+    showVictoryReminder,
+    setShowVictoryReminder,
   } = usePlayerPreferences();
 
   // Use favorite home dart color for avatar and preview
@@ -186,26 +189,26 @@ export default function ProfileScreen() {
 
   // Mock leaderboard data (top 10 shown, Elite = top 20)
   const mockLeaderboard = [
-    { rank: 1, name: "TheDartKing", mmr: 2156, tier: "Elite" },
-    { rank: 2, name: "BullseyeQueen", mmr: 2098, tier: "Elite" },
-    { rank: 3, name: "PrecisionMaster", mmr: 2044, tier: "Elite" },
-    { rank: 4, name: "DartNinja", mmr: 1998, tier: "Elite" },
-    { rank: 5, name: "TargetLock", mmr: 1945, tier: "Elite" },
-    { rank: 6, name: "ThrowMaster", mmr: 1922, tier: "Elite" },
-    { rank: 7, name: "BullseyeBoss", mmr: 1910, tier: "Elite" },
-    { rank: 8, name: "AimAssist", mmr: 1905, tier: "Elite" },
-    { rank: 9, name: "SharpShooter", mmr: 1899, tier: "Elite" },
-    { rank: 10, name: "LocalLegend", mmr: 1894, tier: "Elite" },
-    { rank: 11, name: "BullseyeBandit", mmr: 1889, tier: "Elite" },
-    { rank: 12, name: "DartDemon", mmr: 1885, tier: "Elite" },
-    { rank: 13, name: "PrecisionPro", mmr: 1880, tier: "Elite" },
-    { rank: 14, name: "TargetTerror", mmr: 1876, tier: "Elite" },
-    { rank: 15, name: "AceAimer", mmr: 1872, tier: "Elite" },
-    { rank: 16, name: "ThrowGod", mmr: 1868, tier: "Elite" },
-    { rank: 17, name: "DartMaestro", mmr: 1864, tier: "Elite" },
-    { rank: 18, name: "BullseyeBeast", mmr: 1860, tier: "Elite" },
-    { rank: 19, name: "SniperShot", mmr: 1856, tier: "Elite" },
-    { rank: 20, name: "EliteEnder", mmr: 1852, tier: "Elite" },
+    { rank: 1, name: "Cole Hunter", mmr: 2156, tier: "Elite" },
+    { rank: 2, name: "Mark Glenn", mmr: 2098, tier: "Elite" },
+    { rank: 3, name: "David Long", mmr: 2044, tier: "Elite" },
+    { rank: 4, name: "Luke Stutzman", mmr: 1998, tier: "Elite" },
+    { rank: 5, name: "Blake Covington", mmr: 1945, tier: "Elite" },
+    { rank: 6, name: "Mitchell Covington", mmr: 1922, tier: "Elite" },
+    { rank: 7, name: "Derek Durrance", mmr: 1910, tier: "Elite" },
+    { rank: 8, name: "Zachary Unrue", mmr: 1905, tier: "Elite" },
+    { rank: 9, name: "Eric Herman", mmr: 1899, tier: "Elite" },
+    { rank: 10, name: "Zachary Conlogue", mmr: 1894, tier: "Elite" },
+    { rank: 11, name: "Austin Shepperd", mmr: 1889, tier: "Elite" },
+    { rank: 12, name: "Robert Neely", mmr: 1885, tier: "Elite" },
+    { rank: 13, name: "Rowan S", mmr: 1880, tier: "Elite" },
+    { rank: 14, name: "Deej", mmr: 1876, tier: "Elite" },
+    { rank: 15, name: "Kurt W", mmr: 1872, tier: "Elite" },
+    { rank: 16, name: "Kurt S", mmr: 1868, tier: "Elite" },
+    { rank: 17, name: "Nigel S", mmr: 1864, tier: "Elite" },
+    { rank: 18, name: "Jaden W", mmr: 1860, tier: "Elite" },
+    { rank: 19, name: "Anthony B", mmr: 1856, tier: "Elite" },
+    { rank: 20, name: "Jake N", mmr: 1852, tier: "Elite" },
   ];
 
   // Mock seasonal badges (achieved ranks from previous seasons)
@@ -261,9 +264,15 @@ export default function ProfileScreen() {
         colors={jerseyBackgroundColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.header}
+        style={[styles.header, Platform.OS === "web" && styles.headerWeb]}
       >
-        <View style={{ alignItems: "center", marginBottom: 8 }}>
+        <View
+          style={[
+            { marginBottom: 8 },
+            Platform.OS === "web" && { alignItems: "flex-start" },
+            Platform.OS !== "web" && { alignItems: "center" },
+          ]}
+        >
           {/* Avatar with favorite home dart color */}
           <View style={styles.avatarPreviewBox}>
             <Text
@@ -293,11 +302,17 @@ export default function ProfileScreen() {
             )}
           </View>
         </View>
-        <Text variant="headlineMedium" style={styles.name}>
+        <Text
+          variant="headlineMedium"
+          style={[styles.name, Platform.OS === "web" && styles.textLeft]}
+        >
           {displayName}
         </Text>
         {!isGuest && (
-          <Text variant="bodyMedium" style={styles.email}>
+          <Text
+            variant="bodyMedium"
+            style={[styles.email, Platform.OS === "web" && styles.textLeft]}
+          >
             {email}
           </Text>
         )}
@@ -310,7 +325,7 @@ export default function ProfileScreen() {
         <View
           style={{
             flexDirection: "row",
-            justifyContent: "center",
+            justifyContent: Platform.OS === "web" ? "flex-end" : "center",
             marginTop: 8,
           }}
         >
@@ -370,7 +385,7 @@ export default function ProfileScreen() {
         <View
           style={{
             flexDirection: "row",
-            justifyContent: "center",
+            justifyContent: Platform.OS === "web" ? "flex-end" : "center",
             marginTop: 2,
           }}
         >
@@ -1194,6 +1209,21 @@ export default function ProfileScreen() {
             onValueChange={setAdvancedClosestTracking}
           />
         </View>
+
+        <Divider />
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Victory Reminder</Text>
+            <Text style={styles.settingDescription}>
+              Show points remaining when approaching victory in casual matches
+            </Text>
+          </View>
+          <Switch
+            value={showVictoryReminder}
+            onValueChange={setShowVictoryReminder}
+          />
+        </View>
       </Surface>
 
       {/* Account Settings */}
@@ -1355,6 +1385,10 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
+  headerWeb: {
+    alignItems: "flex-start",
+    paddingLeft: 24,
+  },
   avatarPreviewBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -1445,6 +1479,9 @@ const styles = StyleSheet.create({
   email: {
     color: "#666",
     marginBottom: 8,
+  },
+  textLeft: {
+    textAlign: "left",
   },
   clubChip: {
     marginTop: 8,

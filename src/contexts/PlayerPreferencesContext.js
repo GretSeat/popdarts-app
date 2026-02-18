@@ -2,12 +2,14 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
- * PlayerPreferencesContext - Manages player's color and jersey preferences
+ * PlayerPreferencesContext - Manages player's color, jersey, and gameplay preferences
  * - Owned colors (which darts they own)
  * - Favorite home color (auto-selected when Player 1)
  * - Favorite away color (auto-selected when Player 2)
  * - Owned jerseys (which jerseys they own)
  * - Favorite jersey (displayed on profile)
+ * - Advanced closest tracking (3-tap dart entry for competitive)
+ * - Show victory reminder (points to win indicator in casual scoring)
  */
 const PlayerPreferencesContext = createContext();
 
@@ -28,6 +30,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
   const [ownedJerseys, setOwnedJerseys] = useState([]); // Array of jersey IDs
   const [favoriteJersey, setFavoriteJersey] = useState(null); // Jersey ID
   const [advancedClosestTracking, setAdvancedClosestTracking] = useState(false); // Competitive setting
+  const [showVictoryReminder, setShowVictoryReminder] = useState(true); // Show victory hint in casual scoring
   const [loading, setLoading] = useState(true);
 
   // Storage keys
@@ -38,6 +41,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
     OWNED_JERSEYS: "@popdarts_owned_jerseys",
     FAVORITE_JERSEY: "@popdarts_favorite_jersey",
     ADVANCED_CLOSEST_TRACKING: "@popdarts_advanced_closest_tracking",
+    SHOW_VICTORY_REMINDER: "@popdarts_show_victory_reminder",
   };
 
   /**
@@ -52,15 +56,23 @@ export const PlayerPreferencesProvider = ({ children }) => {
    */
   const loadPreferences = async () => {
     try {
-      const [owned, home, away, jerseys, jersey, advancedTracking] =
-        await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEYS.OWNED_COLORS),
-          AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_HOME),
-          AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_AWAY),
-          AsyncStorage.getItem(STORAGE_KEYS.OWNED_JERSEYS),
-          AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_JERSEY),
-          AsyncStorage.getItem(STORAGE_KEYS.ADVANCED_CLOSEST_TRACKING),
-        ]);
+      const [
+        owned,
+        home,
+        away,
+        jerseys,
+        jersey,
+        advancedTracking,
+        victoryReminder,
+      ] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.OWNED_COLORS),
+        AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_HOME),
+        AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_AWAY),
+        AsyncStorage.getItem(STORAGE_KEYS.OWNED_JERSEYS),
+        AsyncStorage.getItem(STORAGE_KEYS.FAVORITE_JERSEY),
+        AsyncStorage.getItem(STORAGE_KEYS.ADVANCED_CLOSEST_TRACKING),
+        AsyncStorage.getItem(STORAGE_KEYS.SHOW_VICTORY_REMINDER),
+      ]);
 
       if (owned) setOwnedColors(JSON.parse(owned));
       if (home) setFavoriteHomeColor(JSON.parse(home));
@@ -69,6 +81,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
       if (jersey) setFavoriteJersey(JSON.parse(jersey));
       if (advancedTracking)
         setAdvancedClosestTracking(JSON.parse(advancedTracking));
+      if (victoryReminder) setShowVictoryReminder(JSON.parse(victoryReminder));
     } catch (error) {
       console.error("Error loading player preferences:", error);
     } finally {
@@ -170,6 +183,21 @@ export const PlayerPreferencesProvider = ({ children }) => {
   };
 
   /**
+   * Save show victory reminder preference to storage
+   */
+  const saveShowVictoryReminder = async (value) => {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.SHOW_VICTORY_REMINDER,
+        JSON.stringify(value),
+      );
+      setShowVictoryReminder(value);
+    } catch (error) {
+      console.error("Error saving show victory reminder preference:", error);
+    }
+  };
+
+  /**
    * Clear all preferences (useful for sign out)
    */
   const clearPreferences = async () => {
@@ -181,6 +209,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
         STORAGE_KEYS.OWNED_JERSEYS,
         STORAGE_KEYS.FAVORITE_JERSEY,
         STORAGE_KEYS.ADVANCED_CLOSEST_TRACKING,
+        STORAGE_KEYS.SHOW_VICTORY_REMINDER,
       ]);
       setOwnedColors([]);
       setFavoriteHomeColor(null);
@@ -188,6 +217,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
       setOwnedJerseys([]);
       setFavoriteJersey(null);
       setAdvancedClosestTracking(false);
+      setShowVictoryReminder(true);
     } catch (error) {
       console.error("Error clearing preferences:", error);
     }
@@ -206,6 +236,8 @@ export const PlayerPreferencesProvider = ({ children }) => {
     setFavoriteJersey: saveFavoriteJersey,
     advancedClosestTracking,
     setAdvancedClosestTracking: saveAdvancedClosestTracking,
+    showVictoryReminder,
+    setShowVictoryReminder: saveShowVictoryReminder,
     clearPreferences,
     loading,
   };

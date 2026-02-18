@@ -1127,6 +1127,8 @@ const styles = StyleSheet.create({
     padding: 24,
     width: "90%",
     maxWidth: 400,
+    minHeight: 550,
+    maxHeight: 600,
   },
   quickScoreTitle: {
     fontSize: 28,
@@ -1483,6 +1485,12 @@ const styles = StyleSheet.create({
     color: "#FFF",
     textAlign: "center",
     paddingHorizontal: 10,
+  },
+  coinFlipButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFF",
+    textAlign: "center",
   },
 
   // ============ TOURNAMENT STYLES ============
