@@ -1121,6 +1121,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 20,
   },
+  quickScoreContainerModal: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 20,
+    padding: 24,
+    width: "90%",
+    maxWidth: 400,
+  },
   quickScoreTitle: {
     fontSize: 28,
     fontWeight: "bold",

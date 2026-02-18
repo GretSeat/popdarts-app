@@ -3918,7 +3918,7 @@ export default function NewMatchScreen({ navigation, route }) {
             <ScrollView
               contentContainerStyle={styles.quickScoreScrollContainer}
             >
-              <View style={styles.quickScoreContainer}>
+              <View style={styles.quickScoreContainerModal}>
                 <Text style={styles.quickScoreTitle}>Quick Score</Text>
                 <Text style={styles.quickScoreSubtitle}>
                   Enter dart counts for quick scoring
