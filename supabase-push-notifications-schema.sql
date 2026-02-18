@@ -190,7 +190,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION send_push_notification TO authenticated;

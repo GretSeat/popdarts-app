@@ -49,7 +49,7 @@ CREATE INDEX idx_matches_played_at ON matches(played_at DESC);
 CREATE INDEX idx_users_email ON users(email);
 
 -- User stats view (derived from matches)
-CREATE OR REPLACE VIEW user_stats AS
+CREATE OR REPLACE VIEW user_stats WITH (security_invoker = true) AS
 SELECT
   u.id,
   u.display_name,
