@@ -205,6 +205,11 @@ export default function NewMatchScreen({ navigation, route }) {
   const [calculatedYPositions, setCalculatedYPositions] = useState({}); // Store measured positions for SVG lines
   const [quickBracketMenuVisible, setQuickBracketMenuVisible] = useState(false);
   const [selectedBracketSize, setSelectedBracketSize] = useState(null);
+  const [bracketContainerDimensions, setBracketContainerDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
+  const bracketScrollViewRef = useRef(null);
 
   // Win dialog
   const [winner, setWinner] = useState(null);
@@ -1918,531 +1923,617 @@ export default function NewMatchScreen({ navigation, route }) {
               </Text>
             </View>
 
-            {/* Bracket Display */}
+            {/* Bracket Display - Vertical scroll wrapper with nested horizontal scroll */}
             <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={true}
-              contentContainerStyle={{ padding: 20 }}
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
             >
-              <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-                {rounds.map((round, roundIndex) => {
-                  const matchHeight = 150; // Even larger to accommodate all content variations
-                  const matchGap = 50; // Much larger gap for proper visual separation
-                  const cardWidth = 220; // Match card width
-                  const connectorWidth = 80; // Space between rounds (marginRight)
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={true}
+                contentContainerStyle={{ padding: 20 }}
+                nestedScrollEnabled={true}
+              >
+                <View
+                  style={{ flexDirection: "row", alignItems: "flex-start" }}
+                >
+                  {rounds.map((round, roundIndex) => {
+                    const matchHeight = 150; // Even larger to accommodate all content variations
+                    const matchGap = 50; // Much larger gap for proper visual separation
+                    const cardWidth = 220; // Match card width
+                    const connectorWidth = 80; // Space between rounds (marginRight)
 
-                  // Calculate grid row positions for each match in this round
-                  // Round 1: matches at rows 0, 1, 2, 3...
-                  // Round 2: matches at rows 0.5, 2.5, 4.5... (midpoints between R1 matches)
-                  // Round 3: matches at rows 1.5, 5.5... (midpoints between R2 matches)
-                  const getMatchRow = (matchIndex) => {
-                    // Each subsequent round is staggered by half
-                    const offset = Math.pow(2, roundIndex) - 1; // 0, 1, 3, 7...
-                    const spacing = Math.pow(2, roundIndex); // 1, 2, 4, 8...
-                    return offset + matchIndex * spacing;
-                  };
+                    // Calculate grid row positions for each match in this round
+                    // Round 1: matches at rows 0, 1, 2, 3...
+                    // Round 2: matches at rows 0.5, 2.5, 4.5... (midpoints between R1 matches)
+                    // Round 3: matches at rows 1.5, 5.5... (midpoints between R2 matches)
+                    const getMatchRow = (matchIndex) => {
+                      // Each subsequent round is staggered by half
+                      const offset = Math.pow(2, roundIndex) - 1; // 0, 1, 3, 7...
+                      const spacing = Math.pow(2, roundIndex); // 1, 2, 4, 8...
+                      return offset + matchIndex * spacing;
+                    };
 
-                  // Convert row to Y position
-                  const rowToY = (row) => row * (matchHeight + matchGap);
+                    // Convert row to Y position
+                    const rowToY = (row) => row * (matchHeight + matchGap);
 
-                  // Calculate minimum height needed for this round
-                  const lastMatchRow =
-                    round.seeds.length > 0
-                      ? getMatchRow(round.seeds.length - 1)
-                      : 0;
-                  const minHeight = rowToY(lastMatchRow) + matchHeight + 50; // +50 for padding
+                    // Calculate minimum height needed for this round
+                    const lastMatchRow =
+                      round.seeds.length > 0
+                        ? getMatchRow(round.seeds.length - 1)
+                        : 0;
+                    const minHeight = rowToY(lastMatchRow) + matchHeight + 50; // +50 for padding
 
-                  return (
-                    <View
-                      key={roundIndex}
-                      style={{
-                        marginRight: connectorWidth,
-                        minWidth: cardWidth,
-                        minHeight: minHeight,
-                      }}
-                      onLayout={(event) => {
-                        const { x } = event.nativeEvent.layout;
-                        setRoundXOffsets((prev) => {
-                          // Only update if value actually changed
-                          if (prev[roundIndex] !== x) {
-                            return {
-                              ...prev,
-                              [roundIndex]: x,
-                            };
-                          }
-                          return prev;
-                        });
-                      }}
-                    >
-                      {/* Round Title */}
-                      <Text style={styles.roundLabel}>{round.title}</Text>
-
-                      {/* Seeds (Matches) */}
+                    return (
                       <View
+                        key={roundIndex}
                         style={{
-                          marginTop: 15,
-                          position: "relative",
-                          minHeight: minHeight - 50,
+                          marginRight: connectorWidth,
+                          minWidth: cardWidth,
+                          minHeight: minHeight,
+                        }}
+                        onLayout={(event) => {
+                          const { x } = event.nativeEvent.layout;
+                          setRoundXOffsets((prev) => {
+                            // Only update if value actually changed
+                            if (prev[roundIndex] !== x) {
+                              return {
+                                ...prev,
+                                [roundIndex]: x,
+                              };
+                            }
+                            return prev;
+                          });
                         }}
                       >
-                        {round.seeds.map((seed, seedIndex) => {
-                          const team1 = seed.teams[0] || {};
-                          const team2 = seed.teams[1] || {};
+                        {/* Round Title */}
+                        <Text style={styles.roundLabel}>{round.title}</Text>
 
-                          // Calculate Y position dynamically based on source matches
-                          let yPosition;
+                        {/* Seeds (Matches) */}
+                        <View
+                          style={{
+                            marginTop: 15,
+                            position: "relative",
+                            minHeight: minHeight - 50,
+                          }}
+                        >
+                          {round.seeds.map((seed, seedIndex) => {
+                            const team1 = seed.teams[0] || {};
+                            const team2 = seed.teams[1] || {};
 
-                          if (roundIndex === 0) {
-                            // First round: use grid-based position
-                            const gridRow = getMatchRow(seedIndex);
-                            yPosition = rowToY(gridRow);
-                          } else {
-                            // Subsequent rounds: center between source matches
+                            // Calculate Y position dynamically based on source matches
+                            let yPosition;
+
+                            if (roundIndex === 0) {
+                              // First round: use grid-based position
+                              const gridRow = getMatchRow(seedIndex);
+                              yPosition = rowToY(gridRow);
+                            } else {
+                              // Subsequent rounds: center between source matches
+                              const roundData =
+                                tournamentBracket.rounds[roundIndex];
+                              const matchData = roundData[seedIndex];
+
+                              if (
+                                matchData?.sourceMatch1 &&
+                                matchData?.sourceMatch2
+                              ) {
+                                // Find source match IDs
+                                const prevRound = rounds[roundIndex - 1];
+                                const sourceIndex1 = seedIndex * 2;
+                                const sourceIndex2 = seedIndex * 2 + 1;
+                                const source1 = prevRound.seeds[sourceIndex1];
+                                const source2 = prevRound.seeds[sourceIndex2];
+
+                                if (source1 && source2) {
+                                  const pos1 = matchPositions[source1.id];
+                                  const pos2 = matchPositions[source2.id];
+
+                                  if (pos1 && pos2) {
+                                    // Center this match between source matches
+                                    const junctionY =
+                                      (pos1.centerY + pos2.centerY) / 2;
+
+                                    // Check if we have a previous measurement for this match's height
+                                    const existingPos = matchPositions[seed.id];
+                                    const estimatedHalfHeight = existingPos
+                                      ? existingPos.height / 2
+                                      : 60;
+
+                                    yPosition = junctionY - estimatedHalfHeight;
+                                  }
+                                }
+                              }
+
+                              // Fallback to grid if we couldn't calculate from sources
+                              if (yPosition === undefined) {
+                                const gridRow = getMatchRow(seedIndex);
+                                yPosition = rowToY(gridRow);
+                              }
+                            }
+
+                            // Get source match IDs for better placeholder text
                             const roundData =
                               tournamentBracket.rounds[roundIndex];
                             const matchData = roundData[seedIndex];
+                            const team1Label =
+                              team1.name ||
+                              (matchData?.sourceMatch1
+                                ? `Winner of ${matchData.sourceMatch1.toUpperCase()}`
+                                : "TBD");
+                            const team2Label =
+                              team2.name ||
+                              (matchData?.sourceMatch2
+                                ? `Winner of ${matchData.sourceMatch2.toUpperCase()}`
+                                : "TBD");
 
-                            if (
-                              matchData?.sourceMatch1 &&
-                              matchData?.sourceMatch2
-                            ) {
-                              // Find source match IDs
-                              const prevRound = rounds[roundIndex - 1];
-                              const sourceIndex1 = seedIndex * 2;
-                              const sourceIndex2 = seedIndex * 2 + 1;
-                              const source1 = prevRound.seeds[sourceIndex1];
-                              const source2 = prevRound.seeds[sourceIndex2];
-
-                              if (source1 && source2) {
-                                const pos1 = matchPositions[source1.id];
-                                const pos2 = matchPositions[source2.id];
-
-                                if (pos1 && pos2) {
-                                  // Center this match between source matches
-                                  const junctionY =
-                                    (pos1.centerY + pos2.centerY) / 2;
-
-                                  // Check if we have a previous measurement for this match's height
-                                  const existingPos = matchPositions[seed.id];
-                                  const estimatedHalfHeight = existingPos
-                                    ? existingPos.height / 2
-                                    : 60;
-
-                                  yPosition = junctionY - estimatedHalfHeight;
+                            const CardWrapper = seed.inProgress
+                              ? Animated.View
+                              : View;
+                            const animatedStyle = seed.inProgress
+                              ? {
+                                  transform: [{ scale: pulseAnim }],
                                 }
-                              }
-                            }
+                              : {};
 
-                            // Fallback to grid if we couldn't calculate from sources
-                            if (yPosition === undefined) {
-                              const gridRow = getMatchRow(seedIndex);
-                              yPosition = rowToY(gridRow);
-                            }
-                          }
-
-                          // Get source match IDs for better placeholder text
-                          const roundData =
-                            tournamentBracket.rounds[roundIndex];
-                          const matchData = roundData[seedIndex];
-                          const team1Label =
-                            team1.name ||
-                            (matchData?.sourceMatch1
-                              ? `Winner of ${matchData.sourceMatch1.toUpperCase()}`
-                              : "TBD");
-                          const team2Label =
-                            team2.name ||
-                            (matchData?.sourceMatch2
-                              ? `Winner of ${matchData.sourceMatch2.toUpperCase()}`
-                              : "TBD");
-
-                          const CardWrapper = seed.inProgress
-                            ? Animated.View
-                            : View;
-                          const animatedStyle = seed.inProgress
-                            ? {
-                                transform: [{ scale: pulseAnim }],
-                              }
-                            : {};
-
-                          return (
-                            <CardWrapper
-                              key={seed.id}
-                              style={[
-                                animatedStyle,
-                                {
-                                  position: "absolute",
-                                  top: yPosition,
-                                  width: cardWidth,
-                                },
-                              ]}
-                              onLayout={(event) => {
-                                const { x, y, width, height } =
-                                  event.nativeEvent.layout;
-                                // Calculate round X position: Round 0 = 0, Round 1 = 300, Round 2 = 600, etc.
-                                const calculatedRoundX =
-                                  roundIndex * (cardWidth + connectorWidth);
-                                setMatchPositions((prev) => {
-                                  const existingPos = prev[seed.id];
-                                  // Only update if position actually changed
-                                  if (
-                                    !existingPos ||
-                                    existingPos.x !== calculatedRoundX ||
-                                    existingPos.y !== y ||
-                                    existingPos.width !== width ||
-                                    existingPos.height !== height
-                                  ) {
-                                    return {
-                                      ...prev,
-                                      [seed.id]: {
-                                        x: calculatedRoundX,
-                                        y,
-                                        width,
-                                        height,
-                                        centerY: y + height / 2,
-                                        roundIndex,
-                                      },
-                                    };
-                                  }
-                                  return prev;
-                                });
-                              }}
-                            >
-                              <TouchableOpacity
+                            return (
+                              <CardWrapper
+                                key={seed.id}
                                 style={[
-                                  styles.seedCard,
-                                  seed.completed && styles.seedCardCompleted,
-                                  seed.inProgress && styles.seedCardInProgress,
-                                  (!team1.name || !team2.name) &&
-                                    !seed.inProgress &&
-                                    styles.seedCardFuture,
-                                  !seed.completed &&
-                                    team1.name &&
-                                    team2.name &&
-                                    !seed.inProgress &&
-                                    styles.seedCardNextUp,
+                                  animatedStyle,
+                                  {
+                                    position: "absolute",
+                                    top: yPosition,
+                                    width: cardWidth,
+                                  },
                                 ]}
-                                onPress={seed.onPress}
-                                disabled={!team1.name || !team2.name}
-                                activeOpacity={0.7}
+                                onLayout={(event) => {
+                                  const { x, y, width, height } =
+                                    event.nativeEvent.layout;
+                                  // Calculate round X position: Round 0 = 0, Round 1 = 300, Round 2 = 600, etc.
+                                  const calculatedRoundX =
+                                    roundIndex * (cardWidth + connectorWidth);
+                                  setMatchPositions((prev) => {
+                                    const existingPos = prev[seed.id];
+                                    // Only update if position actually changed
+                                    if (
+                                      !existingPos ||
+                                      existingPos.x !== calculatedRoundX ||
+                                      existingPos.y !== y ||
+                                      existingPos.width !== width ||
+                                      existingPos.height !== height
+                                    ) {
+                                      return {
+                                        ...prev,
+                                        [seed.id]: {
+                                          x: calculatedRoundX,
+                                          y,
+                                          width,
+                                          height,
+                                          centerY: y + height / 2,
+                                          roundIndex,
+                                        },
+                                      };
+                                    }
+                                    return prev;
+                                  });
+                                }}
                               >
-                                {/* Team 1 */}
-                                <View
+                                <TouchableOpacity
                                   style={[
-                                    styles.teamRow,
-                                    seed.winnerId === team1.id &&
-                                      styles.teamRowWinner,
+                                    styles.seedCard,
+                                    seed.completed && styles.seedCardCompleted,
+                                    seed.inProgress &&
+                                      styles.seedCardInProgress,
+                                    (!team1.name || !team2.name) &&
+                                      !seed.inProgress &&
+                                      styles.seedCardFuture,
+                                    !seed.completed &&
+                                      team1.name &&
+                                      team2.name &&
+                                      !seed.inProgress &&
+                                      styles.seedCardNextUp,
                                   ]}
+                                  onPress={seed.onPress}
+                                  disabled={!team1.name || !team2.name}
+                                  activeOpacity={0.7}
                                 >
-                                  {team1.name && team1.color && (
-                                    <View style={styles.teamColorDot}>
-                                      {team1.color.isGradient ? (
-                                        <LinearGradient
-                                          colors={team1.color.colors}
-                                          start={{ x: 0, y: 0.5 }}
-                                          end={{ x: 1, y: 0.5 }}
-                                          style={styles.colorGradient}
-                                        />
-                                      ) : (
-                                        <View
-                                          style={[
-                                            styles.colorSolid,
-                                            {
-                                              backgroundColor:
-                                                team1.color.colors[0],
-                                            },
-                                          ]}
-                                        />
-                                      )}
-                                    </View>
-                                  )}
-                                  <Text
+                                  {/* Team 1 */}
+                                  <View
                                     style={[
-                                      styles.teamName,
+                                      styles.teamRow,
                                       seed.winnerId === team1.id &&
-                                        styles.teamNameWinner,
-                                      !team1.name && styles.teamNameTbd,
+                                        styles.teamRowWinner,
                                     ]}
-                                    numberOfLines={1}
                                   >
-                                    {team1Label}
-                                  </Text>
-                                  {seed.scores &&
-                                    seed.scores[0] !== null &&
-                                    team1.name && (
-                                      <Text
-                                        style={[
-                                          styles.teamScore,
-                                          seed.winnerId === team1.id &&
-                                            styles.teamScoreWinner,
-                                        ]}
-                                      >
-                                        {seed.scores[0]}
-                                      </Text>
+                                    {team1.name && team1.color && (
+                                      <View style={styles.teamColorDot}>
+                                        {team1.color.isGradient ? (
+                                          <LinearGradient
+                                            colors={team1.color.colors}
+                                            start={{ x: 0, y: 0.5 }}
+                                            end={{ x: 1, y: 0.5 }}
+                                            style={styles.colorGradient}
+                                          />
+                                        ) : (
+                                          <View
+                                            style={[
+                                              styles.colorSolid,
+                                              {
+                                                backgroundColor:
+                                                  team1.color.colors[0],
+                                              },
+                                            ]}
+                                          />
+                                        )}
+                                      </View>
                                     )}
-                                </View>
-
-                                <View style={styles.seedDivider} />
-
-                                {/* Team 2 */}
-                                <View
-                                  style={[
-                                    styles.teamRow,
-                                    seed.winnerId === team2.id &&
-                                      styles.teamRowWinner,
-                                  ]}
-                                >
-                                  {team2.name && team2.color && (
-                                    <View style={styles.teamColorDot}>
-                                      {team2.color.isGradient ? (
-                                        <LinearGradient
-                                          colors={team2.color.colors}
-                                          start={{ x: 0, y: 0.5 }}
-                                          end={{ x: 1, y: 0.5 }}
-                                          style={styles.colorGradient}
-                                        />
-                                      ) : (
-                                        <View
-                                          style={[
-                                            styles.colorSolid,
-                                            {
-                                              backgroundColor:
-                                                team2.color.colors[0],
-                                            },
-                                          ]}
-                                        />
-                                      )}
-                                    </View>
-                                  )}
-                                  <Text
-                                    style={[
-                                      styles.teamName,
-                                      seed.winnerId === team2.id &&
-                                        styles.teamNameWinner,
-                                      !team2.name && styles.teamNameTbd,
-                                    ]}
-                                    numberOfLines={1}
-                                  >
-                                    {team2Label}
-                                  </Text>
-                                  {seed.scores &&
-                                    seed.scores[1] !== null &&
-                                    team2.name && (
-                                      <Text
-                                        style={[
-                                          styles.teamScore,
-                                          seed.winnerId === team2.id &&
-                                            styles.teamScoreWinner,
-                                        ]}
-                                      >
-                                        {seed.scores[1]}
-                                      </Text>
-                                    )}
-                                </View>
-
-                                {/* Play/Resume Indicator */}
-                                {!seed.completed &&
-                                  team1.name &&
-                                  team2.name && (
-                                    <View
+                                    <Text
                                       style={[
-                                        styles.playIndicator,
-                                        seed.inProgress &&
-                                          styles.playIndicatorInProgress,
+                                        styles.teamName,
+                                        seed.winnerId === team1.id &&
+                                          styles.teamNameWinner,
+                                        !team1.name && styles.teamNameTbd,
                                       ]}
+                                      numberOfLines={1}
                                     >
-                                      <Text style={styles.playText}>
-                                        {seed.inProgress
-                                          ? "TAP TO RESUME ▶▶"
-                                          : "TAP TO PLAY ▶"}
-                                      </Text>
-                                    </View>
-                                  )}
-                              </TouchableOpacity>
-                            </CardWrapper>
-                          );
-                        })}
+                                      {team1Label}
+                                    </Text>
+                                    {seed.scores &&
+                                      seed.scores[0] !== null &&
+                                      team1.name && (
+                                        <Text
+                                          style={[
+                                            styles.teamScore,
+                                            seed.winnerId === team1.id &&
+                                              styles.teamScoreWinner,
+                                          ]}
+                                        >
+                                          {seed.scores[0]}
+                                        </Text>
+                                      )}
+                                  </View>
+
+                                  <View style={styles.seedDivider} />
+
+                                  {/* Team 2 */}
+                                  <View
+                                    style={[
+                                      styles.teamRow,
+                                      seed.winnerId === team2.id &&
+                                        styles.teamRowWinner,
+                                    ]}
+                                  >
+                                    {team2.name && team2.color && (
+                                      <View style={styles.teamColorDot}>
+                                        {team2.color.isGradient ? (
+                                          <LinearGradient
+                                            colors={team2.color.colors}
+                                            start={{ x: 0, y: 0.5 }}
+                                            end={{ x: 1, y: 0.5 }}
+                                            style={styles.colorGradient}
+                                          />
+                                        ) : (
+                                          <View
+                                            style={[
+                                              styles.colorSolid,
+                                              {
+                                                backgroundColor:
+                                                  team2.color.colors[0],
+                                              },
+                                            ]}
+                                          />
+                                        )}
+                                      </View>
+                                    )}
+                                    <Text
+                                      style={[
+                                        styles.teamName,
+                                        seed.winnerId === team2.id &&
+                                          styles.teamNameWinner,
+                                        !team2.name && styles.teamNameTbd,
+                                      ]}
+                                      numberOfLines={1}
+                                    >
+                                      {team2Label}
+                                    </Text>
+                                    {seed.scores &&
+                                      seed.scores[1] !== null &&
+                                      team2.name && (
+                                        <Text
+                                          style={[
+                                            styles.teamScore,
+                                            seed.winnerId === team2.id &&
+                                              styles.teamScoreWinner,
+                                          ]}
+                                        >
+                                          {seed.scores[1]}
+                                        </Text>
+                                      )}
+                                  </View>
+
+                                  {/* Play/Resume Indicator */}
+                                  {!seed.completed &&
+                                    team1.name &&
+                                    team2.name && (
+                                      <View
+                                        style={[
+                                          styles.playIndicator,
+                                          seed.inProgress &&
+                                            styles.playIndicatorInProgress,
+                                        ]}
+                                      >
+                                        <Text style={styles.playText}>
+                                          {seed.inProgress
+                                            ? "TAP TO RESUME ▶▶"
+                                            : "TAP TO PLAY ▶"}
+                                        </Text>
+                                      </View>
+                                    )}
+                                </TouchableOpacity>
+                              </CardWrapper>
+                            );
+                          })}
+                        </View>
                       </View>
-                    </View>
-                  );
-                })}
-              </View>
+                    );
+                  })}
+                </View>
 
-              {/* SVG Overlay for Connector Lines - positioned absolutely, doesn't block touches */}
-              {Object.keys(matchPositions).length > 0 && (
-                <Svg
-                  pointerEvents="box-none"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    zIndex: -1,
-                  }}
-                >
-                  {(() => {
-                    // console.log("=== SVG RENDERING ===");
-                    // console.log(
-                    //   "Total match positions tracked:",
-                    //   Object.keys(matchPositions).length,
-                    // );
-                    // console.log("Match positions:", matchPositions);
-                    // console.log("Round X offsets:", roundXOffsets);
-                    return null;
-                  })()}
-                  {rounds.map((round, roundIndex) => {
-                    if (roundIndex >= rounds.length - 1) return null;
+                {/* SVG Overlay for Connector Lines - positioned absolutely, doesn't block touches */}
+                {Object.keys(matchPositions).length > 0 &&
+                  (() => {
+                    // Calculate total bracket dimensions for SVG
+                    const cardWidth = 220;
+                    const connectorWidth = 80;
+                    const scrollPadding = 40; // padding: 20 × 2 (left + right)
+                    const totalWidth =
+                      rounds.length * (cardWidth + connectorWidth) +
+                      scrollPadding;
 
-                    const nextRound = rounds[roundIndex + 1];
-                    const paths = [];
+                    const matchHeight = 150;
+                    const matchGap = 50;
+                    const roundTitleHeight = 35;
+                    const scrollPaddingVertical = 40; // padding: 20 × 2 (top + bottom)
 
-                    // Generate paths for each connection
-                    nextRound.seeds.forEach((nextSeed, nextMatchIndex) => {
-                      const sourceMatch1 = round.seeds[nextMatchIndex * 2];
-                      const sourceMatch2 = round.seeds[nextMatchIndex * 2 + 1];
+                    // Calculate max height by finding the tallest round
+                    let maxHeight = 0;
+                    rounds.forEach((round, roundIndex) => {
+                      if (round.seeds.length === 0) return;
 
-                      // console.log(
-                      //   `\n--- Round ${roundIndex} → ${
-                      //     roundIndex + 1
-                      //   }, Match ${nextMatchIndex} ---`,
-                      // );
-                      // console.log(
-                      //   "Source Match 1:",
-                      //   sourceMatch1?.id,
-                      //   sourceMatch1?.teams[0]?.name,
-                      // );
-                      // console.log(
-                      //   "Source Match 2:",
-                      //   sourceMatch2?.id,
-                      //   sourceMatch2?.teams[0]?.name,
-                      // );
-                      // console.log("Next Match:", nextSeed?.id);
+                      const offset = Math.pow(2, roundIndex) - 1;
+                      const spacing = Math.pow(2, roundIndex);
+                      const lastMatchRow =
+                        offset + (round.seeds.length - 1) * spacing;
+                      const minHeight =
+                        lastMatchRow * (matchHeight + matchGap) +
+                        matchHeight +
+                        50;
+                      maxHeight = Math.max(maxHeight, minHeight);
+                    });
 
-                      if (!sourceMatch1 || !sourceMatch2) {
-                        // console.log("❌ Missing source match(es)");
-                        return;
-                      }
+                    // Add extra padding for connector lines that might extend beyond matches
+                    const totalHeight =
+                      maxHeight +
+                      roundTitleHeight +
+                      scrollPaddingVertical +
+                      100;
 
-                      const pos1 = matchPositions[sourceMatch1.id];
-                      const pos2 = matchPositions[sourceMatch2.id];
-                      const posNext = matchPositions[nextSeed.id];
+                    return (
+                      <Svg
+                        pointerEvents="box-none"
+                        width={totalWidth}
+                        height={totalHeight}
+                        viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          zIndex: -1,
+                          overflow: "visible",
+                        }}
+                      >
+                        {(() => {
+                          // console.log("=== SVG RENDERING ===");
+                          // console.log(
+                          //   "Total match positions tracked:",
+                          //   Object.keys(matchPositions).length,
+                          // );
+                          // console.log("Match positions:", matchPositions);
+                          // console.log("Round X offsets:", roundXOffsets);
+                          return null;
+                        })()}
+                        {rounds.map((round, roundIndex) => {
+                          if (roundIndex >= rounds.length - 1) return null;
 
-                      // console.log("Position 1:", pos1);
-                      // console.log("Position 2:", pos2);
-                      // console.log("Position Next:", posNext);
+                          const nextRound = rounds[roundIndex + 1];
+                          const paths = [];
 
-                      if (!pos1 || !pos2 || !posNext) {
-                        // console.log("❌ Missing position data");
-                        return;
-                      }
+                          // Generate paths for each connection
+                          nextRound.seeds.forEach(
+                            (nextSeed, nextMatchIndex) => {
+                              const sourceMatch1 =
+                                round.seeds[nextMatchIndex * 2];
+                              const sourceMatch2 =
+                                round.seeds[nextMatchIndex * 2 + 1];
 
-                      // Calculate positions for connector (scrollPadding accounts for ScrollView padding)
-                      const scrollPadding = 20;
-                      const roundTitleHeight = 35; // Space for "Quarter Finals", etc.
+                              // console.log(
+                              //   `\n--- Round ${roundIndex} → ${
+                              //     roundIndex + 1
+                              //   }, Match ${nextMatchIndex} ---`
+                              // );
+                              // console.log(
+                              //   "Source Match 1:",
+                              //   sourceMatch1?.id,
+                              //   sourceMatch1?.teams[0]?.name
+                              // );
+                              // console.log(
+                              //   "Source Match 2:",
+                              //   sourceMatch2?.id,
+                              //   sourceMatch2?.teams[0]?.name
+                              // );
+                              // console.log("Next Match:", nextSeed?.id);
 
-                      // Right edge center of source matches (use stored centerY + offsets)
-                      const match1RightX = pos1.x + pos1.width + scrollPadding;
-                      const match1CenterY =
-                        pos1.centerY + scrollPadding + roundTitleHeight;
+                              if (!sourceMatch1 || !sourceMatch2) {
+                                // console.log("❌ Missing source match(es)");
+                                return;
+                              }
 
-                      const match2RightX = pos2.x + pos2.width + scrollPadding;
-                      const match2CenterY =
-                        pos2.centerY + scrollPadding + roundTitleHeight;
+                              const pos1 = matchPositions[sourceMatch1.id];
+                              const pos2 = matchPositions[sourceMatch2.id];
+                              const posNext = matchPositions[nextSeed.id];
 
-                      // Left edge center of next match
-                      const nextLeftX = posNext.x + scrollPadding;
-                      const nextCenterY =
-                        posNext.centerY + scrollPadding + roundTitleHeight;
+                              // console.log("Position 1:", pos1);
+                              // console.log("Position 2:", pos2);
+                              // console.log("Position Next:", posNext);
 
-                      // Junction midpoint - this is where the next match SHOULD be vertically centered
-                      const junctionMidY = (match1CenterY + match2CenterY) / 2;
+                              if (!pos1 || !pos2 || !posNext) {
+                                // console.log("❌ Missing position data");
+                                return;
+                              }
 
-                      // Vertical line X position (midpoint between rounds)
-                      const verticalX = (match1RightX + nextLeftX) / 2;
+                              // Calculate positions for connector (scrollPadding accounts for ScrollView padding)
+                              const scrollPadding = 20;
+                              const roundTitleHeight = 35; // Space for "Quarter Finals", etc.
 
-                      // console.log(
-                      //   `Junction at Y=${junctionMidY}, Next match at Y=${nextCenterY}, Diff=${Math.abs(
-                      //     junctionMidY - nextCenterY,
-                      //   )}`,
-                      // );
+                              // Right edge center of source matches (use stored centerY + offsets)
+                              const match1RightX =
+                                pos1.x + pos1.width + scrollPadding;
+                              const match1CenterY =
+                                pos1.centerY + scrollPadding + roundTitleHeight;
 
-                      // Determine line color based on completion
-                      const bothCompleted =
-                        sourceMatch1.completed && sourceMatch2.completed;
-                      const strokeColor = bothCompleted ? "#BDBDBD" : "#2196F3";
-                      const strokeOpacity = bothCompleted ? 0.4 : 1;
+                              const match2RightX =
+                                pos2.x + pos2.width + scrollPadding;
+                              const match2CenterY =
+                                pos2.centerY + scrollPadding + roundTitleHeight;
 
-                      // Path strategy: Standard bracket connector
-                      // 1. Horizontal from match1 right → vertical junction
-                      // 2. Vertical line connecting match1 and match2 levels
-                      // 3. Horizontal from match2 right → vertical junction (separate segment)
-                      // 4. Horizontal from junction midpoint → next match left
+                              // Left edge center of next match
+                              const nextLeftX = posNext.x + scrollPadding;
+                              const nextCenterY =
+                                posNext.centerY +
+                                scrollPadding +
+                                roundTitleHeight;
 
-                      paths.push(
-                        <Path
-                          key={`connector-${sourceMatch1.id}-${sourceMatch2.id}-v`}
-                          d={`
+                              // Validate all coordinates are valid numbers and reasonable
+                              if (
+                                !Number.isFinite(match1RightX) ||
+                                !Number.isFinite(match1CenterY) ||
+                                !Number.isFinite(match2RightX) ||
+                                !Number.isFinite(match2CenterY) ||
+                                !Number.isFinite(nextLeftX) ||
+                                !Number.isFinite(nextCenterY)
+                              ) {
+                                console.warn(
+                                  `Invalid coordinates detected for connector from round ${roundIndex}:`,
+                                  {
+                                    match1RightX,
+                                    match1CenterY,
+                                    match2RightX,
+                                    match2CenterY,
+                                    nextLeftX,
+                                    nextCenterY,
+                                  },
+                                );
+                                return;
+                              }
+
+                              // Junction midpoint - this is where the next match SHOULD be vertically centered
+                              const junctionMidY =
+                                (match1CenterY + match2CenterY) / 2;
+
+                              // Vertical line X position (midpoint between rounds)
+                              const verticalX = (match1RightX + nextLeftX) / 2;
+
+                              // console.log(
+                              //   `Junction at Y=${junctionMidY}, Next match at Y=${nextCenterY}, Diff=${Math.abs(
+                              //     junctionMidY - nextCenterY,
+                              //   )}`,
+                              // );
+
+                              // Determine line color based on completion
+                              const bothCompleted =
+                                sourceMatch1.completed &&
+                                sourceMatch2.completed;
+                              const strokeColor = bothCompleted
+                                ? "#BDBDBD"
+                                : "#2196F3";
+                              const strokeOpacity = bothCompleted ? 0.4 : 1;
+
+                              // Path strategy: Standard bracket connector
+                              // 1. Horizontal from match1 right → vertical junction
+                              // 2. Vertical line connecting match1 and match2 levels
+                              // 3. Horizontal from match2 right → vertical junction (separate segment)
+                              // 4. Horizontal from junction midpoint → next match left
+
+                              paths.push(
+                                <Path
+                                  key={`connector-${sourceMatch1.id}-${sourceMatch2.id}-v`}
+                                  d={`
                           M ${match1RightX} ${match1CenterY}
                           L ${verticalX} ${match1CenterY}
                           L ${verticalX} ${match2CenterY}
                         `}
-                          stroke={strokeColor}
-                          strokeWidth={2}
-                          strokeOpacity={strokeOpacity}
-                          fill="none"
-                        />,
-                      );
+                                  stroke={strokeColor}
+                                  strokeWidth={2}
+                                  strokeOpacity={strokeOpacity}
+                                  fill="none"
+                                />,
+                              );
 
-                      paths.push(
-                        <Path
-                          key={`connector-${sourceMatch1.id}-${sourceMatch2.id}-m2`}
-                          d={`
+                              paths.push(
+                                <Path
+                                  key={`connector-${sourceMatch1.id}-${sourceMatch2.id}-m2`}
+                                  d={`
                           M ${match2RightX} ${match2CenterY}
                           L ${verticalX} ${match2CenterY}
                         `}
-                          stroke={strokeColor}
-                          strokeWidth={2}
-                          strokeOpacity={strokeOpacity}
-                          fill="none"
-                        />,
-                      );
+                                  stroke={strokeColor}
+                                  strokeWidth={2}
+                                  strokeOpacity={strokeOpacity}
+                                  fill="none"
+                                />,
+                              );
 
-                      // Draw from junction to next match using right angles only
-                      paths.push(
-                        <Path
-                          key={`connector-${sourceMatch1.id}-${sourceMatch2.id}-next`}
-                          d={`
+                              // Draw from junction to next match using right angles only
+                              paths.push(
+                                <Path
+                                  key={`connector-${sourceMatch1.id}-${sourceMatch2.id}-next`}
+                                  d={`
                           M ${verticalX} ${junctionMidY}
                           L ${nextLeftX} ${junctionMidY}
                           L ${nextLeftX} ${nextCenterY}
                         `}
-                          stroke={strokeColor}
-                          strokeWidth={2}
-                          strokeOpacity={strokeOpacity}
-                          fill="none"
-                        />,
-                      );
+                                  stroke={strokeColor}
+                                  strokeWidth={2}
+                                  strokeOpacity={strokeOpacity}
+                                  fill="none"
+                                />,
+                              );
 
-                      // console.log(
-                      //   `Round ${roundIndex} Match ${nextMatchIndex}:`,
-                      //   {
-                      //     match1: { x: match1RightX, y: match1CenterY },
-                      //     match2: { x: match2RightX, y: match2CenterY },
-                      //     next: { x: nextLeftX, y: nextCenterY },
-                      //     verticalX,
-                      //     junctionMidY,
-                      //     distances: {
-                      //       match1ToJunction: verticalX - match1RightX,
-                      //       junctionToNext: nextLeftX - verticalX,
-                      //     },
-                      //   },
-                      // );
-                    });
+                              // console.log(
+                              //   `Round ${roundIndex} Match ${nextMatchIndex}:`,
+                              //   {
+                              //     match1: { x: match1RightX, y: match1CenterY },
+                              //     match2: { x: match2RightX, y: match2CenterY },
+                              //     next: { x: nextLeftX, y: nextCenterY },
+                              //     verticalX,
+                              //     junctionMidY,
+                              //     distances: {
+                              //       match1ToJunction: verticalX - match1RightX,
+                              //       junctionToNext: nextLeftX - verticalX,
+                              //     },
+                              //   },
+                              // );
+                            },
+                          );
 
-                    return paths;
-                  })}
-                </Svg>
-              )}
+                          return paths;
+                        })}
+                      </Svg>
+                    );
+                  })()}
+              </ScrollView>
             </ScrollView>
 
             {/* Match Results Modal */}
