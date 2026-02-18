@@ -33,6 +33,27 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 /**
+ * Linking configuration for web URLs
+ */
+const linking = {
+  prefixes: ["https://popdarts.expo.app", "popdarts://"],
+  config: {
+    screens: {
+      Home: "",
+      Store: "store",
+      Play: "play",
+      Local: {
+        screens: {
+          LocalHome: "local",
+          CreateClub: "local/create-club",
+        },
+      },
+      Profile: "profile",
+    },
+  },
+};
+
+/**
  * Custom theme with Popdarts branding colors
  */
 const theme = {
@@ -294,7 +315,10 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      linking={linking}
+      fallback={<ActivityIndicator size="large" />}
+    >
       {user || isGuest ? <MainNavigator /> : <AuthScreen />}
     </NavigationContainer>
   );

@@ -626,10 +626,55 @@ export default function NewMatchScreen({ navigation, route }) {
       return newRound;
     });
 
-    // Reset round inputs
+    // Reset round inputs and dart states for next round
     setSimplifiedP1Darts(0);
     setSimplifiedP2Darts(0);
     setClosestPlayer(null);
+    setClosestDart(null);
+    setSelectedDartPlayer(null);
+    setSelectedDartIndex(null);
+    setP1DartStates([
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+    ]);
+    setP2DartStates([
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+    ]);
+    setP1SpecialtyShots([]);
+    setP2SpecialtyShots([]);
     setShowRoundSummary(false);
     setPendingRoundData(null);
     console.log("Round applied and states reset");
@@ -677,6 +722,46 @@ export default function NewMatchScreen({ navigation, route }) {
     setShowSimplifiedOverlay(false);
     setCurrentRound(1);
     setRoundHistory([]);
+    setP1DartStates([
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+    ]);
+    setP2DartStates([
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+      {
+        status: "empty",
+        specialtyShot: null,
+        landingOnDart: null,
+        isClosest: false,
+      },
+    ]);
   };
 
   /**
