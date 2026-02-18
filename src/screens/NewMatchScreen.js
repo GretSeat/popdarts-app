@@ -587,7 +587,7 @@ export default function NewMatchScreen({ navigation, route }) {
    */
   const applyRound = () => {
     console.log("applyRound called! Current round:", currentRound);
-    console.log("pendingRoundData:", pendingRoundData);
+    console.log("Before reset - p1DartStates:", p1DartStates);
 
     if (!pendingRoundData) {
       console.log("No pending round data, returning");
@@ -626,58 +626,47 @@ export default function NewMatchScreen({ navigation, route }) {
       return newRound;
     });
 
-    // Reset round inputs and dart states for next round
+    // Close the round summary modal
+    setShowRoundSummary(false);
+    setPendingRoundData(null);
+
+    // Create fresh empty dart state for each dart (important: use new objects, not shared references)
+    const createEmptyDart = () => ({
+      status: "empty",
+      specialtyShot: null,
+      landingOnDart: null,
+      isClosest: false,
+    });
+
+    // Reset all round inputs and dart states for next round
+    console.log("Resetting dart states...");
+
+    // IMPORTANT: Set all states to their reset values FIRST
+    setP1DartStates([createEmptyDart(), createEmptyDart(), createEmptyDart()]);
+    setP2DartStates([createEmptyDart(), createEmptyDart(), createEmptyDart()]);
     setSimplifiedP1Darts(0);
     setSimplifiedP2Darts(0);
     setClosestPlayer(null);
     setClosestDart(null);
     setSelectedDartPlayer(null);
     setSelectedDartIndex(null);
-    setP1DartStates([
-      {
-        status: "empty",
-        specialtyShot: null,
-        landingOnDart: null,
-        isClosest: false,
-      },
-      {
-        status: "empty",
-        specialtyShot: null,
-        landingOnDart: null,
-        isClosest: false,
-      },
-      {
-        status: "empty",
-        specialtyShot: null,
-        landingOnDart: null,
-        isClosest: false,
-      },
-    ]);
-    setP2DartStates([
-      {
-        status: "empty",
-        specialtyShot: null,
-        landingOnDart: null,
-        isClosest: false,
-      },
-      {
-        status: "empty",
-        specialtyShot: null,
-        landingOnDart: null,
-        isClosest: false,
-      },
-      {
-        status: "empty",
-        specialtyShot: null,
-        landingOnDart: null,
-        isClosest: false,
-      },
-    ]);
     setP1SpecialtyShots([]);
     setP2SpecialtyShots([]);
-    setShowRoundSummary(false);
-    setPendingRoundData(null);
-    console.log("Round applied and states reset");
+    setShowDartSpecialtyModal(false);
+    setShowWiggleNobberTargetModal(false);
+    setShowStatTrackerModal(false);
+
+    // Ensure overlay is closed before reopening with fresh state
+    setShowSimplifiedOverlay(false);
+
+    console.log(
+      "Round applied and all states reset. Reopening overlay with fresh state...",
+    );
+
+    // Reopen overlay after a brief delay to ensure React has processed all state updates
+    setTimeout(() => {
+      setShowSimplifiedOverlay(true);
+    }, 100);
   };
 
   const addStat = (player, statType) => {
@@ -5111,8 +5100,32 @@ export default function NewMatchScreen({ navigation, route }) {
                       setSimplifiedP1Darts(0);
                       setSimplifiedP2Darts(0);
                       setClosestPlayer(null);
+                      setClosestDart(null);
                       setP1SpecialtyShots([]);
                       setP2SpecialtyShots([]);
+                      setSelectedDartPlayer(null);
+                      setSelectedDartIndex(null);
+
+                      // Reset dart states for next round
+                      const createEmptyDart = () => ({
+                        status: "empty",
+                        specialtyShot: null,
+                        landingOnDart: null,
+                        isClosest: false,
+                      });
+                      setP1DartStates([
+                        createEmptyDart(),
+                        createEmptyDart(),
+                        createEmptyDart(),
+                      ]);
+                      setP2DartStates([
+                        createEmptyDart(),
+                        createEmptyDart(),
+                        createEmptyDart(),
+                      ]);
+                      setShowDartSpecialtyModal(false);
+                      setShowWiggleNobberTargetModal(false);
+                      setShowStatTrackerModal(false);
                     }}
                   >
                     <Text style={styles.quickScoreApplyButtonText}>APPLY</Text>
