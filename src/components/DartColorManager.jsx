@@ -9,6 +9,7 @@ import {
 import { Text, Button, IconButton } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { POPDARTS_COLORS } from "../constants/colors";
+import { PartyVanillaSprinkles } from "./PartyVanillaSprinkles";
 
 /**
  * DartColorManager - Manage owned colors and set favorites
@@ -32,6 +33,18 @@ export default function DartColorManager({
   setFavoriteAwayColor,
 }) {
   const [mode, setMode] = useState("ownership"); // 'ownership', 'home', 'away'
+  const [colorSquareDimensions, setColorSquareDimensions] = useState({
+    width: 120,
+    height: 140,
+  });
+  const [homeButtonDimensions, setHomeButtonDimensions] = useState({
+    width: 60,
+    height: 32,
+  });
+  const [awayButtonDimensions, setAwayButtonDimensions] = useState({
+    width: 60,
+    height: 32,
+  });
 
   /**
    * Toggle ownership of a color
@@ -103,22 +116,41 @@ export default function DartColorManager({
             {/* Home Fav Button with Gradient Background */}
             <View style={styles.modeButtonWrapper}>
               {favoriteHomeColor !== null && (
-                <LinearGradient
-                  colors={POPDARTS_COLORS[favoriteHomeColor].colors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.modeButtonGradientBackground}
+                <View
+                  style={{
+                    position: "relative",
+                    flex: 1,
+                    borderRadius: 6,
+                    overflow: "hidden",
+                  }}
                 >
-                  <Button
-                    mode={mode === "home" ? "contained" : "outlined"}
-                    onPress={() => setMode("home")}
-                    style={styles.modeButton}
-                    compact
-                    labelStyle={styles.modeButtonLabel}
+                  <LinearGradient
+                    colors={POPDARTS_COLORS[favoriteHomeColor].colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.modeButtonGradientBackground}
+                    onLayout={(event) => {
+                      const { width, height } = event.nativeEvent.layout;
+                      setHomeButtonDimensions({ width, height });
+                    }}
                   >
-                    Home Fav
-                  </Button>
-                </LinearGradient>
+                    <Button
+                      mode={mode === "home" ? "contained" : "outlined"}
+                      onPress={() => setMode("home")}
+                      style={styles.modeButton}
+                      compact
+                      labelStyle={styles.modeButtonLabel}
+                    >
+                      Home Fav
+                    </Button>
+                  </LinearGradient>
+                  <PartyVanillaSprinkles
+                    colorObj={POPDARTS_COLORS[favoriteHomeColor]}
+                    width={homeButtonDimensions.width}
+                    height={homeButtonDimensions.height}
+                    scale={0.5}
+                  />
+                </View>
               )}
               {favoriteHomeColor === null && (
                 <Button
@@ -134,22 +166,41 @@ export default function DartColorManager({
             {/* Away Fav Button with Gradient Background */}
             <View style={styles.modeButtonWrapper}>
               {favoriteAwayColor !== null && (
-                <LinearGradient
-                  colors={POPDARTS_COLORS[favoriteAwayColor].colors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.modeButtonGradientBackground}
+                <View
+                  style={{
+                    position: "relative",
+                    flex: 1,
+                    borderRadius: 6,
+                    overflow: "hidden",
+                  }}
                 >
-                  <Button
-                    mode={mode === "away" ? "contained" : "outlined"}
-                    onPress={() => setMode("away")}
-                    style={styles.modeButton}
-                    compact
-                    labelStyle={styles.modeButtonLabel}
+                  <LinearGradient
+                    colors={POPDARTS_COLORS[favoriteAwayColor].colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.modeButtonGradientBackground}
+                    onLayout={(event) => {
+                      const { width, height } = event.nativeEvent.layout;
+                      setAwayButtonDimensions({ width, height });
+                    }}
                   >
-                    Away Fav
-                  </Button>
-                </LinearGradient>
+                    <Button
+                      mode={mode === "away" ? "contained" : "outlined"}
+                      onPress={() => setMode("away")}
+                      style={styles.modeButton}
+                      compact
+                      labelStyle={styles.modeButtonLabel}
+                    >
+                      Away Fav
+                    </Button>
+                  </LinearGradient>
+                  <PartyVanillaSprinkles
+                    colorObj={POPDARTS_COLORS[favoriteAwayColor]}
+                    width={awayButtonDimensions.width}
+                    height={awayButtonDimensions.height}
+                    scale={0.5}
+                  />
+                </View>
               )}
               {favoriteAwayColor === null && (
                 <Button
@@ -223,6 +274,10 @@ export default function DartColorManager({
                             setAwayFavorite(colorIndex1);
                           }
                         }}
+                        onLayout={(event) => {
+                          const { width, height } = event.nativeEvent.layout;
+                          setColorSquareDimensions({ width, height });
+                        }}
                         style={[
                           styles.colorSquare,
                           isColor1Owned &&
@@ -252,6 +307,12 @@ export default function DartColorManager({
                             ]}
                           />
                         )}
+                        <PartyVanillaSprinkles
+                          colorObj={color1}
+                          width={colorSquareDimensions.width}
+                          height={colorSquareDimensions.height}
+                          scale={0.7}
+                        />
                         <View style={styles.colorNameContainer}>
                           <Text style={styles.colorName}>{color1.name}</Text>
                         </View>
@@ -289,6 +350,10 @@ export default function DartColorManager({
                             setAwayFavorite(colorIndex2);
                           }
                         }}
+                        onLayout={(event) => {
+                          const { width, height } = event.nativeEvent.layout;
+                          setColorSquareDimensions({ width, height });
+                        }}
                         style={[
                           styles.colorSquare,
                           isColor2Owned &&
@@ -318,6 +383,12 @@ export default function DartColorManager({
                             ]}
                           />
                         )}
+                        <PartyVanillaSprinkles
+                          colorObj={color2}
+                          width={colorSquareDimensions.width}
+                          height={colorSquareDimensions.height}
+                          scale={0.7}
+                        />
                         <View style={styles.colorNameContainer}>
                           <Text style={styles.colorName}>{color2.name}</Text>
                         </View>

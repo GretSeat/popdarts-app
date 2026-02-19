@@ -1,3 +1,4 @@
+// ============ COLOR NAME OVERLAY (for color picker) ============
 import { StyleSheet, Platform, Dimensions } from "react-native";
 
 /**
@@ -989,6 +990,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: "#FFFFFF",
+    ...Platform.select({
+      web: {
+        width: "30%",
+        maxWidth: 480,
+        minWidth: 320,
+        alignSelf: "center",
+      },
+    }),
   },
   backConfirmContent: {
     paddingVertical: 20,
@@ -1425,6 +1434,19 @@ const styles = StyleSheet.create({
     width: "100%",
     gap: 15,
   },
+  preGameButtonsRow: {
+    width: "100%",
+    flexDirection: "row",
+    gap: 15,
+    justifyContent: "space-between",
+  },
+  preGameSideButton: {
+    flex: 1,
+    backgroundColor: "#FF9800",
+    paddingVertical: 18,
+    borderRadius: 12,
+    alignItems: "center",
+  },
   preGameChoiceButton: {
     backgroundColor: "#FF9800",
     paddingVertical: 18,
@@ -1459,6 +1481,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#CCC",
     textAlign: "center",
+    textShadowColor: "#000",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   winnerFlashContainer: {
     width: "100%",
@@ -1485,6 +1510,9 @@ const styles = StyleSheet.create({
     color: "#FFF",
     textAlign: "center",
     paddingHorizontal: 10,
+    textShadowColor: "#000",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
   },
   coinFlipButtonText: {
     fontSize: 18,

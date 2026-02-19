@@ -29,6 +29,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 import { POPDARTS_COLORS } from "../constants/colors";
 import styles from "../styles/newMatchScreen.styles";
+import PartyVanillaSprinkles from "../components/PartyVanillaSprinkles";
 
 // Specialty shots that can be tracked in a round
 const SPECIALTY_SHOTS = [
@@ -55,6 +56,7 @@ export default function NewMatchScreen({ navigation, route }) {
     advancedClosestTracking,
   } = usePlayerPreferences();
   const insets = useSafeAreaInsets();
+  const screenWidth = Dimensions.get("window").width;
 
   const currentUserName =
     user?.user_metadata?.display_name || guestName || "You";
@@ -74,6 +76,8 @@ export default function NewMatchScreen({ navigation, route }) {
   const [player2Score, setPlayer2Score] = useState(0);
   const [matchStarted, setMatchStarted] = useState(false);
   const [error, setError] = useState("");
+  const [scoreboardHeight, setScoreboardHeight] = useState(200); // Default scoreboard height for sprinkles
+  const [colorItemWidth, setColorItemWidth] = useState(220); // For color selection sprinkles
 
   // Color picker modal state
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
@@ -1275,46 +1279,99 @@ export default function NewMatchScreen({ navigation, route }) {
 
   // Pre-Game Modal (rendered at component level)
   const renderPreGameModal = () => {
-    const renderCoinFlipStage = () => (
-      <View style={styles.preGameContainer}>
-        <Text style={styles.preGameTitle}>Coin Flip</Text>
+    const renderCoinFlipStage = () => {
+      const displayColorObj =
+        coinFlipWinner === 0
+          ? player1ColorObj
+          : coinFlipWinner === 1
+            ? player1ColorObj
+            : player2ColorObj;
+      const displayColor =
+        coinFlipWinner === 0
+          ? player1Color
+          : coinFlipWinner === 1
+            ? player1Color
+            : player2Color;
 
-        <View style={styles.coinFlipContainer}>
-          <View style={styles.playerNameContainer}>
-            <Text style={styles.playerName}>{player1Name}</Text>
-          </View>
+      return (
+        <View style={styles.preGameContainer}>
+          <Text style={styles.preGameTitle}>Coin Flip</Text>
 
-          <Animated.View style={[styles.winnerFlashContainer]}>
-            <TouchableOpacity
-              onPress={startCoinFlipAnimation}
-              style={[
-                styles.coinFlipDisplay,
-                {
-                  backgroundColor:
-                    coinFlipWinner === 0
-                      ? player1Color
-                      : coinFlipWinner === 1
-                        ? player1Color
-                        : player2Color,
-                },
-              ]}
-            >
-              {coinFlipWinner === 0 ? (
-                <Text style={styles.coinFlipButtonText}>FLIP</Text>
+          <View style={styles.coinFlipContainer}>
+            <View style={styles.playerNameContainer}>
+              <Text style={styles.playerName}>{player1Name}</Text>
+            </View>
+
+            <Animated.View style={[styles.winnerFlashContainer]}>
+              {displayColorObj?.isGradient ? (
+                <View style={{ position: "relative" }}>
+                  <PartyVanillaSprinkles
+                    colorObj={displayColorObj}
+                    width={120}
+                    height={120}
+                    isCircular={true}
+                  />
+                  <LinearGradient
+                    colors={displayColorObj.colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.coinFlipDisplay}
+                  >
+                    <TouchableOpacity
+                      onPress={startCoinFlipAnimation}
+                      style={{
+                        justifyContent: "center",
+                        alignItems: "center",
+                        width: "100%",
+                        height: "100%",
+                      }}
+                    >
+                      {coinFlipWinner === 0 ? (
+                        <Text style={styles.coinFlipButtonText}>FLIP</Text>
+                      ) : (
+                        <Text style={styles.coinFlipText}>
+                          {coinFlipWinner === 1 ? player1Name : player2Name}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </LinearGradient>
+                </View>
               ) : (
-                <Text style={styles.coinFlipText}>
-                  {coinFlipWinner === 1 ? player1Name : player2Name}
-                </Text>
+                <View style={{ position: "relative" }}>
+                  <PartyVanillaSprinkles
+                    colorObj={displayColorObj}
+                    width={120}
+                    height={120}
+                    isCircular={true}
+                  />
+                  <TouchableOpacity
+                    onPress={startCoinFlipAnimation}
+                    style={[
+                      styles.coinFlipDisplay,
+                      {
+                        backgroundColor: displayColor,
+                      },
+                    ]}
+                  >
+                    {coinFlipWinner === 0 ? (
+                      <Text style={styles.coinFlipButtonText}>FLIP</Text>
+                    ) : (
+                      <Text style={styles.coinFlipText}>
+                        {coinFlipWinner === 1 ? player1Name : player2Name}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               )}
-            </TouchableOpacity>
-          </Animated.View>
+            </Animated.View>
 
-          <View style={styles.playerNameContainer}>
-            <Text style={styles.playerName}>{player2Name}</Text>
+            <View style={styles.playerNameContainer}>
+              <Text style={styles.playerName}>{player2Name}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    );
+      );
+    };
 
     const renderChoiceStage = () => (
       <View style={styles.preGameContainer}>
@@ -1369,9 +1426,9 @@ export default function NewMatchScreen({ navigation, route }) {
             {playerNameContent}, choose your side:
           </Text>
 
-          <View style={styles.preGameButtonsColumn}>
+          <View style={styles.preGameButtonsRow}>
             <TouchableOpacity
-              style={styles.preGameChoiceButton}
+              style={styles.preGameSideButton}
               onPress={() => {
                 finalizeSelection(playerNum, "left", "side");
               }}
@@ -1380,7 +1437,7 @@ export default function NewMatchScreen({ navigation, route }) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.preGameChoiceButton}
+              style={styles.preGameSideButton}
               onPress={() => {
                 finalizeSelection(playerNum, "right", "side");
               }}
@@ -1496,7 +1553,12 @@ export default function NewMatchScreen({ navigation, route }) {
                 }}
               >
                 {match.winner?.color && (
-                  <View style={[styles.colorIndicator, { marginRight: 10 }]}>
+                  <View
+                    style={[
+                      styles.colorIndicator,
+                      { marginRight: 10, position: "relative" },
+                    ]}
+                  >
                     {match.winner.color.isGradient ? (
                       <LinearGradient
                         colors={match.winner.color.colors}
@@ -1512,6 +1574,11 @@ export default function NewMatchScreen({ navigation, route }) {
                         ]}
                       />
                     )}
+                    <PartyVanillaSprinkles
+                      colorObj={match.winner.color}
+                      width={32}
+                      height={32}
+                    />
                   </View>
                 )}
                 <Text style={styles.winnerName}>{match.winner?.name}</Text>
@@ -1541,7 +1608,12 @@ export default function NewMatchScreen({ navigation, route }) {
                     <View
                       style={[
                         styles.colorIndicator,
-                        { marginRight: 8, width: 16, height: 16 },
+                        {
+                          marginRight: 8,
+                          width: 16,
+                          height: 16,
+                          position: "relative",
+                        },
                       ]}
                     >
                       {match.player1.color.isGradient ? (
@@ -1559,6 +1631,11 @@ export default function NewMatchScreen({ navigation, route }) {
                           ]}
                         />
                       )}
+                      <PartyVanillaSprinkles
+                        colorObj={match.player1.color}
+                        width={16}
+                        height={16}
+                      />
                     </View>
                   )}
                   <Text
@@ -1601,7 +1678,12 @@ export default function NewMatchScreen({ navigation, route }) {
                     <View
                       style={[
                         styles.colorIndicator,
-                        { marginRight: 8, width: 16, height: 16 },
+                        {
+                          marginRight: 8,
+                          width: 16,
+                          height: 16,
+                          position: "relative",
+                        },
                       ]}
                     >
                       {match.player2.color.isGradient ? (
@@ -1619,6 +1701,11 @@ export default function NewMatchScreen({ navigation, route }) {
                           ]}
                         />
                       )}
+                      <PartyVanillaSprinkles
+                        colorObj={match.player2.color}
+                        width={16}
+                        height={16}
+                      />
                     </View>
                   )}
                   <Text
@@ -1748,9 +1835,11 @@ export default function NewMatchScreen({ navigation, route }) {
               onPress={() => setEditionType("classic")}
               style={styles.largeImageButton}
             >
-              <View style={styles.imagePlaceholder}>
-                <Text style={styles.placeholderText}>📸 Image Coming Soon</Text>
-              </View>
+              <Image
+                source={require("../../assets/boards/APLTableAngle.webp")}
+                style={styles.buttonImage}
+                resizeMode="cover"
+              />
               <Text style={styles.largeButtonText}>Classic Edition</Text>
             </TouchableOpacity>
 
@@ -1758,9 +1847,11 @@ export default function NewMatchScreen({ navigation, route }) {
               disabled
               style={[styles.largeImageButton, styles.largeImageButtonDisabled]}
             >
-              <View style={styles.imagePlaceholder}>
-                <Text style={styles.placeholderText}>📸 Image Coming Soon</Text>
-              </View>
+              <Image
+                source={require("../../assets/boards/classicBoardEdition.webp")}
+                style={styles.buttonImage}
+                resizeMode="cover"
+              />
               <Text style={[styles.largeButtonText, styles.disabledButtonText]}>
                 Board Edition (Coming Soon)
               </Text>
@@ -2280,41 +2371,28 @@ export default function NewMatchScreen({ navigation, route }) {
                 {/* SVG Overlay for Connector Lines - positioned absolutely, doesn't block touches */}
                 {Object.keys(matchPositions).length > 0 &&
                   (() => {
-                    // Calculate total bracket dimensions for SVG
-                    const cardWidth = 220;
-                    const connectorWidth = 80;
-                    const scrollPadding = 40; // padding: 20 × 2 (left + right)
-                    const totalWidth =
-                      rounds.length * (cardWidth + connectorWidth) +
-                      scrollPadding;
+                    // Calculate total bracket dimensions for SVG using ACTUAL measured positions
+                    let actualMaxX = 0;
+                    let actualMaxY = 0;
 
-                    const matchHeight = 150;
-                    const matchGap = 50;
-                    const roundTitleHeight = 35;
-                    const scrollPaddingVertical = 40; // padding: 20 × 2 (top + bottom)
-
-                    // Calculate max height by finding the tallest round
-                    let maxHeight = 0;
-                    rounds.forEach((round, roundIndex) => {
-                      if (round.seeds.length === 0) return;
-
-                      const offset = Math.pow(2, roundIndex) - 1;
-                      const spacing = Math.pow(2, roundIndex);
-                      const lastMatchRow =
-                        offset + (round.seeds.length - 1) * spacing;
-                      const minHeight =
-                        lastMatchRow * (matchHeight + matchGap) +
-                        matchHeight +
-                        50;
-                      maxHeight = Math.max(maxHeight, minHeight);
+                    Object.values(matchPositions).forEach((pos) => {
+                      if (pos) {
+                        const rightX = pos.x + pos.width;
+                        const bottomY = pos.centerY + pos.height / 2;
+                        actualMaxX = Math.max(actualMaxX, rightX);
+                        actualMaxY = Math.max(actualMaxY, bottomY);
+                      }
                     });
 
-                    // Add extra padding for connector lines that might extend beyond matches
+                    // Add padding for scrolling and connectors
+                    const scrollPadding = 40; // padding: 20 × 2 (left + right)
+                    const scrollPaddingVertical = 40; // padding: 20 × 2 (top + bottom)
+                    const connectorPadding = 50; // extra space for connector lines
+
+                    const totalWidth =
+                      actualMaxX + scrollPadding + connectorPadding;
                     const totalHeight =
-                      maxHeight +
-                      roundTitleHeight +
-                      scrollPaddingVertical +
-                      100;
+                      actualMaxY + scrollPaddingVertical + connectorPadding;
 
                     return (
                       <Svg
@@ -2327,9 +2405,19 @@ export default function NewMatchScreen({ navigation, route }) {
                           top: 0,
                           left: 0,
                           zIndex: -1,
-                          overflow: "visible",
+                          overflow: "hidden",
                         }}
                       >
+                        <defs>
+                          <clipPath id="bracket-clip">
+                            <rect
+                              x="0"
+                              y="0"
+                              width={totalWidth}
+                              height={totalHeight}
+                            />
+                          </clipPath>
+                        </defs>
                         {(() => {
                           // console.log("=== SVG RENDERING ===");
                           // console.log(
@@ -2441,11 +2529,56 @@ export default function NewMatchScreen({ navigation, route }) {
                               // Vertical line X position (midpoint between rounds)
                               const verticalX = (match1RightX + nextLeftX) / 2;
 
-                              // console.log(
-                              //   `Junction at Y=${junctionMidY}, Next match at Y=${nextCenterY}, Diff=${Math.abs(
-                              //     junctionMidY - nextCenterY,
-                              //   )}`,
-                              // );
+                              // Verify the next match Y is reasonable (not NaN or extreme)
+                              if (
+                                !Number.isFinite(nextCenterY) ||
+                                nextCenterY < 0
+                              ) {
+                                console.warn(
+                                  `Invalid nextCenterY for round ${roundIndex}:`,
+                                  nextCenterY,
+                                  "posNext:",
+                                  posNext,
+                                );
+                                return;
+                              }
+
+                              // Clamp nextCenterY to be within reasonable bounds relative to junction
+                              // The next match should be roughly between the two source matches, allow some variance
+                              const minReasonableY =
+                                Math.min(match1CenterY, match2CenterY) - 100;
+                              const maxReasonableY =
+                                Math.max(match1CenterY, match2CenterY) + 100;
+
+                              // For finals (only 1 match in next round), be stricter
+                              const isFinals = nextRound.seeds.length === 1;
+                              const strictMinY =
+                                Math.min(match1CenterY, match2CenterY) - 50;
+                              const strictMaxY =
+                                Math.max(match1CenterY, match2CenterY) + 50;
+
+                              const checkMinY = isFinals
+                                ? strictMinY
+                                : minReasonableY;
+                              const checkMaxY = isFinals
+                                ? strictMaxY
+                                : maxReasonableY;
+
+                              if (
+                                nextCenterY < checkMinY ||
+                                nextCenterY > checkMaxY
+                              ) {
+                                console.warn(
+                                  `nextCenterY out of reasonable bounds for round ${roundIndex} (isFinals: ${isFinals}):`,
+                                  {
+                                    nextCenterY,
+                                    checkMinY,
+                                    checkMaxY,
+                                  },
+                                );
+                                // Skip this connector if it's unreasonable
+                                return;
+                              }
 
                               // Determine line color based on completion
                               const bothCompleted =
@@ -2636,33 +2769,10 @@ export default function NewMatchScreen({ navigation, route }) {
             {/* Player List */}
             {tournamentPlayers.map((player, index) => (
               <Surface key={index} style={styles.playerSetupCard}>
-                <View style={styles.playerRow}>
-                  <TouchableOpacity
-                    style={styles.colorIndicatorRounded}
-                    onPress={() => {
-                      setSelectedPlayerIndex(index);
-                      setColorPickerVisible(true);
-                    }}
-                  >
-                    {player.color.isGradient ? (
-                      <LinearGradient
-                        colors={player.color.colors}
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
-                        locations={[0, 1]}
-                        style={styles.colorIndicatorFull}
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.colorIndicatorFull,
-                          { backgroundColor: player.color.colors[0] },
-                        ]}
-                      />
-                    )}
-                  </TouchableOpacity>
+                <View style={styles.playerSetupRowReordered}>
+                  {/* Player Name (Left) */}
                   <TextInput
-                    label={`Player ${index + 1}`}
+                    label={`Player ${index + 1} Name`}
                     value={player.name}
                     onChangeText={(text) => {
                       const updated = [...tournamentPlayers];
@@ -2672,6 +2782,49 @@ export default function NewMatchScreen({ navigation, route }) {
                     style={styles.playerNameInput}
                     mode="outlined"
                   />
+
+                  {/* Color Indicator (Right) */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedPlayerIndex(index);
+                      setColorPickerVisible(true);
+                    }}
+                    style={styles.colorIndicatorRounded}
+                  >
+                    {player.color ? (
+                      <View
+                        style={{
+                          position: "relative",
+                          width: "100%",
+                          height: "100%",
+                        }}
+                      >
+                        {player.color.isGradient ? (
+                          <LinearGradient
+                            colors={player.color.colors}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.colorIndicatorGradient}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.colorIndicatorFull,
+                              { backgroundColor: player.color.colors[0] },
+                            ]}
+                          />
+                        )}
+                        <PartyVanillaSprinkles
+                          colorObj={player.color}
+                          width={50}
+                          height={50}
+                          scale={0.5}
+                        />
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+
+                  {/* Remove Button (far right) */}
                   <IconButton
                     icon="close"
                     size={20}
@@ -2740,50 +2893,61 @@ export default function NewMatchScreen({ navigation, route }) {
             onDismiss={() => setColorPickerVisible(false)}
             contentContainerStyle={styles.colorPickerModal}
           >
-            <Text variant="titleLarge" style={styles.colorPickerTitle}>
-              Select Dart Color
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {POPDARTS_COLORS.map((color, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => {
-                    if (selectedPlayerIndex !== null) {
-                      const updated = [...tournamentPlayers];
-                      updated[selectedPlayerIndex].color = color;
-                      setTournamentPlayers(updated);
-                    }
-                    setColorPickerVisible(false);
-                  }}
-                  style={styles.colorOption}
-                >
-                  {color.isGradient ? (
-                    <LinearGradient
-                      colors={color.colors}
-                      start={{ x: 0, y: 0.5 }}
-                      end={{ x: 1, y: 0.5 }}
-                      locations={[0, 1]}
-                      style={styles.colorOptionInner}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.colorOptionInner,
-                        { backgroundColor: color.colors[0] },
-                      ]}
-                    />
-                  )}
-                  <Text style={styles.colorOptionName}>{color.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <Button
-              mode="text"
-              onPress={() => setColorPickerVisible(false)}
-              style={styles.closeButton}
-            >
-              Close
-            </Button>
+            <View style={styles.colorPickerContainer}>
+              <Text variant="headlineSmall" style={styles.colorPickerTitle}>
+                Select Dart Color
+              </Text>
+              <ScrollView style={styles.colorScrollView}>
+                <View style={styles.colorListVertical}>
+                  {POPDARTS_COLORS.map((colorObj, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => {
+                        if (selectedPlayerIndex !== null) {
+                          const updated = [...tournamentPlayers];
+                          updated[selectedPlayerIndex].color = colorObj;
+                          setTournamentPlayers(updated);
+                        }
+                        setColorPickerVisible(false);
+                      }}
+                      style={styles.colorItemLarge}
+                    >
+                      {/* Gradient or Solid Background */}
+                      {colorObj.isGradient ? (
+                        <LinearGradient
+                          colors={colorObj.colors}
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
+                          locations={[0, 1]}
+                          style={styles.colorItemGradient}
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.colorItemGradient,
+                            { backgroundColor: colorObj.colors[0] },
+                          ]}
+                        />
+                      )}
+
+                      {/* Party Vanilla Sprinkles Overlay */}
+                      <PartyVanillaSprinkles
+                        colorObj={colorObj}
+                        width={220}
+                        height={160}
+                      />
+
+                      {/* Vertical Color Name on Left */}
+                      <View style={styles.colorNameVerticalContainer}>
+                        <Text style={styles.colorNameVertical}>
+                          {colorObj.name}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
           </Modal>
         </View>
       );
@@ -2942,21 +3106,35 @@ export default function NewMatchScreen({ navigation, route }) {
                     style={styles.colorIndicatorRounded}
                   >
                     {player.color ? (
-                      player.color.isGradient ? (
-                        <LinearGradient
-                          colors={player.color.colors}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={styles.colorIndicatorGradient}
+                      <View
+                        style={{
+                          position: "relative",
+                          width: "100%",
+                          height: "100%",
+                        }}
+                      >
+                        {player.color.isGradient ? (
+                          <LinearGradient
+                            colors={player.color.colors}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.colorIndicatorGradient}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.colorIndicatorFull,
+                              { backgroundColor: player.color.colors[0] },
+                            ]}
+                          />
+                        )}
+                        <PartyVanillaSprinkles
+                          colorObj={player.color}
+                          width={50}
+                          height={50}
+                          scale={0.5}
                         />
-                      ) : (
-                        <View
-                          style={[
-                            styles.colorIndicatorFull,
-                            { backgroundColor: player.color.colors[0] },
-                          ]}
-                        />
-                      )
+                      </View>
                     ) : (
                       <View
                         style={[
@@ -3101,6 +3279,10 @@ export default function NewMatchScreen({ navigation, route }) {
                           key={colorIndex}
                           disabled={isOtherPlayerColor}
                           onPress={() => setSelectedColorIndex(colorIndex)}
+                          onLayout={(event) => {
+                            const { width } = event.nativeEvent.layout;
+                            setColorItemWidth(width);
+                          }}
                           style={[
                             styles.colorItemLarge,
                             showOwnedBorder &&
@@ -3128,6 +3310,13 @@ export default function NewMatchScreen({ navigation, route }) {
                               ]}
                             />
                           )}
+
+                          {/* Party Vanilla Sprinkles Overlay */}
+                          <PartyVanillaSprinkles
+                            colorObj={colorObj}
+                            width={colorItemWidth}
+                            height={160}
+                          />
 
                           {/* Vertical Color Name on Left - Always visible */}
                           <View style={styles.colorNameVerticalContainer}>
@@ -3309,13 +3498,22 @@ export default function NewMatchScreen({ navigation, route }) {
             firstThrower === 1 && styles.playerSectionHighlighted,
           ]}
         >
-          <View style={styles.whiteBackground}>
+          <View
+            style={styles.whiteBackground}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setScoreboardHeight(height);
+            }}
+          >
             {/* Progressive Gradient Reveal - Width Only */}
             <View
               style={[
                 styles.gradientClipContainer,
                 { width: `${(player1Score / 21) * 100}%` },
               ]}
+              onLayout={(event) => {
+                // Sprinkles are positioned relative to parent
+              }}
             >
               {player1ColorObj?.isGradient ? (
                 <LinearGradient
@@ -3336,6 +3534,11 @@ export default function NewMatchScreen({ navigation, route }) {
                   ]}
                 />
               )}
+              <PartyVanillaSprinkles
+                colorObj={player1ColorObj}
+                width={screenWidth}
+                height={scoreboardHeight}
+              />
             </View>
 
             {/* Back Button */}
@@ -3440,13 +3643,22 @@ export default function NewMatchScreen({ navigation, route }) {
             firstThrower === 2 && styles.playerSectionHighlighted,
           ]}
         >
-          <View style={styles.whiteBackground}>
+          <View
+            style={styles.whiteBackground}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setScoreboardHeight(height);
+            }}
+          >
             {/* Progressive Gradient Reveal - Width Only */}
             <View
               style={[
                 styles.gradientClipContainer,
                 { width: `${(player2Score / 21) * 100}%` },
               ]}
+              onLayout={(event) => {
+                // Sprinkles are positioned relative to parent
+              }}
             >
               {player2ColorObj?.isGradient ? (
                 <LinearGradient
@@ -3467,6 +3679,11 @@ export default function NewMatchScreen({ navigation, route }) {
                   ]}
                 />
               )}
+              <PartyVanillaSprinkles
+                colorObj={player2ColorObj}
+                width={screenWidth}
+                height={scoreboardHeight}
+              />
             </View>
 
             {/* Player Name */}

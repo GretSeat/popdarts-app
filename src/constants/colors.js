@@ -71,16 +71,49 @@ export const POPDARTS_COLORS = [
   { name: "Golf White", colors: ["#FFFFFF"], isGradient: false },
 
   // Gold & Silver Set
-  { name: "Gold", colors: ["#FFD700"], isGradient: false },
-  { name: "Silver", colors: ["#C0C0C0"], isGradient: false },
+  {
+    name: "Gold",
+    colors: ["#3a2d16", "#b08d57", "#f2d28b", "#c19a49", "#4a3a1f"],
+    isGradient: true,
+  },
+  {
+    name: "Silver",
+    colors: ["#2e3136", "#9ea4ad", "#f1f3f5", "#8e949c", "#2b2f34"],
+    isGradient: true,
+  },
 
   // Party Set
   {
     name: "Party Chocolate",
-    colors: ["#443326ff", "#050505ff"],
+    colors: ["#2b1a12", "#6b3e2e", "#a56a4a", "#5a3426", "#1e120d"],
     isGradient: true,
   },
-  { name: "Party Vanilla", colors: ["#FFFFFF", "#F3E5AB"], isGradient: true },
+  {
+    name: "Party Vanilla",
+    colors: ["#fffdf8", "#f8f3ea", "#efe7da", "#e6dccb"],
+    isGradient: true,
+    sprinkles: [
+      { top: "20%", left: "5%", color: "#ff6b6b", rotate: "20deg" },
+      { top: "60%", left: "10%", color: "#4dabf7", rotate: "75deg" },
+      { top: "40%", left: "15%", color: "#ffd43b", rotate: "140deg" },
+      { top: "80%", left: "20%", color: "#69db7c", rotate: "300deg" },
+      { top: "30%", left: "25%", color: "#b197fc", rotate: "45deg" },
+      { top: "70%", left: "30%", color: "#ff6b6b", rotate: "200deg" },
+      { top: "50%", left: "35%", color: "#4dabf7", rotate: "15deg" },
+      { top: "25%", left: "40%", color: "#ffd43b", rotate: "85deg" },
+      { top: "75%", left: "45%", color: "#b197fc", rotate: "260deg" },
+      { top: "35%", left: "50%", color: "#69db7c", rotate: "120deg" },
+      { top: "65%", left: "55%", color: "#ff6b6b", rotate: "50deg" },
+      { top: "45%", left: "60%", color: "#4dabf7", rotate: "100deg" },
+      { top: "55%", left: "65%", color: "#ffd43b", rotate: "30deg" },
+      { top: "15%", left: "70%", color: "#69db7c", rotate: "175deg" },
+      { top: "70%", left: "75%", color: "#ff6b6b", rotate: "90deg" },
+      { top: "40%", left: "80%", color: "#4dabf7", rotate: "45deg" },
+      { top: "60%", left: "85%", color: "#ffd43b", rotate: "200deg" },
+      { top: "35%", left: "90%", color: "#69db7c", rotate: "60deg" },
+      { top: "75%", left: "95%", color: "#b197fc", rotate: "120deg" },
+    ],
+  },
 
   { name: "USA Blue", colors: ["#1a2981"], isGradient: false },
 ];

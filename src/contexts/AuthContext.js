@@ -36,6 +36,45 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     console.log("[AuthContext] Initializing...");
 
+    // Handle OAuth callback (web only - check for tokens in URL)
+    const handleOAuthCallback = async () => {
+      try {
+        if (typeof window === "undefined") return; // Not on web
+
+        const hash = window.location.hash;
+        if (hash && hash.includes("access_token")) {
+          console.log("[AuthContext] OAuth callback detected");
+
+          // Parse hash parameters
+          const params = new URLSearchParams(hash.substring(1));
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
+          const expiresIn = params.get("expires_in");
+
+          if (accessToken) {
+            // Set the session with the returned tokens
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            console.log("[AuthContext] OAuth session established");
+
+            // Clear the URL hash
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname,
+            );
+          }
+        }
+      } catch (error) {
+        console.error("[AuthContext] Error handling OAuth callback:", error);
+      }
+    };
+
+    handleOAuthCallback();
+
     // Check for existing session
     supabase.auth
       .getSession()

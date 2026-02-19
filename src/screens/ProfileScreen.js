@@ -34,6 +34,7 @@ import JerseyColorManager, {
 } from "../components/JerseyColorManager";
 import ScreenContainer from "../components/ScreenContainer";
 import { LinearGradient } from "expo-linear-gradient";
+import { PartyVanillaSprinkles } from "../components/PartyVanillaSprinkles";
 import { LineChart } from "react-native-chart-kit";
 import { POPDARTS_COLORS } from "../constants/colors";
 
@@ -333,27 +334,44 @@ export default function ProfileScreen() {
             style={[styles.colorPreviewBox, { marginRight: 8 }]}
             onPress={() => setColorManagerVisible(true)}
           >
-            {favoriteHomeColorObj.isGradient ? (
-              <LinearGradient
-                colors={favoriteHomeColorObj.colors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{
-                  width: 40,
-                  height: 20,
-                  borderRadius: 10,
-                }}
+            <View
+              style={{
+                position: "relative",
+                width: 40,
+                height: 20,
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              {favoriteHomeColorObj.isGradient ? (
+                <LinearGradient
+                  colors={favoriteHomeColorObj.colors}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    width: 40,
+                    height: 20,
+                    borderRadius: 10,
+                  }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 40,
+                    height: 20,
+                    borderRadius: 10,
+                    backgroundColor: favoriteHomeColorObj.colors[0],
+                  }}
+                />
+              )}
+              <PartyVanillaSprinkles
+                colorObj={favoriteHomeColorObj}
+                width={40}
+                height={20}
+                isCircular={true}
+                scale={0.3}
               />
-            ) : (
-              <View
-                style={{
-                  width: 40,
-                  height: 20,
-                  borderRadius: 10,
-                  backgroundColor: favoriteHomeColorObj.colors[0],
-                }}
-              />
-            )}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
