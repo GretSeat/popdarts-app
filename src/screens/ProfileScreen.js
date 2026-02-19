@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -27,6 +28,7 @@ import {
   getNotificationPreferences,
   updateNotificationPreferences,
 } from "../services/pushNotificationService";
+import { supabase } from "../lib/supabase";
 
 import DartColorManager from "../components/DartColorManager";
 import JerseyColorManager, {
@@ -92,6 +94,10 @@ export default function ProfileScreen() {
   const [colorManagerVisible, setColorManagerVisible] = useState(false);
   const [jerseyManagerVisible, setJerseyManagerVisible] = useState(false);
 
+  // User profile data from database (includes avatar_url)
+  const [userProfile, setUserProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
   // Tab navigation
   const [activeTab, setActiveTab] = useState("profile"); // "profile", "stats", "practice", "settings"
   // Secondary tab for stats: 'casual' or 'official'
@@ -113,15 +119,44 @@ export default function ProfileScreen() {
   const [loadingPrefs, setLoadingPrefs] = useState(false);
 
   const displayName =
-    user?.user_metadata?.display_name || guestName || "Player";
+    userProfile?.display_name ||
+    user?.user_metadata?.display_name ||
+    guestName ||
+    "Player";
   const email = user?.email || "Guest User";
+  const avatarUrl = userProfile?.avatar_url;
 
-  // Load notification preferences when user is authenticated
+  // Load user profile and notification preferences when user is authenticated
   useEffect(() => {
     if (user?.id) {
+      fetchUserProfile();
       loadNotificationPreferences();
     }
   }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      setLoadingProfile(true);
+      const { data, error } = await supabase
+        .from("users")
+        .select("display_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (error) throw error;
+
+      console.log("[ProfileScreen] User profile fetched:", data);
+      console.log("[ProfileScreen] Avatar URL:", data?.avatar_url);
+
+      if (data) {
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
 
   const loadNotificationPreferences = async () => {
     try {
@@ -274,32 +309,46 @@ export default function ProfileScreen() {
             Platform.OS !== "web" && { alignItems: "center" },
           ]}
         >
-          {/* Avatar with favorite home dart color */}
+          {/* Avatar with favorite home dart color or Google profile picture */}
           <View style={styles.avatarPreviewBox}>
-            <Text
-              style={{
-                fontSize: 44,
-                fontWeight: "bold",
-                color: favoriteHomeColorObj.colors[0],
-                letterSpacing: 1,
-              }}
-            >
-              {displayName.substring(0, 1).toUpperCase()}
-            </Text>
-            {displayName.length > 1 && (
-              <Text
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
                 style={{
-                  fontSize: 44,
-                  fontWeight: "bold",
-                  color:
-                    favoriteHomeColorObj.colors[1] ||
-                    favoriteHomeColorObj.colors[0],
-                  letterSpacing: 1,
-                  marginLeft: -6,
+                  width: 120,
+                  height: 120,
+                  borderRadius: 60,
+                  backgroundColor: "#f0f0f0",
                 }}
-              >
-                {displayName.substring(1, 2).toUpperCase()}
-              </Text>
+              />
+            ) : (
+              <>
+                <Text
+                  style={{
+                    fontSize: 44,
+                    fontWeight: "bold",
+                    color: favoriteHomeColorObj.colors[0],
+                    letterSpacing: 1,
+                  }}
+                >
+                  {displayName.substring(0, 1).toUpperCase()}
+                </Text>
+                {displayName.length > 1 && (
+                  <Text
+                    style={{
+                      fontSize: 44,
+                      fontWeight: "bold",
+                      color:
+                        favoriteHomeColorObj.colors[1] ||
+                        favoriteHomeColorObj.colors[0],
+                      letterSpacing: 1,
+                      marginLeft: -6,
+                    }}
+                  >
+                    {displayName.substring(1, 2).toUpperCase()}
+                  </Text>
+                )}
+              </>
             )}
           </View>
         </View>

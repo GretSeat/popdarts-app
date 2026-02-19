@@ -6,6 +6,80 @@ This document tracks bugs, UI issues, and features that need improvement but are
 
 ## ✅ Recently Resolved
 
+### Google Profile Picture & Display Name Integration
+
+**Priority:** Medium  
+**Status:** RESOLVED ✅  
+**Date Added:** February 19, 2026  
+**Date Resolved:** February 19, 2026
+
+**Problems:**
+
+1. **Generic Display Names:** Google OAuth users were showing "Player" instead of their actual name
+2. **No Profile Picture:** Profile screen showed initials instead of Google profile picture
+
+**Root Causes:**
+
+1. **Database Trigger:** `handle_new_user()` wasn't extracting `full_name` from Google's metadata
+2. **Missing Column:** No `avatar_url` column in users table to store profile picture URL
+3. **Profile Screen:** DisplayName came from auth metadata, not from users table; no avatar image display logic
+
+**Solution Implemented:**
+
+1. **Updated Database Schema:**
+   - Added `avatar_url` column to users table (via `add-avatar-url-column.sql`)
+   - Updated `handle_new_user()` trigger to extract:
+     - `full_name` from Google metadata (fallback to `display_name` for email signup)
+     - `picture` URL from Google metadata for avatar
+
+2. **Updated ProfileScreen.js:**
+   - Added `supabase` import for fetching user profile
+   - Added `userProfile` state to store display_name and avatar_url from users table
+   - Added `fetchUserProfile()` useEffect to query users table when user is authenticated
+   - Updated `displayName` to use `userProfile?.display_name` (from DB, not auth metadata)
+   - Added `avatarUrl` constant from `userProfile?.avatar_url`
+   - Updated avatar rendering: shows Image component with Google picture if available, falls back to initials
+
+3. **Profile Picture Display:**
+   - If `avatar_url` exists: Displays circular profile image (120x120px with borderRadius: 60)
+   - If no `avatar_url`: Falls back to first 1-2 letters in favorite dart colors
+   - Works for both mobile and web
+
+**Database Migration:**
+```sql
+-- Run add-avatar-url-column.sql in Supabase
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+-- Trigger automatically updated to extract full_name and picture from Google metadata
+```
+
+**Code Changes:**
+
+- **ProfileScreen.js:**
+  - Import `Image` from react-native
+  - Import `supabase` from lib
+  - Added state: `userProfile`, `loadingProfile`
+  - Added `fetchUserProfile()` async function
+  - Updated useEffect to fetch user profile on component mount
+  - Changed displayName computation to use DB value
+  - Added `avatarUrl` constant
+  - Modified avatar rendering JSX to conditionally show image or initials
+  
+**Result:**
+✅ Google OAuth users show their actual Google account name  
+✅ Google profile pictures display in profile header  
+✅ Falls back to initials if no profile picture (email signup)  
+✅ Works on both mobile (Expo Go) and web  
+✅ Seamless integration with existing color customization
+
+**Requirements:**
+⚠️ Must run `add-avatar-url-column.sql` in Supabase SQL Editor:
+1. Copy entire contents of `add-avatar-url-column.sql`
+2. Go to Supabase → SQL Editor → New Query
+3. Paste and execute
+4. Existing Google OAuth users may need to sign out and sign back in to refresh
+
+---
+
 ### User Signup - RLS Policy Violation & Google OAuth Integration
 
 **Priority:** High  

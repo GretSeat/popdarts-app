@@ -42,6 +42,11 @@ export const AuthProvider = ({ children }) => {
         if (typeof window === "undefined") return; // Not on web
 
         const hash = window.location.hash;
+        console.log(
+          "[AuthContext] URL hash check:",
+          hash ? "hash present" : "no hash",
+        );
+
         if (hash && hash.includes("access_token")) {
           console.log("[AuthContext] OAuth callback detected");
 
@@ -52,6 +57,8 @@ export const AuthProvider = ({ children }) => {
           const expiresIn = params.get("expires_in");
 
           if (accessToken) {
+            console.log("[AuthContext] Setting session with tokens...");
+
             // Set the session with the returned tokens
             await supabase.auth.setSession({
               access_token: accessToken,
@@ -83,6 +90,20 @@ export const AuthProvider = ({ children }) => {
           "[AuthContext] Session loaded:",
           session ? "authenticated" : "no session",
         );
+        if (session?.user) {
+          console.log(
+            "[AuthContext] User metadata:",
+            JSON.stringify(session.user.user_metadata, null, 2),
+          );
+          console.log(
+            "[AuthContext] Picture URL from metadata:",
+            session.user.user_metadata?.picture,
+          );
+          console.log(
+            "[AuthContext] Full name from metadata:",
+            session.user.user_metadata?.full_name,
+          );
+        }
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -118,6 +139,28 @@ export const AuthProvider = ({ children }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("[AuthContext] Auth state changed:", _event);
+      if (session?.user) {
+        console.log(
+          "[AuthContext] Full user object:",
+          JSON.stringify(session.user, null, 2),
+        );
+        console.log(
+          "[AuthContext] user_metadata keys:",
+          Object.keys(session.user.user_metadata || {}),
+        );
+        console.log(
+          "[AuthContext] Google metadata after auth change:",
+          JSON.stringify(session.user.user_metadata, null, 2),
+        );
+        console.log(
+          "[AuthContext] Picture value:",
+          session.user.user_metadata?.picture,
+        );
+        console.log(
+          "[AuthContext] Full name value:",
+          session.user.user_metadata?.full_name,
+        );
+      }
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -214,13 +257,27 @@ export const AuthProvider = ({ children }) => {
   const signInWithGoogle = async () => {
     try {
       console.log("[AuthContext] Starting Google OAuth sign in...");
-      const { data, error } = await supabase.auth.signInWithOAuth({
+
+      // Build OAuth options - redirectTo is only needed on web
+      const oauthOptions = {
         provider: "google",
-        options: {
-          redirectTo:
-            typeof window !== "undefined" ? window.location.origin : undefined,
-        },
-      });
+      };
+
+      // Only add redirectTo for web (where window.location.origin exists)
+      if (
+        typeof window !== "undefined" &&
+        window.location &&
+        window.location.origin
+      ) {
+        oauthOptions.options = {
+          redirectTo: window.location.origin,
+        };
+        console.log("[AuthContext] Web redirectTo:", window.location.origin);
+      } else {
+        console.log("[AuthContext] Mobile/Expo - using native OAuth flow");
+      }
+
+      const { data, error } = await supabase.auth.signInWithOAuth(oauthOptions);
 
       if (error) throw error;
       return { data, error: null };
