@@ -10,7 +10,13 @@ import { View, StyleSheet } from "react-native";
  * @param {boolean} isCircular - If true, applies circular border-radius (e.g., for coin flip)
  * @param {number} scale - Scale factor for sprinkle density (0.5 = 50% size/density, default 1 = 100%)
  */
-export const PartyVanillaSprinkles = ({ colorObj, width = 120, height = 120, isCircular = false, scale = 1 }) => {
+export const PartyVanillaSprinkles = ({
+  colorObj,
+  width = 120,
+  height = 120,
+  isCircular = false,
+  scale = 1,
+}) => {
   // Only render if this color has sprinkles defined
   if (!colorObj) return null;
   if (!colorObj.sprinkles) return null;

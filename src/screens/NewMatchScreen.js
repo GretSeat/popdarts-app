@@ -787,6 +787,20 @@ export default function NewMatchScreen({ navigation, route }) {
         isClosest: false,
       },
     ]);
+    // Close the match summary modal and reset pregame flow for rematch
+    setShowMatchSummary(false);
+    setMatchStarted(false);
+    setCoinFlipWinner(null);
+    setPreGameStage("coin-flip");
+    setWinnerFirstChoice(null);
+    setWinnerChosenSide(null);
+    setWinnerChosenOrder(null);
+    setPlayerSides({ 1: null, 2: null });
+    setP1SpecialtyShots([]);
+    setP2SpecialtyShots([]);
+    setFirstThrower(null);
+    // Show the pre-game modal with coin flip
+    setShowPreGame(true);
   };
 
   /**
