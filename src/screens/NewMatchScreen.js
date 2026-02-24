@@ -224,6 +224,7 @@ export default function NewMatchScreen({ navigation, route }) {
 
   // Win dialog
   const [winner, setWinner] = useState(null);
+  const [isRematch, setIsRematch] = useState(false); // Track if we're in a rematch flow
 
   // Match Type Selection for 1v1 Lobby
   const [lobbyMatchType, setLobbyMatchType] = useState("friendly"); // 'friendly' or 'casual-competitive'
@@ -789,9 +790,11 @@ export default function NewMatchScreen({ navigation, route }) {
     ]);
     // Close the match summary modal and reset pregame flow for rematch
     setShowMatchSummary(false);
-    setMatchStarted(false);
-    setCoinFlipWinner(null);
-    setPreGameStage("coin-flip");
+    // Set the loser as the "coin flip winner" so they get first choice
+    const loser = winner === 1 ? 2 : 1;
+    setCoinFlipWinner(loser);
+    // Skip coin flip animation, go straight to choice stage
+    setPreGameStage("winner-choice");
     setWinnerFirstChoice(null);
     setWinnerChosenSide(null);
     setWinnerChosenOrder(null);
@@ -799,7 +802,11 @@ export default function NewMatchScreen({ navigation, route }) {
     setP1SpecialtyShots([]);
     setP2SpecialtyShots([]);
     setFirstThrower(null);
-    // Show the pre-game modal with coin flip
+    // Change to casual-competitive to ensure pre-game modal shows
+    setLobbyMatchType("casual-competitive");
+    // Mark this as a rematch for custom messaging
+    setIsRematch(true);
+    // Show the pre-game modal with choice stage (skip coin flip)
     setShowPreGame(true);
   };
 
@@ -1295,6 +1302,7 @@ export default function NewMatchScreen({ navigation, route }) {
         setWinnerChosenSide(null);
         setWinnerChosenOrder(null);
         setPreGameStage("coin-flip");
+        setIsRematch(false);
         setShowPreGame(false);
         setMatchStarted(true);
       }
@@ -1315,6 +1323,7 @@ export default function NewMatchScreen({ navigation, route }) {
         setWinnerChosenSide(null);
         setWinnerChosenOrder(null);
         setPreGameStage("coin-flip");
+        setIsRematch(false);
         setShowPreGame(false);
         setMatchStarted(true);
       }
@@ -1417,42 +1426,68 @@ export default function NewMatchScreen({ navigation, route }) {
       );
     };
 
-    const renderChoiceStage = () => (
-      <View style={styles.preGameContainer}>
-        <Text style={styles.preGameTitle}>
-          {coinFlipWinner === 1 ? player1Name : player2Name} Won!
-        </Text>
-        <Text style={styles.preGameInstruction}>
-          What would you like to choose first?
-        </Text>
+    const renderChoiceStage = () => {
+      const winnerName = coinFlipWinner === 1 ? player1Name : player2Name;
+      const titleText = isRematch
+        ? `For this Rematch...`
+        : `${winnerName} Won!`;
+      const instructionText = isRematch
+        ? `${winnerName}, choose the setup this round`
+        : "What would you like to choose first?";
 
-        <View style={styles.preGameButtonsColumn}>
-          <TouchableOpacity
-            style={styles.preGameChoiceButton}
-            onPress={() => {
-              setWinnerFirstChoice("side");
-              setPreGameStage("winner-side-selection");
-            }}
-          >
-            <Text style={styles.preGameChoiceButtonText}>Pick Your Side</Text>
-            <Text style={styles.preGameChoiceSubtext}>Left or Right</Text>
-          </TouchableOpacity>
+      return (
+        <View style={styles.preGameContainer}>
+          <Text style={styles.preGameTitle}>{titleText}</Text>
+          <Text style={styles.preGameInstruction}>{instructionText}</Text>
+
+          <View style={styles.preGameButtonsColumn}>
+            <TouchableOpacity
+              style={styles.preGameChoiceButton}
+              onPress={() => {
+                setWinnerFirstChoice("side");
+                setPreGameStage("winner-side-selection");
+              }}
+            >
+              <Text style={styles.preGameChoiceButtonText}>Pick Your Side</Text>
+              <Text style={styles.preGameChoiceSubtext}>Left or Right</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.preGameChoiceButton}
+              onPress={() => {
+                setWinnerFirstChoice("order");
+                setPreGameStage("winner-order-selection");
+              }}
+            >
+              <Text style={styles.preGameChoiceButtonText}>
+                Pick Your Order
+              </Text>
+              <Text style={styles.preGameChoiceSubtext}>
+                First or Second throw
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
-            style={styles.preGameChoiceButton}
             onPress={() => {
-              setWinnerFirstChoice("order");
-              setPreGameStage("winner-order-selection");
+              setShowPreGame(false);
+              setIsRematch(false);
+              setCoinFlipWinner(null);
+              setPreGameStage("coin-flip");
+              setWinnerFirstChoice(null);
+              setWinnerChosenSide(null);
+              setWinnerChosenOrder(null);
+              setPlayerSides({ 1: null, 2: null });
             }}
+            style={{ marginTop: 16, alignItems: "center" }}
           >
-            <Text style={styles.preGameChoiceButtonText}>Pick Your Order</Text>
-            <Text style={styles.preGameChoiceSubtext}>
-              First or Second throw
+            <Text style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
+              Cancel
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
-    );
+      );
+    };
 
     const renderSideSelectionStage = () => {
       const isWinnerSelecting = preGameStage === "winner-side-selection";
@@ -6487,6 +6522,7 @@ export default function NewMatchScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
+      {renderPreGameModal()}
     </>
   );
 }
