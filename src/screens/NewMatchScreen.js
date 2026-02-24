@@ -177,7 +177,7 @@ export default function NewMatchScreen({ navigation, route }) {
   // Pre-game and first thrower
   const [showPreGame, setShowPreGame] = useState(false);
   const [firstThrower, setFirstThrower] = useState(null); // 1 or 2
-  const [coinFlipWinner, setCoinFlipWinner] = useState(null); // 1 or 2
+  const [coinFlipWinner, setCoinFlipWinner] = useState(0); // 0 = show "FLIP", 1 or 2 = winner, null/cleanup
   const [preGameStage, setPreGameStage] = useState("coin-flip"); // 'coin-flip', 'winner-choice', 'winner-side-selection', 'loser-order-selection', 'winner-order-selection', 'loser-side-selection'
   const [playerSides, setPlayerSides] = useState({ 1: null, 2: null }); // 'left' or 'right'
   const [winnerFirstChoice, setWinnerFirstChoice] = useState(null); // 'side' or 'order' - what winner chose first
@@ -307,7 +307,7 @@ export default function NewMatchScreen({ navigation, route }) {
       return () => {
         // Screen is about to lose focus - close all modals
         setShowPreGame(false);
-        setCoinFlipWinner(null);
+        setCoinFlipWinner(0);
         setPreGameStage("coin-flip");
       };
     }, []),
@@ -894,7 +894,7 @@ export default function NewMatchScreen({ navigation, route }) {
     setSimplifiedMode(false);
     setShowSimplifiedOverlay(false);
     setFirstThrower(null);
-    setCoinFlipWinner(null);
+    setCoinFlipWinner(0);
     setPreGameStage("coin-flip");
     setPlayerSides({ 1: null, 2: null });
     setWinnerFirstChoice(null);
@@ -1252,9 +1252,9 @@ export default function NewMatchScreen({ navigation, route }) {
         let flashCount = 0;
         const flashInterval = setInterval(() => {
           if (flashCount % 2 === 0) {
-            setCoinFlipWinner(0); // Hide
-          } else {
             setCoinFlipWinner(randomWinner); // Show random winner
+          } else {
+            setCoinFlipWinner(null); // Briefly hide
           }
 
           flashCount++;
@@ -1297,7 +1297,7 @@ export default function NewMatchScreen({ navigation, route }) {
           [otherPlayer]: oppositeSide,
         });
         // Start the match
-        setCoinFlipWinner(null);
+        setCoinFlipWinner(0);
         setWinnerFirstChoice(null);
         setWinnerChosenSide(null);
         setWinnerChosenOrder(null);
@@ -1318,7 +1318,7 @@ export default function NewMatchScreen({ navigation, route }) {
         // Loser just picked order after winner picked side
         setFirstThrower(playerNum);
         // Start the match
-        setCoinFlipWinner(null);
+        setCoinFlipWinner(0);
         setWinnerFirstChoice(null);
         setWinnerChosenSide(null);
         setWinnerChosenOrder(null);
@@ -1348,7 +1348,9 @@ export default function NewMatchScreen({ navigation, route }) {
 
       return (
         <View style={styles.preGameContainer}>
-          <Text style={styles.preGameTitle}>Coin Flip</Text>
+          <Text style={styles.preGameTitle}>
+            Flip a Coin to Find out Who Throws First
+          </Text>
 
           <View style={styles.coinFlipContainer}>
             <View style={styles.playerNameContainer}>
@@ -1381,6 +1383,8 @@ export default function NewMatchScreen({ navigation, route }) {
                     >
                       {coinFlipWinner === 0 ? (
                         <Text style={styles.coinFlipButtonText}>FLIP</Text>
+                      ) : coinFlipWinner === null ? (
+                        <Text style={styles.coinFlipText}></Text>
                       ) : (
                         <Text style={styles.coinFlipText}>
                           {coinFlipWinner === 1 ? player1Name : player2Name}
@@ -1408,6 +1412,8 @@ export default function NewMatchScreen({ navigation, route }) {
                   >
                     {coinFlipWinner === 0 ? (
                       <Text style={styles.coinFlipButtonText}>FLIP</Text>
+                    ) : coinFlipWinner === null ? (
+                      <Text style={styles.coinFlipText}></Text>
                     ) : (
                       <Text style={styles.coinFlipText}>
                         {coinFlipWinner === 1 ? player1Name : player2Name}
@@ -1422,6 +1428,24 @@ export default function NewMatchScreen({ navigation, route }) {
               <Text style={styles.playerName}>{player2Name}</Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            onPress={() => {
+              setShowPreGame(false);
+              setIsRematch(false);
+              setCoinFlipWinner(null);
+              setPreGameStage("coin-flip");
+              setWinnerFirstChoice(null);
+              setWinnerChosenSide(null);
+              setWinnerChosenOrder(null);
+              setPlayerSides({ 1: null, 2: null });
+            }}
+            style={{ marginTop: 16, alignItems: "center" }}
+          >
+            <Text style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
+              Cancel
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     };
@@ -1524,6 +1548,24 @@ export default function NewMatchScreen({ navigation, route }) {
               <Text style={styles.preGameChoiceButtonText}>Right →</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            onPress={() => {
+              setShowPreGame(false);
+              setIsRematch(false);
+              setCoinFlipWinner(null);
+              setPreGameStage("coin-flip");
+              setWinnerFirstChoice(null);
+              setWinnerChosenSide(null);
+              setWinnerChosenOrder(null);
+              setPlayerSides({ 1: null, 2: null });
+            }}
+            style={{ marginTop: 16, alignItems: "center" }}
+          >
+            <Text style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
+              Cancel
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     };
@@ -1571,6 +1613,24 @@ export default function NewMatchScreen({ navigation, route }) {
               <Text style={styles.preGameChoiceSubtext}>Throws First</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            onPress={() => {
+              setShowPreGame(false);
+              setIsRematch(false);
+              setCoinFlipWinner(null);
+              setPreGameStage("coin-flip");
+              setWinnerFirstChoice(null);
+              setWinnerChosenSide(null);
+              setWinnerChosenOrder(null);
+              setPlayerSides({ 1: null, 2: null });
+            }}
+            style={{ marginTop: 16, alignItems: "center" }}
+          >
+            <Text style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
+              Cancel
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     };
