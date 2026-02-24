@@ -394,7 +394,15 @@ export default function ProfileScreen() {
             style={[styles.colorPreviewBox, { marginRight: 8 }]}
             onPress={() => setColorManagerVisible(true)}
           >
-            <View style={{ position: "relative", width: 40, height: 20, borderRadius: 10, overflow: "hidden" }}>
+            <View
+              style={{
+                position: "relative",
+                width: 40,
+                height: 20,
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
               {favoriteHomeColorObj.isGradient ? (
                 <LinearGradient
                   colors={favoriteHomeColorObj.colors}
