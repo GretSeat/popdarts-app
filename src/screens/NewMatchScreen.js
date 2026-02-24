@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   ScrollView,
@@ -294,6 +295,22 @@ export default function NewMatchScreen({ navigation, route }) {
       }
     };
   }, [matchStarted, showBracket, navigation, theme]);
+
+  /**
+   * Close all modals when the screen loses focus (user navigates away)
+   * This ensures modals don't persist when going back to dashboard
+   */
+  useFocusEffect(
+    React.useCallback(() => {
+      // Screen is focused - do nothing
+      return () => {
+        // Screen is about to lose focus - close all modals
+        setShowPreGame(false);
+        setCoinFlipWinner(null);
+        setPreGameStage("coin-flip");
+      };
+    }, []),
+  );
 
   // Auto-select closest player logic
   useEffect(() => {
