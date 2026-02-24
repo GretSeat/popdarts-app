@@ -58,8 +58,14 @@ export default function NewMatchScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const screenWidth = Dimensions.get("window").width;
 
+  // Prefer display_name, then Google given_name, then full_name, then guestName, then 'You'
+  const userMeta = user?.user_metadata || {};
   const currentUserName =
-    user?.user_metadata?.display_name || guestName || "You";
+    userMeta.display_name ||
+    userMeta.given_name ||
+    (userMeta.full_name ? userMeta.full_name.split(" ")[0] : null) ||
+    guestName ||
+    "You";
 
   // Match type selection
   const [matchType, setMatchType] = useState(null); // 'casual' or 'official'
@@ -596,7 +602,8 @@ export default function NewMatchScreen({ navigation, route }) {
    */
   const applyRound = () => {
     console.log("applyRound called! Current round:", currentRound);
-    console.log("Before reset - p1DartStates:", p1DartStates);
+    console.log("matchStarted:", matchStarted);
+    console.log("showPreGame before close:", showPreGame);
 
     if (!pendingRoundData) {
       console.log("No pending round data, returning");
@@ -638,6 +645,9 @@ export default function NewMatchScreen({ navigation, route }) {
     // Close the round summary modal
     setShowRoundSummary(false);
     setPendingRoundData(null);
+
+    // Close any pre-game modals that might be showing
+    setShowPreGame(false);
 
     // Create fresh empty dart state for each dart (important: use new objects, not shared references)
     const createEmptyDart = () => ({
@@ -1175,6 +1185,9 @@ export default function NewMatchScreen({ navigation, route }) {
   const startCoinFlipAnimation = () => {
     setCoinFlipWinner(0); // Reset state
 
+    // Determine the random winner BEFORE animation starts (50/50 chance)
+    const randomWinner = Math.random() < 0.5 ? 1 : 2;
+
     let currentDisplay = 1;
     let iteration = 0;
     const maxIterations = 20; // Number of flashes - reduced for faster animation
@@ -1194,8 +1207,8 @@ export default function NewMatchScreen({ navigation, route }) {
           runFlip();
         }, delay);
       } else {
-        // Final winner is the last displayed value
-        setCoinFlipWinner(currentDisplay);
+        // Final winner is the randomly determined value
+        setCoinFlipWinner(randomWinner);
 
         // Flash the winner a few times with shorter duration
         let flashCount = 0;
@@ -1203,14 +1216,14 @@ export default function NewMatchScreen({ navigation, route }) {
           if (flashCount % 2 === 0) {
             setCoinFlipWinner(0); // Hide
           } else {
-            setCoinFlipWinner(currentDisplay); // Show
+            setCoinFlipWinner(randomWinner); // Show random winner
           }
 
           flashCount++;
           if (flashCount >= 4) {
             // Reduced from 6 to 4 flashes
             clearInterval(flashInterval);
-            setCoinFlipWinner(currentDisplay); // Final display
+            setCoinFlipWinner(randomWinner); // Final display of random winner
             setPreGameStage("winner-choice");
           }
         }, 150); // Faster flash speed
@@ -2371,28 +2384,41 @@ export default function NewMatchScreen({ navigation, route }) {
                 {/* SVG Overlay for Connector Lines - positioned absolutely, doesn't block touches */}
                 {Object.keys(matchPositions).length > 0 &&
                   (() => {
-                    // Calculate total bracket dimensions for SVG using ACTUAL measured positions
-                    let actualMaxX = 0;
-                    let actualMaxY = 0;
+                    // Calculate total bracket dimensions for SVG
+                    const cardWidth = 220;
+                    const connectorWidth = 80;
+                    const scrollPadding = 40; // padding: 20 × 2 (left + right)
+                    const totalWidth =
+                      rounds.length * (cardWidth + connectorWidth) +
+                      scrollPadding;
 
-                    Object.values(matchPositions).forEach((pos) => {
-                      if (pos) {
-                        const rightX = pos.x + pos.width;
-                        const bottomY = pos.centerY + pos.height / 2;
-                        actualMaxX = Math.max(actualMaxX, rightX);
-                        actualMaxY = Math.max(actualMaxY, bottomY);
-                      }
+                    const matchHeight = 150;
+                    const matchGap = 50;
+                    const roundTitleHeight = 35;
+                    const scrollPaddingVertical = 40; // padding: 20 × 2 (top + bottom)
+
+                    // Calculate max height by finding the tallest round
+                    let maxHeight = 0;
+                    rounds.forEach((round, roundIndex) => {
+                      if (round.seeds.length === 0) return;
+
+                      const offset = Math.pow(2, roundIndex) - 1;
+                      const spacing = Math.pow(2, roundIndex);
+                      const lastMatchRow =
+                        offset + (round.seeds.length - 1) * spacing;
+                      const minHeight =
+                        lastMatchRow * (matchHeight + matchGap) +
+                        matchHeight +
+                        50;
+                      maxHeight = Math.max(maxHeight, minHeight);
                     });
 
-                    // Add padding for scrolling and connectors
-                    const scrollPadding = 40; // padding: 20 × 2 (left + right)
-                    const scrollPaddingVertical = 40; // padding: 20 × 2 (top + bottom)
-                    const connectorPadding = 50; // extra space for connector lines
-
-                    const totalWidth =
-                      actualMaxX + scrollPadding + connectorPadding;
+                    // Add extra padding for connector lines that might extend beyond matches
                     const totalHeight =
-                      actualMaxY + scrollPaddingVertical + connectorPadding;
+                      maxHeight +
+                      roundTitleHeight +
+                      scrollPaddingVertical +
+                      100;
 
                     return (
                       <Svg
@@ -2405,19 +2431,9 @@ export default function NewMatchScreen({ navigation, route }) {
                           top: 0,
                           left: 0,
                           zIndex: -1,
-                          overflow: "hidden",
+                          overflow: "visible",
                         }}
                       >
-                        <defs>
-                          <clipPath id="bracket-clip">
-                            <rect
-                              x="0"
-                              y="0"
-                              width={totalWidth}
-                              height={totalHeight}
-                            />
-                          </clipPath>
-                        </defs>
                         {(() => {
                           // console.log("=== SVG RENDERING ===");
                           // console.log(
@@ -2529,56 +2545,11 @@ export default function NewMatchScreen({ navigation, route }) {
                               // Vertical line X position (midpoint between rounds)
                               const verticalX = (match1RightX + nextLeftX) / 2;
 
-                              // Verify the next match Y is reasonable (not NaN or extreme)
-                              if (
-                                !Number.isFinite(nextCenterY) ||
-                                nextCenterY < 0
-                              ) {
-                                console.warn(
-                                  `Invalid nextCenterY for round ${roundIndex}:`,
-                                  nextCenterY,
-                                  "posNext:",
-                                  posNext,
-                                );
-                                return;
-                              }
-
-                              // Clamp nextCenterY to be within reasonable bounds relative to junction
-                              // The next match should be roughly between the two source matches, allow some variance
-                              const minReasonableY =
-                                Math.min(match1CenterY, match2CenterY) - 100;
-                              const maxReasonableY =
-                                Math.max(match1CenterY, match2CenterY) + 100;
-
-                              // For finals (only 1 match in next round), be stricter
-                              const isFinals = nextRound.seeds.length === 1;
-                              const strictMinY =
-                                Math.min(match1CenterY, match2CenterY) - 50;
-                              const strictMaxY =
-                                Math.max(match1CenterY, match2CenterY) + 50;
-
-                              const checkMinY = isFinals
-                                ? strictMinY
-                                : minReasonableY;
-                              const checkMaxY = isFinals
-                                ? strictMaxY
-                                : maxReasonableY;
-
-                              if (
-                                nextCenterY < checkMinY ||
-                                nextCenterY > checkMaxY
-                              ) {
-                                console.warn(
-                                  `nextCenterY out of reasonable bounds for round ${roundIndex} (isFinals: ${isFinals}):`,
-                                  {
-                                    nextCenterY,
-                                    checkMinY,
-                                    checkMaxY,
-                                  },
-                                );
-                                // Skip this connector if it's unreasonable
-                                return;
-                              }
+                              // console.log(
+                              //   `Junction at Y=${junctionMidY}, Next match at Y=${nextCenterY}, Diff=${Math.abs(
+                              //     junctionMidY - nextCenterY,
+                              //   )}`,
+                              // );
 
                               // Determine line color based on completion
                               const bothCompleted =
@@ -4205,6 +4176,69 @@ export default function NewMatchScreen({ navigation, route }) {
                 <Button
                   mode="contained"
                   onPress={() => {
+                    // If it's a wash round (winner === 0) and no darts landed, auto-fill all darts as missed
+                    if (
+                      (!pendingRoundData?.p1Darts ||
+                        pendingRoundData?.p1Darts === 0) &&
+                      (!pendingRoundData?.p2Darts ||
+                        pendingRoundData?.p2Darts === 0)
+                    ) {
+                      if (pendingRoundData?.winner === 0) {
+                        // Auto-fill all darts as missed for both players
+                        setP1DartStates([
+                          {
+                            status: "missed",
+                            specialtyShot: null,
+                            landingOnDart: null,
+                            isClosest: false,
+                          },
+                          {
+                            status: "missed",
+                            specialtyShot: null,
+                            landingOnDart: null,
+                            isClosest: false,
+                          },
+                          {
+                            status: "missed",
+                            specialtyShot: null,
+                            landingOnDart: null,
+                            isClosest: false,
+                          },
+                        ]);
+                        setP2DartStates([
+                          {
+                            status: "missed",
+                            specialtyShot: null,
+                            landingOnDart: null,
+                            isClosest: false,
+                          },
+                          {
+                            status: "missed",
+                            specialtyShot: null,
+                            landingOnDart: null,
+                            isClosest: false,
+                          },
+                          {
+                            status: "missed",
+                            specialtyShot: null,
+                            landingOnDart: null,
+                            isClosest: false,
+                          },
+                        ]);
+                        setError("");
+                        console.log(
+                          "SUBMIT ROUND button pressed (auto-filled wash round)",
+                        );
+                        applyRound();
+                        return;
+                      } else {
+                        setError(
+                          "Make sure you add how many darts were landed before submitting the round.",
+                        );
+                        return;
+                      }
+                    }
+                    setError("");
                     console.log("SUBMIT ROUND button pressed");
                     applyRound();
                   }}
@@ -4214,6 +4248,21 @@ export default function NewMatchScreen({ navigation, route }) {
                 >
                   SUBMIT ROUND
                 </Button>
+                {/* Error message for quick score validation */}
+                {error && (
+                  <View
+                    style={{
+                      padding: 8,
+                      backgroundColor: "#ffcccc",
+                      borderRadius: 6,
+                      margin: 8,
+                    }}
+                  >
+                    <Text style={{ color: "#b00020", fontWeight: "bold" }}>
+                      {error}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           </View>
@@ -5420,6 +5469,13 @@ export default function NewMatchScreen({ navigation, route }) {
                           p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0,
                         p1DartStates: [...p1DartStates],
                         p2DartStates: [...p2DartStates],
+                        p1SpecialtyShots: p1DartStates.filter(
+                          (d) => d.specialtyShot,
+                        ),
+                        p2SpecialtyShots: p2DartStates.filter(
+                          (d) => d.specialtyShot,
+                        ),
+                        firstThrower,
                       };
                       setRoundHistory((prev) => [...prev, roundData]);
                       console.log("Saved round to history:", roundData);
@@ -5812,18 +5868,69 @@ export default function NewMatchScreen({ navigation, route }) {
                     {roundHistory.map((round, index) => {
                       const p1IsClosest = round.closestPlayer === 1;
                       const p2IsClosest = round.closestPlayer === 2;
+                      const p1Specialty = Array.isArray(round.p1SpecialtyShots)
+                        ? round.p1SpecialtyShots
+                        : round.p1DartStates
+                          ? round.p1DartStates.filter((d) => d.specialtyShot)
+                          : [];
+                      const p2Specialty = Array.isArray(round.p2SpecialtyShots)
+                        ? round.p2SpecialtyShots
+                        : round.p2DartStates
+                          ? round.p2DartStates.filter((d) => d.specialtyShot)
+                          : [];
+
+                      // First thrower gradient box
+                      let roundBoxStyle = [
+                        styles.roundBreakdownColumn,
+                        styles.roundNumberColumn,
+                        styles.roundNumberText,
+                      ];
+                      let gradientColors = null;
+                      if (
+                        round.firstThrower === 1 &&
+                        player1ColorObj &&
+                        player1ColorObj.isGradient
+                      ) {
+                        gradientColors = player1ColorObj.colors;
+                      } else if (
+                        round.firstThrower === 2 &&
+                        player2ColorObj &&
+                        player2ColorObj.isGradient
+                      ) {
+                        gradientColors = player2ColorObj.colors;
+                      }
 
                       return (
                         <View key={index} style={styles.roundBreakdownRow}>
-                          <Text
-                            style={[
-                              styles.roundBreakdownColumn,
-                              styles.roundNumberColumn,
-                              styles.roundNumberText,
-                            ]}
-                          >
-                            {round.roundNumber}
-                          </Text>
+                          <View style={{ position: "relative" }}>
+                            {gradientColors ? (
+                              <LinearGradient
+                                colors={gradientColors}
+                                start={{ x: 0, y: 0.5 }}
+                                end={{ x: 1, y: 0.5 }}
+                                style={{
+                                  position: "absolute",
+                                  left: 0,
+                                  top: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  borderRadius: 6,
+                                  zIndex: 0,
+                                }}
+                              />
+                            ) : null}
+                            <Text
+                              style={[
+                                ...roundBoxStyle,
+                                {
+                                  zIndex: 1,
+                                  color: gradientColors ? "#fff" : undefined,
+                                },
+                              ]}
+                            >
+                              {round.roundNumber}
+                            </Text>
+                          </View>
                           <View
                             style={[
                               styles.roundBreakdownColumn,
@@ -5834,6 +5941,19 @@ export default function NewMatchScreen({ navigation, route }) {
                             <Text style={styles.roundDartsText}>
                               {round.p1Points}
                             </Text>
+                            {p1Specialty.length > 0 && (
+                              <Text style={styles.roundSpecialtyShotsText}>
+                                {p1Specialty
+                                  .map(
+                                    (s) =>
+                                      s.specialtyShot?.abbr ||
+                                      s.abbr ||
+                                      s.specialtyShot?.name ||
+                                      s.name,
+                                  )
+                                  .join(", ")}
+                              </Text>
+                            )}
                           </View>
                           <View
                             style={[
@@ -5845,6 +5965,19 @@ export default function NewMatchScreen({ navigation, route }) {
                             <Text style={styles.roundDartsText}>
                               {round.p2Points}
                             </Text>
+                            {p2Specialty.length > 0 && (
+                              <Text style={styles.roundSpecialtyShotsText}>
+                                {p2Specialty
+                                  .map(
+                                    (s) =>
+                                      s.specialtyShot?.abbr ||
+                                      s.abbr ||
+                                      s.specialtyShot?.name ||
+                                      s.name,
+                                  )
+                                  .join(", ")}
+                              </Text>
+                            )}
                           </View>
                         </View>
                       );

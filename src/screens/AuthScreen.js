@@ -109,7 +109,7 @@ export default function AuthScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <ScreenContainer maxWidth={500}>
+        <ScreenContainer>
           <View style={styles.header}>
             <Text
               variant="displayMedium"

@@ -25,7 +25,7 @@ export default function WelcomeScreen({ onComplete }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ScreenContainer maxWidth={500}>
+      <ScreenContainer>
         <View style={styles.header}>
           <Text variant="displayMedium" style={styles.welcomeTitle}>
             Welcome to Popdarts! 🎯

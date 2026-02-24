@@ -17,8 +17,14 @@ export default function HomeScreen({ navigation }) {
   const [gamesPlayed, setGamesPlayed] = useState(0);
   const [dismissedCards, setDismissedCards] = useState([]);
 
+  // Prefer display_name, then Google given_name, then full_name, then guestName, then 'Player'
+  const userMeta = user?.user_metadata || {};
   const displayName =
-    user?.user_metadata?.display_name || guestName || "Player";
+    userMeta.display_name ||
+    userMeta.given_name ||
+    (userMeta.full_name ? userMeta.full_name.split(" ")[0] : null) ||
+    guestName ||
+    "Player";
 
   useEffect(() => {
     // Load user preferences and stats

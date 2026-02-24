@@ -110,6 +110,8 @@ export const AuthProvider = ({ children }) => {
         // Register for push notifications if user is authenticated
         if (session?.user) {
           await registerPushNotifications(session.user.id);
+          // Extract and store state from Google metadata
+          await updateUserStateFromMetadata(session.user, session.user.id);
         }
 
         setLoading(false);
@@ -167,6 +169,8 @@ export const AuthProvider = ({ children }) => {
       // Handle push notifications on sign in
       if (_event === "SIGNED_IN" && session?.user) {
         await registerPushNotifications(session.user.id);
+        // Extract and store state from Google metadata
+        await updateUserStateFromMetadata(session.user, session.user.id);
       }
 
       // Handle push notifications on sign out
@@ -180,18 +184,30 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Register device for push notifications
+   * Register device for push notifications (without requesting permissions)
+   * Only registers token if user has explicitly enabled notifications in settings
    * @param {string} userId - User ID from Supabase auth
    */
   const registerPushNotifications = async (userId) => {
     try {
-      console.log("[AuthContext] Registering for push notifications...");
+      console.log(
+        "[AuthContext] Setting up push notifications infrastructure...",
+      );
+
+      // Get the token without requesting permissions
+      // Permissions will be requested when user enables notifications in settings
       const token = await registerForPushNotificationsAsync();
 
       if (token) {
         setPushToken(token);
-        await savePushTokenToDatabase(userId, token);
-        console.log("[AuthContext] Push notifications registered successfully");
+        // Save token with pushNotificationsEnabled: false (default)
+        // User must explicitly enable in settings
+        await savePushTokenToDatabase(userId, token, {
+          pushNotificationsEnabled: false,
+        });
+        console.log(
+          "[AuthContext] Push notifications infrastructure ready (disabled by default)",
+        );
       }
     } catch (error) {
       // Push notifications may fail on web or if VAPID key is not configured
@@ -199,6 +215,52 @@ export const AuthProvider = ({ children }) => {
       console.warn(
         "[AuthContext] Push notifications unavailable (this is OK):",
         error.message,
+      );
+    }
+  };
+
+  /**
+   * Extract state from Google sign-in metadata and update user profile
+   * @param {Object} user - Supabase user object
+   * @param {string} userId - User ID from Supabase auth
+   */
+  const updateUserStateFromMetadata = async (user, userId) => {
+    try {
+      if (!user?.user_metadata) {
+        console.log("[AuthContext] No user metadata available");
+        return;
+      }
+
+      // Try to extract state from various possible metadata sources
+      // Google OAuth typically includes location data
+      let state = null;
+
+      // Check for state in user metadata (might come from Google)
+      if (user.user_metadata.state) {
+        state = user.user_metadata.state.toUpperCase();
+      } else if (user.user_metadata.address?.state) {
+        state = user.user_metadata.address.state.toUpperCase();
+      }
+
+      if (state && state.length === 2) {
+        console.log("[AuthContext] State extracted from metadata:", state);
+
+        // Update state in users table
+        const { error } = await supabase
+          .from("users")
+          .update({ state })
+          .eq("id", userId);
+
+        if (error) {
+          console.warn("[AuthContext] Error updating user state:", error);
+        } else {
+          console.log("[AuthContext] User state updated to:", state);
+        }
+      }
+    } catch (error) {
+      console.warn(
+        "[AuthContext] Error extracting state from metadata:",
+        error,
       );
     }
   };
