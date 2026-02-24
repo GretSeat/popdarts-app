@@ -121,12 +121,13 @@ export async function savePushTokenToDatabase(
 ) {
   try {
     const defaultPreferences = {
-      storeUpdates: true,
-      flashSales: true,
-      leaguesNearby: true,
-      tournamentTurns: true,
-      matchReminders: true,
-      clubAnnouncements: true,
+      pushNotificationsEnabled: false, // Master toggle - off by default
+      storeUpdates: false,
+      flashSales: false,
+      leaguesNearby: false,
+      tournamentTurns: false,
+      matchReminders: false,
+      clubAnnouncements: false,
       ...preferences,
     };
 
@@ -294,7 +295,102 @@ export async function cancelAllScheduledNotifications() {
 }
 
 /**
- * Add notification listeners
+ * Enable or disable push notifications globally
+ * When enabling, will first request permissions from the user
+ * @param {string} userId - User ID from Supabase auth
+ * @param {boolean} enabled - Whether to enable (true) or disable (false) push notifications
+ * @returns {Promise<Object>} { success: boolean, message: string, permissionStatus?: string }
+ */
+export async function setPushNotificationsEnabled(userId, enabled) {
+  try {
+    if (enabled && !Device.isDevice) {
+      return {
+        success: false,
+        message: "Push notifications are only available on physical devices",
+      };
+    }
+
+    if (enabled) {
+      // Request permissions when enabling
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        return {
+          success: false,
+          message: "Push notification permissions were denied",
+          permissionStatus: finalStatus,
+        };
+      }
+
+      // If permissions granted, update database
+      const { error } = await supabase
+        .from("push_tokens")
+        .update({
+          preferences: {
+            pushNotificationsEnabled: true,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Error enabling push notifications:", error);
+        return {
+          success: false,
+          message: "Failed to enable push notifications",
+        };
+      }
+
+      console.log("Push notifications enabled successfully");
+      return {
+        success: true,
+        message: "Push notifications enabled",
+        permissionStatus: "granted",
+      };
+    } else {
+      // Disable push notifications
+      const { error } = await supabase
+        .from("push_tokens")
+        .update({
+          preferences: {
+            pushNotificationsEnabled: false,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Error disabling push notifications:", error);
+        return {
+          success: false,
+          message: "Failed to disable push notifications",
+        };
+      }
+
+      console.log("Push notifications disabled successfully");
+      return {
+        success: true,
+        message: "Push notifications disabled",
+      };
+    }
+  } catch (error) {
+    console.error("Error in setPushNotificationsEnabled:", error);
+    return {
+      success: false,
+      message: `Error: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Add notification listeners for receiving and responding to notifications
  * @param {Function} handleNotification - Handler for received notifications
  * @param {Function} handleNotificationResponse - Handler for notification taps
  * @returns {Object} Object containing subscription cleanup functions

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
-  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -27,18 +26,19 @@ import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
+  setPushNotificationsEnabled,
 } from "../services/pushNotificationService";
-import { supabase } from "../lib/supabase";
 
 import DartColorManager from "../components/DartColorManager";
 import JerseyColorManager, {
   getJerseyById,
 } from "../components/JerseyColorManager";
+import { PartyVanillaSprinkles } from "../components/PartyVanillaSprinkles";
 import ScreenContainer from "../components/ScreenContainer";
 import { LinearGradient } from "expo-linear-gradient";
-import { PartyVanillaSprinkles } from "../components/PartyVanillaSprinkles";
 import { LineChart } from "react-native-chart-kit";
 import { POPDARTS_COLORS } from "../constants/colors";
+import { supabase } from "../lib/supabase";
 
 /**
  * Profile screen - User profile, rankings, practice, and settings
@@ -94,10 +94,6 @@ export default function ProfileScreen() {
   const [colorManagerVisible, setColorManagerVisible] = useState(false);
   const [jerseyManagerVisible, setJerseyManagerVisible] = useState(false);
 
-  // User profile data from database (includes avatar_url)
-  const [userProfile, setUserProfile] = useState(null);
-  const [loadingProfile, setLoadingProfile] = useState(false);
-
   // Tab navigation
   const [activeTab, setActiveTab] = useState("profile"); // "profile", "stats", "practice", "settings"
   // Secondary tab for stats: 'casual' or 'official'
@@ -109,52 +105,56 @@ export default function ProfileScreen() {
 
   // Notification preferences state
   const [notificationPrefs, setNotificationPrefs] = useState({
-    storeUpdates: true,
-    flashSales: true,
-    leaguesNearby: true,
-    tournamentTurns: true,
-    matchReminders: true,
-    clubAnnouncements: true,
+    pushNotificationsEnabled: false,
+    storeUpdates: false,
+    flashSales: false,
+    leaguesNearby: false,
+    tournamentTurns: false,
+    matchReminders: false,
+    clubAnnouncements: false,
   });
   const [loadingPrefs, setLoadingPrefs] = useState(false);
 
+  // User state (from Google metadata)
+  const [userState, setUserState] = useState(null);
+  const [loadingState, setLoadingState] = useState(false);
+
+  // Prefer display_name, then Google given_name, then full_name, then guestName, then 'Player'
+  const userMeta = user?.user_metadata || {};
   const displayName =
-    userProfile?.display_name ||
-    user?.user_metadata?.display_name ||
+    userMeta.display_name ||
+    userMeta.given_name ||
+    (userMeta.full_name ? userMeta.full_name.split(" ")[0] : null) ||
     guestName ||
     "Player";
   const email = user?.email || "Guest User";
-  const avatarUrl = userProfile?.avatar_url;
 
-  // Load user profile and notification preferences when user is authenticated
+  // Load notification preferences and user state when user is authenticated
   useEffect(() => {
     if (user?.id) {
-      fetchUserProfile();
       loadNotificationPreferences();
+      loadUserState();
     }
   }, [user]);
 
-  const fetchUserProfile = async () => {
+  const loadUserState = async () => {
     try {
-      setLoadingProfile(true);
+      setLoadingState(true);
       const { data, error } = await supabase
         .from("users")
-        .select("display_name, avatar_url")
+        .select("state")
         .eq("id", user.id)
         .single();
 
-      if (error) throw error;
-
-      console.log("[ProfileScreen] User profile fetched:", data);
-      console.log("[ProfileScreen] Avatar URL:", data?.avatar_url);
-
-      if (data) {
-        setUserProfile(data);
+      if (error) {
+        console.warn("Error loading user state:", error);
+      } else if (data?.state) {
+        setUserState(data.state);
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
+      console.error("Error in loadUserState:", error);
     } finally {
-      setLoadingProfile(false);
+      setLoadingState(false);
     }
   };
 
@@ -187,6 +187,34 @@ export default function ProfileScreen() {
         setNotificationPrefs(notificationPrefs);
       }
     }
+  };
+
+  /**
+   * Handle enabling/disabling push notifications globally
+   * When enabling, will request permissions from the user
+   */
+  const handlePushNotificationsToggle = async (value) => {
+    if (!user?.id) return;
+
+    setLoadingPrefs(true);
+
+    const result = await setPushNotificationsEnabled(user.id, value);
+
+    if (result.success) {
+      // Update local state
+      setNotificationPrefs((prev) => ({
+        ...prev,
+        pushNotificationsEnabled: value,
+      }));
+    } else {
+      // Show error to user
+      Alert.alert(
+        "Notification Error",
+        result.message || "Failed to update push notification settings",
+      );
+    }
+
+    setLoadingPrefs(false);
   };
 
   const handleSignOut = async () => {
@@ -309,46 +337,32 @@ export default function ProfileScreen() {
             Platform.OS !== "web" && { alignItems: "center" },
           ]}
         >
-          {/* Avatar with favorite home dart color or Google profile picture */}
+          {/* Avatar with favorite home dart color */}
           <View style={styles.avatarPreviewBox}>
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
+            <Text
+              style={{
+                fontSize: 44,
+                fontWeight: "bold",
+                color: favoriteHomeColorObj.colors[0],
+                letterSpacing: 1,
+              }}
+            >
+              {displayName.substring(0, 1).toUpperCase()}
+            </Text>
+            {displayName.length > 1 && (
+              <Text
                 style={{
-                  width: 120,
-                  height: 120,
-                  borderRadius: 60,
-                  backgroundColor: "#f0f0f0",
+                  fontSize: 44,
+                  fontWeight: "bold",
+                  color:
+                    favoriteHomeColorObj.colors[1] ||
+                    favoriteHomeColorObj.colors[0],
+                  letterSpacing: 1,
+                  marginLeft: -6,
                 }}
-              />
-            ) : (
-              <>
-                <Text
-                  style={{
-                    fontSize: 44,
-                    fontWeight: "bold",
-                    color: favoriteHomeColorObj.colors[0],
-                    letterSpacing: 1,
-                  }}
-                >
-                  {displayName.substring(0, 1).toUpperCase()}
-                </Text>
-                {displayName.length > 1 && (
-                  <Text
-                    style={{
-                      fontSize: 44,
-                      fontWeight: "bold",
-                      color:
-                        favoriteHomeColorObj.colors[1] ||
-                        favoriteHomeColorObj.colors[0],
-                      letterSpacing: 1,
-                      marginLeft: -6,
-                    }}
-                  >
-                    {displayName.substring(1, 2).toUpperCase()}
-                  </Text>
-                )}
-              </>
+              >
+                {displayName.substring(1, 2).toUpperCase()}
+              </Text>
             )}
           </View>
         </View>
@@ -358,17 +372,14 @@ export default function ProfileScreen() {
         >
           {displayName}
         </Text>
-        {!isGuest && (
-          <Text
-            variant="bodyMedium"
-            style={[styles.email, Platform.OS === "web" && styles.textLeft]}
-          >
-            {email}
-          </Text>
-        )}
         {mockStats.clubName && (
           <Chip icon="home-group" style={styles.clubChip}>
             {mockStats.clubName}
+          </Chip>
+        )}
+        {userState && (
+          <Chip icon="map-marker" style={[styles.clubChip, { marginLeft: 4 }]}>
+            {userState}
           </Chip>
         )}
         {/* Dart/Jersey Color Previews */}
@@ -383,15 +394,7 @@ export default function ProfileScreen() {
             style={[styles.colorPreviewBox, { marginRight: 8 }]}
             onPress={() => setColorManagerVisible(true)}
           >
-            <View
-              style={{
-                position: "relative",
-                width: 40,
-                height: 20,
-                borderRadius: 10,
-                overflow: "hidden",
-              }}
-            >
+            <View style={{ position: "relative", width: 40, height: 20, borderRadius: 10, overflow: "hidden" }}>
               {favoriteHomeColorObj.isGradient ? (
                 <LinearGradient
                   colors={favoriteHomeColorObj.colors}
@@ -1147,109 +1150,150 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <Text variant="bodySmall" style={{ color: "#666", marginBottom: 16 }}>
-            Choose which notifications you want to receive
+            Enable push notifications to receive updates
           </Text>
 
-          <View style={styles.settingRow}>
+          {/* Master Toggle */}
+          <View
+            style={[
+              styles.settingRow,
+              {
+                marginBottom: 4,
+                backgroundColor: "#f5f5f5",
+                padding: 12,
+                borderRadius: 8,
+              },
+            ]}
+          >
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Store Updates</Text>
+              <Text style={[styles.settingLabel, { fontWeight: "600" }]}>
+                Enable Push Notifications
+              </Text>
               <Text style={styles.settingDescription}>
-                New items and restocks
+                Turn on to receive push notifications
               </Text>
             </View>
             <Switch
-              value={notificationPrefs.storeUpdates}
-              onValueChange={(value) =>
-                handleNotificationPrefChange("storeUpdates", value)
-              }
+              value={notificationPrefs.pushNotificationsEnabled || false}
+              onValueChange={handlePushNotificationsToggle}
               disabled={loadingPrefs}
             />
           </View>
-          <Divider />
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Flash Sales</Text>
-              <Text style={styles.settingDescription}>
-                Limited time discounts and offers
-              </Text>
-            </View>
-            <Switch
-              value={notificationPrefs.flashSales}
-              onValueChange={(value) =>
-                handleNotificationPrefChange("flashSales", value)
-              }
-              disabled={loadingPrefs}
-            />
-          </View>
-          <Divider />
+          {/* Individual Notification Preferences - Only shown when enabled */}
+          {notificationPrefs.pushNotificationsEnabled && (
+            <>
+              <Divider />
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Leagues Nearby</Text>
-              <Text style={styles.settingDescription}>
-                New leagues in your area
+              <Text
+                variant="bodySmall"
+                style={{ color: "#666", marginBottom: 12, marginTop: 12 }}
+              >
+                Choose which notifications you want
               </Text>
-            </View>
-            <Switch
-              value={notificationPrefs.leaguesNearby}
-              onValueChange={(value) =>
-                handleNotificationPrefChange("leaguesNearby", value)
-              }
-              disabled={loadingPrefs}
-            />
-          </View>
-          <Divider />
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Tournament Turn</Text>
-              <Text style={styles.settingDescription}>
-                When it's your turn to play
-              </Text>
-            </View>
-            <Switch
-              value={notificationPrefs.tournamentTurns}
-              onValueChange={(value) =>
-                handleNotificationPrefChange("tournamentTurns", value)
-              }
-              disabled={loadingPrefs}
-            />
-          </View>
-          <Divider />
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Store Updates</Text>
+                  <Text style={styles.settingDescription}>
+                    New items and restocks
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationPrefs.storeUpdates}
+                  onValueChange={(value) =>
+                    handleNotificationPrefChange("storeUpdates", value)
+                  }
+                  disabled={loadingPrefs}
+                />
+              </View>
+              <Divider />
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Match Reminders</Text>
-              <Text style={styles.settingDescription}>
-                Upcoming scheduled matches
-              </Text>
-            </View>
-            <Switch
-              value={notificationPrefs.matchReminders}
-              onValueChange={(value) =>
-                handleNotificationPrefChange("matchReminders", value)
-              }
-              disabled={loadingPrefs}
-            />
-          </View>
-          <Divider />
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Flash Sales</Text>
+                  <Text style={styles.settingDescription}>
+                    Limited time discounts and offers
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationPrefs.flashSales}
+                  onValueChange={(value) =>
+                    handleNotificationPrefChange("flashSales", value)
+                  }
+                  disabled={loadingPrefs}
+                />
+              </View>
+              <Divider />
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Club Announcements</Text>
-              <Text style={styles.settingDescription}>
-                Updates from your clubs
-              </Text>
-            </View>
-            <Switch
-              value={notificationPrefs.clubAnnouncements}
-              onValueChange={(value) =>
-                handleNotificationPrefChange("clubAnnouncements", value)
-              }
-              disabled={loadingPrefs}
-            />
-          </View>
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Leagues Nearby</Text>
+                  <Text style={styles.settingDescription}>
+                    New leagues in your area
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationPrefs.leaguesNearby}
+                  onValueChange={(value) =>
+                    handleNotificationPrefChange("leaguesNearby", value)
+                  }
+                  disabled={loadingPrefs}
+                />
+              </View>
+              <Divider />
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Tournament Turn</Text>
+                  <Text style={styles.settingDescription}>
+                    When it's your turn to play
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationPrefs.tournamentTurns}
+                  onValueChange={(value) =>
+                    handleNotificationPrefChange("tournamentTurns", value)
+                  }
+                  disabled={loadingPrefs}
+                />
+              </View>
+              <Divider />
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Match Reminders</Text>
+                  <Text style={styles.settingDescription}>
+                    Upcoming scheduled matches
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationPrefs.matchReminders}
+                  onValueChange={(value) =>
+                    handleNotificationPrefChange("matchReminders", value)
+                  }
+                  disabled={loadingPrefs}
+                />
+              </View>
+              <Divider />
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Club Announcements</Text>
+                  <Text style={styles.settingDescription}>
+                    Updates from your clubs
+                  </Text>
+                </View>
+                <Switch
+                  value={notificationPrefs.clubAnnouncements}
+                  onValueChange={(value) =>
+                    handleNotificationPrefChange("clubAnnouncements", value)
+                  }
+                  disabled={loadingPrefs}
+                />
+              </View>
+            </>
+          )}
         </Surface>
       )}
 
