@@ -194,6 +194,8 @@ export default function NewMatchScreen({ navigation, route }) {
   const [showMatchSummary, setShowMatchSummary] = useState(false); // Show match summary after win
   const [roundHistory, setRoundHistory] = useState([]); // Track all rounds played
   const [showWashConfirmation, setShowWashConfirmation] = useState(false); // Wash round confirmation
+  const [isEditingRound, setIsEditingRound] = useState(false); // Track if currently editing a previous round
+  const [editingRoundNumber, setEditingRoundNumber] = useState(null); // Track which round is being edited
 
   // Player colors for progress bars and backgrounds
   const [player1Color, setPlayer1Color] = useState("#2196F3");
@@ -808,6 +810,252 @@ export default function NewMatchScreen({ navigation, route }) {
     setIsRematch(true);
     // Show the pre-game modal with choice stage (skip coin flip)
     setShowPreGame(true);
+  };
+
+  /**
+   * Load a previous round for editing
+   * @param {number} roundNumber - The round number to edit (1-based)
+   */
+  const loadRoundForEditing = (roundNumber) => {
+    if (roundNumber < 1 || roundNumber > roundHistory.length) {
+      console.log("Invalid round number for editing:", roundNumber);
+      return;
+    }
+
+    const roundToEdit = roundHistory[roundNumber - 1]; // roundHistory is 0-based
+    console.log("Loading round for editing:", roundToEdit);
+
+    // Set the edit mode flags
+    setIsEditingRound(true);
+    setEditingRoundNumber(roundNumber);
+
+    // Populate the dart states from the saved round
+    setP1DartStates(roundToEdit.p1DartStates);
+    setP2DartStates(roundToEdit.p2DartStates);
+    setClosestPlayer(roundToEdit.closestPlayer);
+
+    // Open the overlay for editing
+    setShowSimplifiedOverlay(true);
+  };
+
+  /**
+   * Save the edited round back to history and update scores
+   * This function recalculates player scores based on the edited round
+   */
+  const saveEditedRound = () => {
+    console.log("saveEditedRound called for round:", editingRoundNumber);
+
+    if (!isEditingRound || !editingRoundNumber) {
+      console.log("Not in edit mode or no round selected");
+      return;
+    }
+
+    const roundIndex = editingRoundNumber - 1;
+    const oldRound = roundHistory[roundIndex];
+
+    // Calculate the new scores from the current dart states
+    const p1DartsLanded = p1DartStates.filter(
+      (d) => d.status === "landed",
+    ).length;
+    const p2DartsLanded = p2DartStates.filter(
+      (d) => d.status === "landed",
+    ).length;
+
+    // Recalculate scores (similar logic to applyRound but for replacement)
+    let newP1Score = 0;
+    let newP2Score = 0;
+
+    // Check if any dart is a T-Nobber or Inch Worm (disables closest bonus)
+    const hasT_Nobber =
+      p1DartStates.some(
+        (d) =>
+          d.specialtyShot === "t-nobber" || d.specialtyShot === "inch-worm",
+      ) ||
+      p2DartStates.some(
+        (d) =>
+          d.specialtyShot === "t-nobber" || d.specialtyShot === "inch-worm",
+      );
+
+    // Check if Lippies are present
+    const p1HasLippy = p1DartStates.some((d) => d.specialtyShot === "lippy");
+    const p2HasLippy = p2DartStates.some((d) => d.specialtyShot === "lippy");
+    const lippiesPresent = p1HasLippy || p2HasLippy;
+
+    // Score calculation - matches the APPLY logic exactly
+    let p1ClosestHandled = false;
+    let p2ClosestHandled = false;
+
+    p1DartStates.forEach((dart) => {
+      if (dart.status === "landed") {
+        let points = 1;
+
+        // Apply specialty shot values
+        if (dart.specialtyShot === "lippy") {
+          points = closestPlayer === 1 && !hasT_Nobber ? 4 : 2;
+        } else if (dart.specialtyShot === "tower") {
+          points = 5;
+        } else if (dart.specialtyShot === "fender-bender") {
+          points = 2;
+        } else if (dart.specialtyShot === "t-nobber") {
+          points = 10;
+        } else if (dart.specialtyShot === "inch-worm") {
+          points = 11;
+        } else if (dart.specialtyShot === "triple-nobber") {
+          points = 20;
+        }
+
+        // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
+        if (
+          closestPlayer === 1 &&
+          !p1ClosestHandled &&
+          !hasT_Nobber &&
+          !lippiesPresent
+        ) {
+          points += 2;
+          p1ClosestHandled = true;
+        }
+
+        newP1Score += points;
+      }
+    });
+
+    p2DartStates.forEach((dart) => {
+      if (dart.status === "landed") {
+        let points = 1;
+
+        // Apply specialty shot values
+        if (dart.specialtyShot === "lippy") {
+          points = closestPlayer === 2 && !hasT_Nobber ? 4 : 2;
+        } else if (dart.specialtyShot === "tower") {
+          points = 5;
+        } else if (dart.specialtyShot === "fender-bender") {
+          points = 2;
+        } else if (dart.specialtyShot === "t-nobber") {
+          points = 10;
+        } else if (dart.specialtyShot === "inch-worm") {
+          points = 11;
+        } else if (dart.specialtyShot === "triple-nobber") {
+          points = 20;
+        }
+
+        // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
+        if (
+          closestPlayer === 2 &&
+          !p2ClosestHandled &&
+          !hasT_Nobber &&
+          !lippiesPresent
+        ) {
+          points += 2;
+          p2ClosestHandled = true;
+        }
+
+        newP2Score += points;
+      }
+    });
+
+    // Determine the winner of this edited round
+    let roundWinner = 0;
+    if (newP1Score > newP2Score) roundWinner = 1;
+    else if (newP2Score > newP1Score) roundWinner = 2;
+
+    // Calculate the score difference (old vs new)
+    const oldNetScore = oldRound.p1Points - oldRound.p2Points;
+    const newNetScore = newP1Score - newP2Score;
+    const scoreDifference = newNetScore - oldNetScore;
+
+    // Update the updated round in history
+    const updatedRound = {
+      ...oldRound,
+      p1Darts: p1DartsLanded,
+      p2Darts: p2DartsLanded,
+      p1Points: newP1Score,
+      p2Points: newP2Score,
+      closestPlayer,
+      roundWinner,
+      p1DartStates: [...p1DartStates],
+      p2DartStates: [...p2DartStates],
+    };
+
+    const updatedHistory = [...roundHistory];
+    updatedHistory[roundIndex] = updatedRound;
+    setRoundHistory(updatedHistory);
+
+    console.log("Updated round in history:", updatedRound);
+
+    // Now recalculate all scores from the beginning using cancellation scoring
+    let recalcP1Score = 0;
+    let recalcP2Score = 0;
+    let recalcP1RoundsWon = 0;
+    let recalcP2RoundsWon = 0;
+
+    updatedHistory.forEach((round) => {
+      if (round.roundWinner === 1) {
+        // Player 1 wins: gets the net score difference
+        recalcP1Score += round.p1Points - round.p2Points;
+        recalcP1RoundsWon++;
+      } else if (round.roundWinner === 2) {
+        // Player 2 wins: gets the net score difference
+        recalcP2Score += round.p2Points - round.p1Points;
+        recalcP2RoundsWon++;
+      }
+      // If roundWinner === 0 (wash), no points awarded
+    });
+
+    // Cap scores at 21
+    recalcP1Score = Math.min(recalcP1Score, 21);
+    recalcP2Score = Math.min(recalcP2Score, 21);
+
+    // Update player scores and stats
+    setPlayer1Score(recalcP1Score);
+    setPlayer2Score(recalcP2Score);
+    setPlayer1Stats({
+      ...player1Stats,
+      roundsWon: recalcP1RoundsWon,
+    });
+    setPlayer2Stats({
+      ...player2Stats,
+      roundsWon: recalcP2RoundsWon,
+    });
+
+    console.log(
+      "Scores recalculated. P1:",
+      recalcP1Score,
+      "P2:",
+      recalcP2Score,
+    );
+
+    // If the round winner changed, update firstThrower for the next round
+    if (oldRound.roundWinner !== roundWinner) {
+      console.log(
+        "Round winner changed from",
+        oldRound.roundWinner,
+        "to",
+        roundWinner,
+      );
+      if (roundWinner === 1 || roundWinner === 2) {
+        setFirstThrower(roundWinner);
+      }
+      // If it's a wash (roundWinner === 0), firstThrower stays the same
+    }
+
+    // Exit edit mode and close the overlay
+    setIsEditingRound(false);
+    setEditingRoundNumber(null);
+    setShowSimplifiedOverlay(false);
+
+    // Reset dart states for normal play
+    const createEmptyDart = () => ({
+      status: "empty",
+      specialtyShot: null,
+      landingOnDart: null,
+      isClosest: false,
+    });
+    setP1DartStates([createEmptyDart(), createEmptyDart(), createEmptyDart()]);
+    setP2DartStates([createEmptyDart(), createEmptyDart(), createEmptyDart()]);
+    setSimplifiedP1Darts(0);
+    setSimplifiedP2Darts(0);
+    setClosestPlayer(null);
+    setClosestDart(null);
   };
 
   /**
@@ -4406,9 +4654,15 @@ export default function NewMatchScreen({ navigation, route }) {
               contentContainerStyle={styles.quickScoreScrollContainer}
             >
               <View style={styles.quickScoreContainerModal}>
-                <Text style={styles.quickScoreTitle}>Quick Score</Text>
+                <Text style={styles.quickScoreTitle}>
+                  {isEditingRound
+                    ? `Edit Round ${editingRoundNumber}`
+                    : "Quick Score"}
+                </Text>
                 <Text style={styles.quickScoreSubtitle}>
-                  Enter dart counts for quick scoring
+                  {isEditingRound
+                    ? "Adjust the scored darts for this round"
+                    : "Enter dart counts for quick scoring"}
                 </Text>
 
                 {/* Player 1 */}
@@ -5264,404 +5518,495 @@ export default function NewMatchScreen({ navigation, route }) {
                   )}
 
                 {/* Action Buttons */}
-                <View style={styles.quickScoreActions}>
-                  <TouchableOpacity
-                    style={styles.quickScoreCancelButton}
-                    onPress={() => {
-                      setShowSimplifiedOverlay(false);
-                      setSimplifiedP1Darts(0);
-                      setSimplifiedP2Darts(0);
-                      setClosestPlayer(null);
-                      setClosestDart(null);
-                      setP1DartStates([
-                        {
+                {isEditingRound ? (
+                  // Edit mode buttons: CANCEL and CONFIRM EDIT
+                  <View style={styles.quickScoreActions}>
+                    <TouchableOpacity
+                      style={styles.quickScoreCancelButton}
+                      onPress={() => {
+                        setIsEditingRound(false);
+                        setEditingRoundNumber(null);
+                        setShowSimplifiedOverlay(false);
+                        setSimplifiedP1Darts(0);
+                        setSimplifiedP2Darts(0);
+                        setClosestPlayer(null);
+                        setClosestDart(null);
+                        // Reset dart states
+                        const createEmptyDart = () => ({
                           status: "empty",
                           specialtyShot: null,
                           landingOnDart: null,
                           isClosest: false,
-                        },
-                        {
-                          status: "empty",
-                          specialtyShot: null,
-                          landingOnDart: null,
-                          isClosest: false,
-                        },
-                        {
-                          status: "empty",
-                          specialtyShot: null,
-                          landingOnDart: null,
-                          isClosest: false,
-                        },
-                      ]);
-                      setP2DartStates([
-                        {
-                          status: "empty",
-                          specialtyShot: null,
-                          landingOnDart: null,
-                          isClosest: false,
-                        },
-                        {
-                          status: "empty",
-                          specialtyShot: null,
-                          landingOnDart: null,
-                          isClosest: false,
-                        },
-                        {
-                          status: "empty",
-                          specialtyShot: null,
-                          landingOnDart: null,
-                          isClosest: false,
-                        },
-                      ]);
-                    }}
-                  >
-                    <Text style={styles.quickScoreCancelButtonText}>
-                      CANCEL
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.quickScoreApplyButton,
-                      (p1DartStates.filter((d) => d.status === "landed")
-                        .length > 0 ||
-                        p2DartStates.filter((d) => d.status === "landed")
-                          .length > 0) &&
-                      closestPlayer === null
-                        ? styles.quickScoreApplyButtonDisabled
-                        : null,
-                    ]}
-                    onPress={() => {
-                      const p1DartsLanded = p1DartStates.filter(
-                        (d) => d.status === "landed",
-                      ).length;
-                      const p2DartsLanded = p2DartStates.filter(
-                        (d) => d.status === "landed",
-                      ).length;
-
-                      // Validate that closest player is selected if darts were landed
-                      if (
-                        (p1DartsLanded > 0 || p2DartsLanded > 0) &&
-                        closestPlayer === null
-                      ) {
-                        console.log(
-                          "Cannot submit - darts landed but no closest player selected",
-                        );
-                        return;
-                      }
-
-                      console.log("APPLY button pressed in Quick Score");
-
-                      // Check for wash round (both players with 0 darts)
-                      if (p1DartsLanded === 0 && p2DartsLanded === 0) {
-                        console.log(
-                          "No darts landed - showing wash confirmation",
-                        );
-                        setShowWashConfirmation(true);
-                        return;
-                      }
-
-                      // Calculate scores with cancellation scoring
-                      // Score each dart: 1 point normally, 2 for Fender Bender, 5 for Tower, 10 for T-Nobber
-                      let p1Score = 0;
-                      let p2Score = 0;
-                      let p1ClosestHandled = false;
-                      let p2ClosestHandled = false;
-
-                      // Check if any dart is a T-Nobber or Inch Worm (disables closest bonus)
-                      const hasT_Nobber =
-                        p1DartStates.some(
-                          (d) =>
-                            d.specialtyShot === "t-nobber" ||
-                            d.specialtyShot === "inch-worm",
-                        ) ||
-                        p2DartStates.some(
-                          (d) =>
-                            d.specialtyShot === "t-nobber" ||
-                            d.specialtyShot === "inch-worm",
-                        );
-
-                      // Check if Lippies are present (competes for closest)
-                      const p1HasLippy = p1DartStates.some(
-                        (d) => d.specialtyShot === "lippy",
-                      );
-                      const p2HasLippy = p2DartStates.some(
-                        (d) => d.specialtyShot === "lippy",
-                      );
-                      const lippiesPresent = p1HasLippy || p2HasLippy;
-
-                      p1DartStates.forEach((dart) => {
-                        if (dart.status === "landed") {
-                          let points = 1;
-                          if (
-                            dart.specialtyShot === "wiggle-nobber" &&
-                            dart.landingOnDart?.playerNum &&
-                            dart.landingOnDart?.dartIndex !== undefined
-                          ) {
-                            // Wiggle Nobber: double the target dart's value
-                            const targetStates =
-                              dart.landingOnDart.playerNum === 1
-                                ? p1DartStates
-                                : p2DartStates;
-                            const targetDart =
-                              targetStates[dart.landingOnDart.dartIndex];
-                            let targetValue = 1;
-                            if (targetDart?.specialtyShot === "lippy") {
-                              targetValue =
-                                closestPlayer ===
-                                  dart.landingOnDart.playerNum && !hasT_Nobber
-                                  ? 4
-                                  : 2;
-                            } else if (targetDart?.specialtyShot === "tower") {
-                              targetValue = 5;
-                            } else if (
-                              targetDart?.specialtyShot === "fender-bender"
-                            ) {
-                              targetValue = 2;
-                            } else if (
-                              targetDart?.specialtyShot === "t-nobber"
-                            ) {
-                              targetValue = 10;
-                            } else if (
-                              targetDart?.specialtyShot === "inch-worm"
-                            ) {
-                              targetValue = 11;
-                            } else if (
-                              targetDart?.specialtyShot === "triple-nobber"
-                            ) {
-                              targetValue = 20;
-                            } else {
-                              targetValue =
-                                closestPlayer ===
-                                  dart.landingOnDart.playerNum && !hasT_Nobber
-                                  ? 3
-                                  : 1;
-                            }
-                            points = targetValue * 2;
-                          } else if (dart.specialtyShot === "lippy") {
-                            // Lippy: 4 if closest (and no T-Nobber), 2 otherwise
-                            points =
-                              closestPlayer === 1 && !hasT_Nobber ? 4 : 2;
-                          } else if (dart.specialtyShot === "tower") {
-                            points = 5;
-                          } else if (dart.specialtyShot === "fender-bender") {
-                            points = 2;
-                          } else if (dart.specialtyShot === "t-nobber") {
-                            points = 10;
-                          } else if (dart.specialtyShot === "inch-worm") {
-                            points = 11;
-                          } else if (dart.specialtyShot === "triple-nobber") {
-                            points = 20;
-                          }
-                          // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
-                          if (
-                            closestPlayer === 1 &&
-                            !p1ClosestHandled &&
-                            !hasT_Nobber &&
-                            !lippiesPresent
-                          ) {
-                            points += 2;
-                            p1ClosestHandled = true;
-                          }
-                          p1Score += points;
-                        }
-                      });
-
-                      p2DartStates.forEach((dart) => {
-                        if (dart.status === "landed") {
-                          let points = 1;
-                          if (
-                            dart.specialtyShot === "wiggle-nobber" &&
-                            dart.landingOnDart?.playerNum &&
-                            dart.landingOnDart?.dartIndex !== undefined
-                          ) {
-                            // Wiggle Nobber: double the target dart's value
-                            const targetStates =
-                              dart.landingOnDart.playerNum === 1
-                                ? p1DartStates
-                                : p2DartStates;
-                            const targetDart =
-                              targetStates[dart.landingOnDart.dartIndex];
-                            let targetValue = 1;
-                            if (targetDart?.specialtyShot === "lippy") {
-                              targetValue =
-                                closestPlayer ===
-                                  dart.landingOnDart.playerNum && !hasT_Nobber
-                                  ? 4
-                                  : 2;
-                            } else if (targetDart?.specialtyShot === "tower") {
-                              targetValue = 5;
-                            } else if (
-                              targetDart?.specialtyShot === "fender-bender"
-                            ) {
-                              targetValue = 2;
-                            } else if (
-                              targetDart?.specialtyShot === "t-nobber"
-                            ) {
-                              targetValue = 10;
-                            } else if (
-                              targetDart?.specialtyShot === "inch-worm"
-                            ) {
-                              targetValue = 11;
-                            } else if (
-                              targetDart?.specialtyShot === "triple-nobber"
-                            ) {
-                              targetValue = 20;
-                            } else {
-                              targetValue =
-                                closestPlayer ===
-                                  dart.landingOnDart.playerNum && !hasT_Nobber
-                                  ? 3
-                                  : 1;
-                            }
-                            points = targetValue * 2;
-                          } else if (dart.specialtyShot === "lippy") {
-                            // Lippy: 4 if closest (and no T-Nobber), 2 otherwise
-                            points =
-                              closestPlayer === 2 && !hasT_Nobber ? 4 : 2;
-                          } else if (dart.specialtyShot === "tower") {
-                            points = 5;
-                          } else if (dart.specialtyShot === "fender-bender") {
-                            points = 2;
-                          } else if (dart.specialtyShot === "t-nobber") {
-                            points = 10;
-                          } else if (dart.specialtyShot === "inch-worm") {
-                            points = 11;
-                          } else if (dart.specialtyShot === "triple-nobber") {
-                            points = 20;
-                          }
-                          // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
-                          if (
-                            closestPlayer === 2 &&
-                            !p2ClosestHandled &&
-                            !hasT_Nobber &&
-                            !lippiesPresent
-                          ) {
-                            points += 2;
-                            p2ClosestHandled = true;
-                          }
-                          p2Score += points;
-                        }
-                      });
-
-                      // Cancellation scoring: only winner gets net points
-                      let newP1Score = player1Score;
-                      let newP2Score = player2Score;
-
-                      if (p1Score > p2Score) {
-                        console.log(
-                          "Player 1 wins this round. Adding",
-                          p1Score - p2Score,
-                          "points",
-                        );
-                        newP1Score = player1Score + (p1Score - p2Score);
-                        setPlayer1Stats((prev) => ({
-                          ...prev,
-                          roundsWon: prev.roundsWon + 1,
-                        }));
-                        setFirstThrower(1); // Winner goes first next round
-                      } else if (p2Score > p1Score) {
-                        console.log(
-                          "Player 2 wins this round. Adding",
-                          p2Score - p1Score,
-                          "points",
-                        );
-                        newP2Score = player2Score + (p2Score - p1Score);
-                        setPlayer2Stats((prev) => ({
-                          ...prev,
-                          roundsWon: prev.roundsWon + 1,
-                        }));
-                        setFirstThrower(2);
-                      } else {
-                        console.log("Wash - No Points Awarded");
-                      }
-                      // If tie, no points awarded, first thrower stays same
-
-                      // Cap scores at 21
-                      newP1Score = Math.min(newP1Score, 21);
-                      newP2Score = Math.min(newP2Score, 21);
-
-                      setPlayer1Score(newP1Score);
-                      setPlayer2Score(newP2Score);
-
-                      // Save round to history
-                      const roundData = {
-                        roundNumber: currentRound,
-                        p1Darts: p1DartsLanded,
-                        p2Darts: p2DartsLanded,
-                        p1Points: p1Score,
-                        p2Points: p2Score,
-                        closestPlayer,
-                        roundWinner:
-                          p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0,
-                        p1DartStates: [...p1DartStates],
-                        p2DartStates: [...p2DartStates],
-                        p1SpecialtyShots: p1DartStates.filter(
-                          (d) => d.specialtyShot,
-                        ),
-                        p2SpecialtyShots: p2DartStates.filter(
-                          (d) => d.specialtyShot,
-                        ),
-                        firstThrower,
-                      };
-                      setRoundHistory((prev) => [...prev, roundData]);
-                      console.log("Saved round to history:", roundData);
-
-                      // Check for winner (first to 21)
-                      if (newP1Score >= 21) {
-                        console.log("Player 1 wins the match!");
-                        setWinner(1);
-                      } else if (newP2Score >= 21) {
-                        console.log("Player 2 wins the match!");
-                        setWinner(2);
-                      } else {
-                        // Increment round number only if match is still going
-                        setCurrentRound((prev) => {
-                          const newRound = prev + 1;
-                          console.log(
-                            "Incrementing round from",
-                            prev,
-                            "to",
-                            newRound,
-                          );
-                          return newRound;
                         });
-                      }
+                        setP1DartStates([
+                          createEmptyDart(),
+                          createEmptyDart(),
+                          createEmptyDart(),
+                        ]);
+                        setP2DartStates([
+                          createEmptyDart(),
+                          createEmptyDart(),
+                          createEmptyDart(),
+                        ]);
+                      }}
+                    >
+                      <Text style={styles.quickScoreCancelButtonText}>
+                        CANCEL
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.quickScoreApplyButton}
+                      onPress={() => {
+                        saveEditedRound();
+                      }}
+                    >
+                      <Text style={styles.quickScoreApplyButtonText}>
+                        CONFIRM EDIT
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  // Normal mode buttons
+                  <View>
+                    {/* Edit Previous Round button - shown on Round 2 and beyond */}
+                    {currentRound > 1 && (
+                      <TouchableOpacity
+                        style={[
+                          styles.quickScoreApplyButton,
+                          styles.editPreviousRoundButton,
+                        ]}
+                        onPress={() => {
+                          loadRoundForEditing(currentRound - 1);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.quickScoreApplyButtonText,
+                            styles.editPreviousRoundButtonText,
+                          ]}
+                        >
+                          ✎ EDIT PREVIOUS ROUND
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    <View style={styles.quickScoreActions}>
+                      <TouchableOpacity
+                        style={styles.quickScoreCancelButton}
+                        onPress={() => {
+                          setShowSimplifiedOverlay(false);
+                          setSimplifiedP1Darts(0);
+                          setSimplifiedP2Darts(0);
+                          setClosestPlayer(null);
+                          setClosestDart(null);
+                          setP1DartStates([
+                            {
+                              status: "empty",
+                              specialtyShot: null,
+                              landingOnDart: null,
+                              isClosest: false,
+                            },
+                            {
+                              status: "empty",
+                              specialtyShot: null,
+                              landingOnDart: null,
+                              isClosest: false,
+                            },
+                            {
+                              status: "empty",
+                              specialtyShot: null,
+                              landingOnDart: null,
+                              isClosest: false,
+                            },
+                          ]);
+                          setP2DartStates([
+                            {
+                              status: "empty",
+                              specialtyShot: null,
+                              landingOnDart: null,
+                              isClosest: false,
+                            },
+                            {
+                              status: "empty",
+                              specialtyShot: null,
+                              landingOnDart: null,
+                              isClosest: false,
+                            },
+                            {
+                              status: "empty",
+                              specialtyShot: null,
+                              landingOnDart: null,
+                              isClosest: false,
+                            },
+                          ]);
+                        }}
+                      >
+                        <Text style={styles.quickScoreCancelButtonText}>
+                          CANCEL
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.quickScoreApplyButton,
+                          (p1DartStates.filter((d) => d.status === "landed")
+                            .length > 0 ||
+                            p2DartStates.filter((d) => d.status === "landed")
+                              .length > 0) &&
+                          closestPlayer === null
+                            ? styles.quickScoreApplyButtonDisabled
+                            : null,
+                        ]}
+                        onPress={() => {
+                          const p1DartsLanded = p1DartStates.filter(
+                            (d) => d.status === "landed",
+                          ).length;
+                          const p2DartsLanded = p2DartStates.filter(
+                            (d) => d.status === "landed",
+                          ).length;
 
-                      setShowSimplifiedOverlay(false);
-                      setSimplifiedP1Darts(0);
-                      setSimplifiedP2Darts(0);
-                      setClosestPlayer(null);
-                      setClosestDart(null);
-                      setP1SpecialtyShots([]);
-                      setP2SpecialtyShots([]);
-                      setSelectedDartPlayer(null);
-                      setSelectedDartIndex(null);
+                          // Validate that closest player is selected if darts were landed
+                          if (
+                            (p1DartsLanded > 0 || p2DartsLanded > 0) &&
+                            closestPlayer === null
+                          ) {
+                            console.log(
+                              "Cannot submit - darts landed but no closest player selected",
+                            );
+                            return;
+                          }
 
-                      // Reset dart states for next round
-                      const createEmptyDart = () => ({
-                        status: "empty",
-                        specialtyShot: null,
-                        landingOnDart: null,
-                        isClosest: false,
-                      });
-                      setP1DartStates([
-                        createEmptyDart(),
-                        createEmptyDart(),
-                        createEmptyDart(),
-                      ]);
-                      setP2DartStates([
-                        createEmptyDart(),
-                        createEmptyDart(),
-                        createEmptyDart(),
-                      ]);
-                      setShowDartSpecialtyModal(false);
-                      setShowWiggleNobberTargetModal(false);
-                      setShowStatTrackerModal(false);
-                    }}
-                  >
-                    <Text style={styles.quickScoreApplyButtonText}>APPLY</Text>
-                  </TouchableOpacity>
-                </View>
+                          console.log("APPLY button pressed in Quick Score");
+
+                          // Check for wash round (both players with 0 darts)
+                          if (p1DartsLanded === 0 && p2DartsLanded === 0) {
+                            console.log(
+                              "No darts landed - showing wash confirmation",
+                            );
+                            setShowWashConfirmation(true);
+                            return;
+                          }
+
+                          // Calculate scores with cancellation scoring
+                          // Score each dart: 1 point normally, 2 for Fender Bender, 5 for Tower, 10 for T-Nobber
+                          let p1Score = 0;
+                          let p2Score = 0;
+                          let p1ClosestHandled = false;
+                          let p2ClosestHandled = false;
+
+                          // Check if any dart is a T-Nobber or Inch Worm (disables closest bonus)
+                          const hasT_Nobber =
+                            p1DartStates.some(
+                              (d) =>
+                                d.specialtyShot === "t-nobber" ||
+                                d.specialtyShot === "inch-worm",
+                            ) ||
+                            p2DartStates.some(
+                              (d) =>
+                                d.specialtyShot === "t-nobber" ||
+                                d.specialtyShot === "inch-worm",
+                            );
+
+                          // Check if Lippies are present (competes for closest)
+                          const p1HasLippy = p1DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const p2HasLippy = p2DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const lippiesPresent = p1HasLippy || p2HasLippy;
+
+                          p1DartStates.forEach((dart) => {
+                            if (dart.status === "landed") {
+                              let points = 1;
+                              if (
+                                dart.specialtyShot === "wiggle-nobber" &&
+                                dart.landingOnDart?.playerNum &&
+                                dart.landingOnDart?.dartIndex !== undefined
+                              ) {
+                                // Wiggle Nobber: double the target dart's value
+                                const targetStates =
+                                  dart.landingOnDart.playerNum === 1
+                                    ? p1DartStates
+                                    : p2DartStates;
+                                const targetDart =
+                                  targetStates[dart.landingOnDart.dartIndex];
+                                let targetValue = 1;
+                                if (targetDart?.specialtyShot === "lippy") {
+                                  targetValue =
+                                    closestPlayer ===
+                                      dart.landingOnDart.playerNum &&
+                                    !hasT_Nobber
+                                      ? 4
+                                      : 2;
+                                } else if (
+                                  targetDart?.specialtyShot === "tower"
+                                ) {
+                                  targetValue = 5;
+                                } else if (
+                                  targetDart?.specialtyShot === "fender-bender"
+                                ) {
+                                  targetValue = 2;
+                                } else if (
+                                  targetDart?.specialtyShot === "t-nobber"
+                                ) {
+                                  targetValue = 10;
+                                } else if (
+                                  targetDart?.specialtyShot === "inch-worm"
+                                ) {
+                                  targetValue = 11;
+                                } else if (
+                                  targetDart?.specialtyShot === "triple-nobber"
+                                ) {
+                                  targetValue = 20;
+                                } else {
+                                  targetValue =
+                                    closestPlayer ===
+                                      dart.landingOnDart.playerNum &&
+                                    !hasT_Nobber
+                                      ? 3
+                                      : 1;
+                                }
+                                points = targetValue * 2;
+                              } else if (dart.specialtyShot === "lippy") {
+                                // Lippy: 4 if closest (and no T-Nobber), 2 otherwise
+                                points =
+                                  closestPlayer === 1 && !hasT_Nobber ? 4 : 2;
+                              } else if (dart.specialtyShot === "tower") {
+                                points = 5;
+                              } else if (
+                                dart.specialtyShot === "fender-bender"
+                              ) {
+                                points = 2;
+                              } else if (dart.specialtyShot === "t-nobber") {
+                                points = 10;
+                              } else if (dart.specialtyShot === "inch-worm") {
+                                points = 11;
+                              } else if (
+                                dart.specialtyShot === "triple-nobber"
+                              ) {
+                                points = 20;
+                              }
+                              // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
+                              if (
+                                closestPlayer === 1 &&
+                                !p1ClosestHandled &&
+                                !hasT_Nobber &&
+                                !lippiesPresent
+                              ) {
+                                points += 2;
+                                p1ClosestHandled = true;
+                              }
+                              p1Score += points;
+                            }
+                          });
+
+                          p2DartStates.forEach((dart) => {
+                            if (dart.status === "landed") {
+                              let points = 1;
+                              if (
+                                dart.specialtyShot === "wiggle-nobber" &&
+                                dart.landingOnDart?.playerNum &&
+                                dart.landingOnDart?.dartIndex !== undefined
+                              ) {
+                                // Wiggle Nobber: double the target dart's value
+                                const targetStates =
+                                  dart.landingOnDart.playerNum === 1
+                                    ? p1DartStates
+                                    : p2DartStates;
+                                const targetDart =
+                                  targetStates[dart.landingOnDart.dartIndex];
+                                let targetValue = 1;
+                                if (targetDart?.specialtyShot === "lippy") {
+                                  targetValue =
+                                    closestPlayer ===
+                                      dart.landingOnDart.playerNum &&
+                                    !hasT_Nobber
+                                      ? 4
+                                      : 2;
+                                } else if (
+                                  targetDart?.specialtyShot === "tower"
+                                ) {
+                                  targetValue = 5;
+                                } else if (
+                                  targetDart?.specialtyShot === "fender-bender"
+                                ) {
+                                  targetValue = 2;
+                                } else if (
+                                  targetDart?.specialtyShot === "t-nobber"
+                                ) {
+                                  targetValue = 10;
+                                } else if (
+                                  targetDart?.specialtyShot === "inch-worm"
+                                ) {
+                                  targetValue = 11;
+                                } else if (
+                                  targetDart?.specialtyShot === "triple-nobber"
+                                ) {
+                                  targetValue = 20;
+                                } else {
+                                  targetValue =
+                                    closestPlayer ===
+                                      dart.landingOnDart.playerNum &&
+                                    !hasT_Nobber
+                                      ? 3
+                                      : 1;
+                                }
+                                points = targetValue * 2;
+                              } else if (dart.specialtyShot === "lippy") {
+                                // Lippy: 4 if closest (and no T-Nobber), 2 otherwise
+                                points =
+                                  closestPlayer === 2 && !hasT_Nobber ? 4 : 2;
+                              } else if (dart.specialtyShot === "tower") {
+                                points = 5;
+                              } else if (
+                                dart.specialtyShot === "fender-bender"
+                              ) {
+                                points = 2;
+                              } else if (dart.specialtyShot === "t-nobber") {
+                                points = 10;
+                              } else if (dart.specialtyShot === "inch-worm") {
+                                points = 11;
+                              } else if (
+                                dart.specialtyShot === "triple-nobber"
+                              ) {
+                                points = 20;
+                              }
+                              // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
+                              if (
+                                closestPlayer === 2 &&
+                                !p2ClosestHandled &&
+                                !hasT_Nobber &&
+                                !lippiesPresent
+                              ) {
+                                points += 2;
+                                p2ClosestHandled = true;
+                              }
+                              p2Score += points;
+                            }
+                          });
+
+                          // Cancellation scoring: only winner gets net points
+                          let newP1Score = player1Score;
+                          let newP2Score = player2Score;
+
+                          if (p1Score > p2Score) {
+                            console.log(
+                              "Player 1 wins this round. Adding",
+                              p1Score - p2Score,
+                              "points",
+                            );
+                            newP1Score = player1Score + (p1Score - p2Score);
+                            setPlayer1Stats((prev) => ({
+                              ...prev,
+                              roundsWon: prev.roundsWon + 1,
+                            }));
+                            setFirstThrower(1); // Winner goes first next round
+                          } else if (p2Score > p1Score) {
+                            console.log(
+                              "Player 2 wins this round. Adding",
+                              p2Score - p1Score,
+                              "points",
+                            );
+                            newP2Score = player2Score + (p2Score - p1Score);
+                            setPlayer2Stats((prev) => ({
+                              ...prev,
+                              roundsWon: prev.roundsWon + 1,
+                            }));
+                            setFirstThrower(2);
+                          } else {
+                            console.log("Wash - No Points Awarded");
+                          }
+                          // If tie, no points awarded, first thrower stays same
+
+                          // Cap scores at 21
+                          newP1Score = Math.min(newP1Score, 21);
+                          newP2Score = Math.min(newP2Score, 21);
+
+                          setPlayer1Score(newP1Score);
+                          setPlayer2Score(newP2Score);
+
+                          // Save round to history
+                          const roundData = {
+                            roundNumber: currentRound,
+                            p1Darts: p1DartsLanded,
+                            p2Darts: p2DartsLanded,
+                            p1Points: p1Score,
+                            p2Points: p2Score,
+                            closestPlayer,
+                            roundWinner:
+                              p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0,
+                            p1DartStates: [...p1DartStates],
+                            p2DartStates: [...p2DartStates],
+                            p1SpecialtyShots: p1DartStates.filter(
+                              (d) => d.specialtyShot,
+                            ),
+                            p2SpecialtyShots: p2DartStates.filter(
+                              (d) => d.specialtyShot,
+                            ),
+                            firstThrower,
+                          };
+                          setRoundHistory((prev) => [...prev, roundData]);
+                          console.log("Saved round to history:", roundData);
+
+                          // Check for winner (first to 21)
+                          if (newP1Score >= 21) {
+                            console.log("Player 1 wins the match!");
+                            setWinner(1);
+                          } else if (newP2Score >= 21) {
+                            console.log("Player 2 wins the match!");
+                            setWinner(2);
+                          } else {
+                            // Increment round number only if match is still going
+                            setCurrentRound((prev) => {
+                              const newRound = prev + 1;
+                              console.log(
+                                "Incrementing round from",
+                                prev,
+                                "to",
+                                newRound,
+                              );
+                              return newRound;
+                            });
+                          }
+
+                          setShowSimplifiedOverlay(false);
+                          setSimplifiedP1Darts(0);
+                          setSimplifiedP2Darts(0);
+                          setClosestPlayer(null);
+                          setClosestDart(null);
+                          setP1SpecialtyShots([]);
+                          setP2SpecialtyShots([]);
+                          setSelectedDartPlayer(null);
+                          setSelectedDartIndex(null);
+
+                          // Reset dart states for next round
+                          const createEmptyDart = () => ({
+                            status: "empty",
+                            specialtyShot: null,
+                            landingOnDart: null,
+                            isClosest: false,
+                          });
+                          setP1DartStates([
+                            createEmptyDart(),
+                            createEmptyDart(),
+                            createEmptyDart(),
+                          ]);
+                          setP2DartStates([
+                            createEmptyDart(),
+                            createEmptyDart(),
+                            createEmptyDart(),
+                          ]);
+                          setShowDartSpecialtyModal(false);
+                          setShowWiggleNobberTargetModal(false);
+                          setShowStatTrackerModal(false);
+                        }}
+                      >
+                        <Text style={styles.quickScoreApplyButtonText}>
+                          APPLY
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
             </ScrollView>
           </View>

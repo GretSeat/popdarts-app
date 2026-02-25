@@ -1319,6 +1319,16 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
   },
+  editPreviousRoundButton: {
+    backgroundColor: "#FF9800",
+    marginBottom: 12,
+    paddingVertical: 14,
+  },
+  editPreviousRoundButtonText: {
+    color: "#000000",
+    fontSize: 15,
+    fontWeight: "bold",
+  },
 
   // ============ WASH ROUND DIALOG ============
   washOverlay: {
