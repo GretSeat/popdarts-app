@@ -6311,19 +6311,46 @@ export default function NewMatchScreen({ navigation, route }) {
                 {roundHistory &&
                   roundHistory.length > 0 &&
                   (() => {
-                    const totalRounds = roundHistory.length;
-                    const p1DartsLanded = roundHistory.reduce(
-                      (sum, round) => sum + round.p1Darts,
-                      0,
-                    );
-                    const p1DartsMissed = totalRounds * 3 - p1DartsLanded;
-                    const p2DartsLanded = roundHistory.reduce(
-                      (sum, round) => sum + round.p2Darts,
-                      0,
-                    );
-                    const p2DartsMissed = totalRounds * 3 - p2DartsLanded;
-                    const p1RoundsWon = player1Stats.roundsWon;
-                    const p2RoundsWon = player2Stats.roundsWon;
+                    try {
+                      const totalRounds = roundHistory.length;
+                      
+                      // Guard: validate roundHistory entries have required fields
+                      const validRounds = roundHistory.filter(
+                        (round) => round && typeof round.p1Darts === "number" && typeof round.p2Darts === "number"
+                      );
+                      
+                      if (validRounds.length === 0) {
+                        console.warn("No valid round data found in roundHistory");
+                        return null;
+                      }
+                      
+                      const p1DartsLanded = validRounds.reduce(
+                        (sum, round) => sum + (round.p1Darts || 0),
+                        0,
+                      );
+                      const p1DartsMissed = totalRounds * 3 - p1DartsLanded;
+                      const p2DartsLanded = validRounds.reduce(
+                        (sum, round) => sum + (round.p2Darts || 0),
+                        0,
+                      );
+                      const p2DartsMissed = totalRounds * 3 - p2DartsLanded;
+                      
+                      // Guard: ensure stats objects exist and have roundsWon property
+                      const p1RoundsWon = player1Stats?.roundsWon || 0;
+                      const p2RoundsWon = player2Stats?.roundsWon || 0;
+
+                      // Pre-calculate landing percentages and landing flex values
+                      const totalDartsThrown = totalRounds * 3;
+                      const p1LandingPercent = totalDartsThrown > 0 ? (p1DartsLanded / totalDartsThrown) * 100 : 0;
+                      const p2LandingPercent = totalDartsThrown > 0 ? (p2DartsLanded / totalDartsThrown) * 100 : 0;
+                      const landingTotalPercent = Math.max(p1LandingPercent + p2LandingPercent, 1); // Avoid division by zero
+                      const p1LandingFlex = landingTotalPercent > 0 ? p1LandingPercent / landingTotalPercent : 0.5;
+                      const p2LandingFlex = landingTotalPercent > 0 ? p2LandingPercent / landingTotalPercent : 0.5;
+
+                      // Pre-calculate rounds won flex values
+                      const totalRoundsWon = p1RoundsWon + p2RoundsWon || 1; // Avoid division by zero
+                      const p1RoundsFlex = totalRoundsWon > 0 ? p1RoundsWon / totalRoundsWon : 0.5;
+                      const p2RoundsFlex = totalRoundsWon > 0 ? p2RoundsWon / totalRoundsWon : 0.5;
 
                     return (
                       <View style={styles.comparativeStatsSection}>
@@ -6437,109 +6464,174 @@ export default function NewMatchScreen({ navigation, route }) {
                           <Text style={styles.statsCategoryLabel}>
                             Landing %
                           </Text>
-                          <View style={styles.statsValueRow}>
+                          <View style={styles.divergingBarContainer}>
                             <View
                               style={[
-                                styles.statsValueBox,
-                                (p1DartsLanded / (totalRounds * 3)) * 100 >
-                                  (p2DartsLanded / (totalRounds * 3)) * 100 &&
-                                  styles.statsValueHighlight,
+                                styles.divergingBarLeft,
+                                {
+                                  flex: p1LandingFlex,
+                                },
                               ]}
                             >
-                              <Text style={styles.statsValueText}>
-                                {(
-                                  (p1DartsLanded / (totalRounds * 3)) *
-                                  100
-                                ).toFixed(0)}
-                                %
-                              </Text>
+                              <LinearGradient
+                                colors={player1ColorObj?.colors || ["#2196F3", "#1976D2"]}
+                                start={{ x: 0, y: 0.5 }}
+                                end={{ x: 1, y: 0.5 }}
+                                style={[
+                                  styles.divergingBarFill,
+                                  {
+                                    borderRadius: 4,
+                                    width: "95%",
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.divergingBarText,
+                                    {
+                                      color: getContrastingTextColor(
+                                        player1ColorObj?.colors?.[0] || "#2196F3",
+                                      ),
+                                    },
+                                  ]}
+                                >
+                                  {p1LandingPercent.toFixed(0)}%
+                                </Text>
+                              </LinearGradient>
                             </View>
+                            <View style={styles.divergingBarCenter} />
                             <View
                               style={[
-                                styles.statsValueBox,
-                                (p2DartsLanded / (totalRounds * 3)) * 100 >
-                                  (p1DartsLanded / (totalRounds * 3)) * 100 &&
-                                  styles.statsValueHighlight,
+                                styles.divergingBarRight,
+                                {
+                                  flex: p2LandingFlex,
+                                },
                               ]}
                             >
-                              <Text style={styles.statsValueText}>
-                                {(
-                                  (p2DartsLanded / (totalRounds * 3)) *
-                                  100
-                                ).toFixed(0)}
-                                %
-                              </Text>
+                              <LinearGradient
+                                colors={player2ColorObj?.colors || ["#4CAF50", "#388E3C"]}
+                                start={{ x: 0, y: 0.5 }}
+                                end={{ x: 1, y: 0.5 }}
+                                style={[
+                                  styles.divergingBarFill,
+                                  {
+                                    borderRadius: 4,
+                                    width: "95%",
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.divergingBarText,
+                                    {
+                                      color: getContrastingTextColor(
+                                        player2ColorObj?.colors?.[0] || "#4CAF50",
+                                      ),
+                                    },
+                                  ]}
+                                >
+                                  {p2LandingPercent.toFixed(0)}%
+                                </Text>
+                              </LinearGradient>
                             </View>
                           </View>
                         </View>
 
-                        {/* Rounds Won */}
+                        {/* Rounds Won / Win % */}
                         <View style={styles.statsCategory}>
                           <Text style={styles.statsCategoryLabel}>
-                            Rounds Won
+                            Rounds Won / Win %
                           </Text>
-                          <View style={styles.statsValueRow}>
+                          <View style={styles.divergingBarContainer}>
                             <View
                               style={[
-                                styles.statsValueBox,
-                                p1RoundsWon > p2RoundsWon &&
-                                  styles.statsValueHighlight,
+                                styles.divergingBarLeft,
+                                {
+                                  flex: p1RoundsFlex,
+                                },
                               ]}
                             >
-                              <Text style={styles.statsValueText}>
-                                {p1RoundsWon}
-                              </Text>
+                              <LinearGradient
+                                colors={player1ColorObj?.colors || ["#2196F3", "#1976D2"]}
+                                start={{ x: 0, y: 0.5 }}
+                                end={{ x: 1, y: 0.5 }}
+                                style={[
+                                  styles.divergingBarFill,
+                                  {
+                                    borderRadius: 4,
+                                    width: "95%",
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.divergingBarText,
+                                    {
+                                      color: getContrastingTextColor(
+                                        player1ColorObj?.colors?.[0] || "#2196F3",
+                                      ),
+                                    },
+                                  ]}
+                                >
+                                  {p1RoundsWon} / {((p1RoundsWon / totalRounds) * 100).toFixed(0)}%
+                                </Text>
+                              </LinearGradient>
                             </View>
+                            <View style={styles.divergingBarCenter} />
                             <View
                               style={[
-                                styles.statsValueBox,
-                                p2RoundsWon > p1RoundsWon &&
-                                  styles.statsValueHighlight,
+                                styles.divergingBarRight,
+                                {
+                                  flex: p2RoundsFlex,
+                                },
                               ]}
                             >
-                              <Text style={styles.statsValueText}>
-                                {p2RoundsWon}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-
-                        {/* Round Win Percentage */}
-                        <View style={styles.statsCategory}>
-                          <Text style={styles.statsCategoryLabel}>
-                            Round Win %
-                          </Text>
-                          <View style={styles.statsValueRow}>
-                            <View
-                              style={[
-                                styles.statsValueBox,
-                                (p1RoundsWon / totalRounds) * 100 >
-                                  (p2RoundsWon / totalRounds) * 100 &&
-                                  styles.statsValueHighlight,
-                              ]}
-                            >
-                              <Text style={styles.statsValueText}>
-                                {((p1RoundsWon / totalRounds) * 100).toFixed(0)}
-                                %
-                              </Text>
-                            </View>
-                            <View
-                              style={[
-                                styles.statsValueBox,
-                                (p2RoundsWon / totalRounds) * 100 >
-                                  (p1RoundsWon / totalRounds) * 100 &&
-                                  styles.statsValueHighlight,
-                              ]}
-                            >
-                              <Text style={styles.statsValueText}>
-                                {((p2RoundsWon / totalRounds) * 100).toFixed(0)}
-                                %
-                              </Text>
+                              <LinearGradient
+                                colors={player2ColorObj?.colors || ["#4CAF50", "#388E3C"]}
+                                start={{ x: 0, y: 0.5 }}
+                                end={{ x: 1, y: 0.5 }}
+                                style={[
+                                  styles.divergingBarFill,
+                                  {
+                                    borderRadius: 4,
+                                    width: "95%",
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.divergingBarText,
+                                    {
+                                      color: getContrastingTextColor(
+                                        player2ColorObj?.colors?.[0] || "#4CAF50",
+                                      ),
+                                    },
+                                  ]}
+                                >
+                                  {p2RoundsWon} / {((p2RoundsWon / totalRounds) * 100).toFixed(0)}%
+                                </Text>
+                              </LinearGradient>
                             </View>
                           </View>
                         </View>
                       </View>
                     );
+                    } catch (error) {
+                      console.error("Error rendering comparative stats:", error);
+                      console.error("roundHistory:", roundHistory);
+                      console.error("player1Stats:", player1Stats);
+                      console.error("player2Stats:", player2Stats);
+                      return (
+                        <View style={{padding: 16, backgroundColor: "#ffebee"}}>
+                          <Text style={{color: "#c62828", fontWeight: "bold"}}>
+                            Error rendering stats
+                          </Text>
+                          <Text style={{color: "#d32f2f", fontSize: 12}}>
+                            {error.message}
+                          </Text>
+                        </View>
+                      );
+                    }
                   })()}
 
                 {/* Round-by-Round Breakdown */}
