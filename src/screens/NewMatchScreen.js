@@ -6990,11 +6990,7 @@ export default function NewMatchScreen({ navigation, route }) {
                           : [];
 
                       // First thrower gradient box
-                      let roundBoxStyle = [
-                        styles.roundBreakdownColumn,
-                        styles.roundNumberColumn,
-                        styles.roundNumberText,
-                      ];
+                      let roundBoxStyle = [styles.roundNumberText];
                       let gradientColors = null;
                       if (
                         round.firstThrower === 1 &&
@@ -7012,7 +7008,13 @@ export default function NewMatchScreen({ navigation, route }) {
 
                       return (
                         <View key={index} style={styles.roundBreakdownRow}>
-                          <View style={{ position: "relative" }}>
+                          <View
+                            style={[
+                              styles.roundBreakdownColumn,
+                              styles.roundNumberColumn,
+                              { position: "relative" },
+                            ]}
+                          >
                             {gradientColors ? (
                               <LinearGradient
                                 colors={gradientColors}
