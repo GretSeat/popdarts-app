@@ -7036,7 +7036,9 @@ export default function NewMatchScreen({ navigation, route }) {
                                 ...roundBoxStyle,
                                 {
                                   zIndex: 1,
-                                  color: gradientColors ? "#fff" : undefined,
+                                  color: gradientColors
+                                    ? getContrastingTextColor(gradientColors[0])
+                                    : undefined,
                                 },
                               ]}
                             >
