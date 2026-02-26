@@ -5509,6 +5509,15 @@ export default function NewMatchScreen({ navigation, route }) {
                                 d.specialtyShot === "inch-worm",
                             );
 
+                          // Check if Lippies are present
+                          const p1HasLippy = p1DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const p2HasLippy = p2DartStates.some(
+                            (d) => d.specialtyShot === "lippy",
+                          );
+                          const lippiesPresent = p1HasLippy || p2HasLippy;
+
                           // Calculate score for player 1
                           let p1Score = 0;
                           let p2Score = 0;
@@ -5608,11 +5617,12 @@ export default function NewMatchScreen({ navigation, route }) {
                               ) {
                                 points = 20;
                               } else {
-                                // Regular dart: 3pts if closest and first landed
+                                // Regular dart: 3pts if closest and first landed (but not if lippies present)
                                 points =
                                   closestPlayer === 1 &&
                                   dartIndex === p1FirstLandedIdx &&
-                                  !hasT_Nobber
+                                  !hasT_Nobber &&
+                                  !lippiesPresent
                                     ? 3
                                     : 1;
                               }
@@ -5700,11 +5710,12 @@ export default function NewMatchScreen({ navigation, route }) {
                               ) {
                                 points = 20;
                               } else {
-                                // Regular dart: 3pts if closest and first landed
+                                // Regular dart: 3pts if closest and first landed (but not if lippies present)
                                 points =
                                   closestPlayer === 2 &&
                                   dartIndex === p2FirstLandedIdx &&
-                                  !hasT_Nobber
+                                  !hasT_Nobber &&
+                                  !lippiesPresent
                                     ? 3
                                     : 1;
                               }
@@ -5713,13 +5724,6 @@ export default function NewMatchScreen({ navigation, route }) {
                           });
 
                           // Add bonus for closest (only if no T-Nobber/Inch Worm and no Lippies present)
-                          const p1HasLippy = p1DartStates.some(
-                            (d) => d.specialtyShot === "lippy",
-                          );
-                          const p2HasLippy = p2DartStates.some(
-                            (d) => d.specialtyShot === "lippy",
-                          );
-                          const lippiesPresent = p1HasLippy || p2HasLippy;
 
                           // Calculate net score
                           const netPoints = Math.abs(p1Score - p2Score);
@@ -6009,11 +6013,12 @@ export default function NewMatchScreen({ navigation, route }) {
                               ) {
                                 points = 20;
                               }
-                              // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
+                              // Add closest bonus to first dart only (if no T-Nobber, not a Lippy, and no lippies present)
                               if (
                                 closestPlayer === 1 &&
                                 !p1ClosestHandled &&
                                 !hasT_Nobber &&
+                                dart.specialtyShot !== "lippy" &&
                                 !lippiesPresent
                               ) {
                                 points += 2;
@@ -6094,11 +6099,12 @@ export default function NewMatchScreen({ navigation, route }) {
                               ) {
                                 points = 20;
                               }
-                              // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
+                              // Add closest bonus to first dart only (if no T-Nobber, not a Lippy, and no lippies present)
                               if (
                                 closestPlayer === 2 &&
                                 !p2ClosestHandled &&
                                 !hasT_Nobber &&
+                                dart.specialtyShot !== "lippy" &&
                                 !lippiesPresent
                               ) {
                                 points += 2;
