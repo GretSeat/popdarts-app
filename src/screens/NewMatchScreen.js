@@ -45,6 +45,34 @@ const SPECIALTY_SHOTS = [
 ];
 
 /**
+ * Calculate relative luminance of a hex color using WCAG formula
+ * @param {string} hexColor - Hex color code (e.g., "#2196F3")
+ * @returns {number} Luminance value between 0 and 1
+ */
+const getColorLuminance = (hexColor) => {
+  // Convert hex to RGB
+  const hex = hexColor.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+  // WCAG relative luminance formula
+  const getRGB = (c) =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  return 0.2126 * getRGB(r) + 0.7152 * getRGB(g) + 0.0722 * getRGB(b);
+};
+
+/**
+ * Get contrasting text color (black or white) based on background luminance
+ * @param {string} backgroundColor - Hex color code (e.g., "#2196F3")
+ * @returns {string} Either "#000000" or "#FFFFFF" for best readability
+ */
+const getContrastingTextColor = (backgroundColor) => {
+  const luminance = getColorLuminance(backgroundColor);
+  return luminance > 0.5 ? "#000000" : "#FFFFFF";
+};
+
+/**
  * New Match screen - Score a Popdarts match with advanced features
  * Supports 1v1, 2v2, tournament, and quick play modes
  */
@@ -6313,17 +6341,22 @@ export default function NewMatchScreen({ navigation, route }) {
                   (() => {
                     try {
                       const totalRounds = roundHistory.length;
-                      
+
                       // Guard: validate roundHistory entries have required fields
                       const validRounds = roundHistory.filter(
-                        (round) => round && typeof round.p1Darts === "number" && typeof round.p2Darts === "number"
+                        (round) =>
+                          round &&
+                          typeof round.p1Darts === "number" &&
+                          typeof round.p2Darts === "number",
                       );
-                      
+
                       if (validRounds.length === 0) {
-                        console.warn("No valid round data found in roundHistory");
+                        console.warn(
+                          "No valid round data found in roundHistory",
+                        );
                         return null;
                       }
-                      
+
                       const p1DartsLanded = validRounds.reduce(
                         (sum, round) => sum + (round.p1Darts || 0),
                         0,
@@ -6334,299 +6367,568 @@ export default function NewMatchScreen({ navigation, route }) {
                         0,
                       );
                       const p2DartsMissed = totalRounds * 3 - p2DartsLanded;
-                      
+
                       // Guard: ensure stats objects exist and have roundsWon property
                       const p1RoundsWon = player1Stats?.roundsWon || 0;
                       const p2RoundsWon = player2Stats?.roundsWon || 0;
 
                       // Pre-calculate landing percentages and landing flex values
                       const totalDartsThrown = totalRounds * 3;
-                      const p1LandingPercent = totalDartsThrown > 0 ? (p1DartsLanded / totalDartsThrown) * 100 : 0;
-                      const p2LandingPercent = totalDartsThrown > 0 ? (p2DartsLanded / totalDartsThrown) * 100 : 0;
-                      const landingTotalPercent = Math.max(p1LandingPercent + p2LandingPercent, 1); // Avoid division by zero
-                      const p1LandingFlex = landingTotalPercent > 0 ? p1LandingPercent / landingTotalPercent : 0.5;
-                      const p2LandingFlex = landingTotalPercent > 0 ? p2LandingPercent / landingTotalPercent : 0.5;
+                      const p1LandingPercent =
+                        totalDartsThrown > 0
+                          ? (p1DartsLanded / totalDartsThrown) * 100
+                          : 0;
+                      const p2LandingPercent =
+                        totalDartsThrown > 0
+                          ? (p2DartsLanded / totalDartsThrown) * 100
+                          : 0;
+                      const landingTotalPercent = Math.max(
+                        p1LandingPercent + p2LandingPercent,
+                        1,
+                      ); // Avoid division by zero
+                      const p1LandingFlex =
+                        landingTotalPercent > 0
+                          ? p1LandingPercent / landingTotalPercent
+                          : 0.5;
+                      const p2LandingFlex =
+                        landingTotalPercent > 0
+                          ? p2LandingPercent / landingTotalPercent
+                          : 0.5;
 
                       // Pre-calculate rounds won flex values
                       const totalRoundsWon = p1RoundsWon + p2RoundsWon || 1; // Avoid division by zero
-                      const p1RoundsFlex = totalRoundsWon > 0 ? p1RoundsWon / totalRoundsWon : 0.5;
-                      const p2RoundsFlex = totalRoundsWon > 0 ? p2RoundsWon / totalRoundsWon : 0.5;
+                      const p1RoundsFlex =
+                        totalRoundsWon > 0 ? p1RoundsWon / totalRoundsWon : 0.5;
+                      const p2RoundsFlex =
+                        totalRoundsWon > 0 ? p2RoundsWon / totalRoundsWon : 0.5;
 
-                    return (
-                      <View style={styles.comparativeStatsSection}>
-                        {/* Player Names Header */}
-                        <View style={styles.statsHeaderRow}>
-                          <Text style={styles.statsPlayerName}>
-                            {player1Name || "Player 1"}
-                          </Text>
-                          <Text style={styles.statsPlayerName}>
-                            {player2Name || "Player 2"}
-                          </Text>
-                        </View>
+                      // Pre-calculate darts landed flex values (higher is better)
+                      const totalDartsLanded =
+                        p1DartsLanded + p2DartsLanded || 1;
+                      const p1DartsLandedFlex =
+                        totalDartsLanded > 0
+                          ? p1DartsLanded / totalDartsLanded
+                          : 0.5;
+                      const p2DartsLandedFlex =
+                        totalDartsLanded > 0
+                          ? p2DartsLanded / totalDartsLanded
+                          : 0.5;
 
-                        {/* Darts Landed */}
-                        <View style={styles.statsCategory}>
-                          <Text style={styles.statsCategoryLabel}>
-                            Darts Landed
-                          </Text>
-                          <View style={styles.statsValueRow}>
-                            <View
-                              style={[
-                                styles.statsValueBox,
-                                p1DartsLanded > p2DartsLanded &&
-                                  styles.statsValueHighlight,
-                              ]}
-                            >
-                              <Text style={styles.statsValueText}>
-                                {p1DartsLanded}
-                              </Text>
-                            </View>
-                            <View
-                              style={[
-                                styles.statsValueBox,
-                                p2DartsLanded > p1DartsLanded &&
-                                  styles.statsValueHighlight,
-                              ]}
-                            >
-                              <Text style={styles.statsValueText}>
-                                {p2DartsLanded}
-                              </Text>
-                            </View>
+                      // Pre-calculate avg darts per round for flex (higher is better)
+                      const p1AvgDarts = p1DartsLanded / totalRounds;
+                      const p2AvgDarts = p2DartsLanded / totalRounds;
+                      const totalAvgDarts = Math.max(
+                        p1AvgDarts + p2AvgDarts,
+                        0.1,
+                      );
+                      const p1AvgDartsFlex =
+                        totalAvgDarts > 0 ? p1AvgDarts / totalAvgDarts : 0.5;
+                      const p2AvgDartsFlex =
+                        totalAvgDarts > 0 ? p2AvgDarts / totalAvgDarts : 0.5;
+
+                      // Pre-calculate darts missed flex values (lower is better - flip the display)
+                      const totalDartsMissed =
+                        p1DartsMissed + p2DartsMissed || 1;
+                      const p1DartsMissedFlex =
+                        totalDartsMissed > 0
+                          ? p1DartsMissed / totalDartsMissed
+                          : 0.5;
+                      const p2DartsMissedFlex =
+                        totalDartsMissed > 0
+                          ? p2DartsMissed / totalDartsMissed
+                          : 0.5;
+
+                      return (
+                        <View style={styles.comparativeStatsSection}>
+                          {/* Player Names Header */}
+                          <View style={styles.statsHeaderRow}>
+                            <Text style={styles.statsPlayerName}>
+                              {player1Name || "Player 1"}
+                            </Text>
+                            <Text style={styles.statsPlayerName}>
+                              {player2Name || "Player 2"}
+                            </Text>
                           </View>
-                        </View>
 
-                        {/* Average Darts Per Round */}
-                        <View style={styles.statsCategory}>
-                          <Text style={styles.statsCategoryLabel}>
-                            Avg Darts/Round
-                          </Text>
-                          <View style={styles.statsValueRow}>
-                            <View
-                              style={[
-                                styles.statsValueBox,
-                                p1DartsLanded / totalRounds >
-                                  p2DartsLanded / totalRounds &&
-                                  styles.statsValueHighlight,
-                              ]}
-                            >
-                              <Text style={styles.statsValueText}>
-                                {(p1DartsLanded / totalRounds).toFixed(1)}
-                              </Text>
-                            </View>
-                            <View
-                              style={[
-                                styles.statsValueBox,
-                                p2DartsLanded / totalRounds >
-                                  p1DartsLanded / totalRounds &&
-                                  styles.statsValueHighlight,
-                              ]}
-                            >
-                              <Text style={styles.statsValueText}>
-                                {(p2DartsLanded / totalRounds).toFixed(1)}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-
-                        {/* Darts Missed */}
-                        <View style={styles.statsCategory}>
-                          <Text style={styles.statsCategoryLabel}>
-                            Darts Missed
-                          </Text>
-                          <View style={styles.statsValueRow}>
-                            <View
-                              style={[
-                                styles.statsValueBox,
-                                p1DartsMissed < p2DartsMissed &&
-                                  styles.statsValueHighlight,
-                              ]}
-                            >
-                              <Text style={styles.statsValueText}>
-                                {p1DartsMissed}
-                              </Text>
-                            </View>
-                            <View
-                              style={[
-                                styles.statsValueBox,
-                                p2DartsMissed < p1DartsMissed &&
-                                  styles.statsValueHighlight,
-                              ]}
-                            >
-                              <Text style={styles.statsValueText}>
-                                {p2DartsMissed}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-
-                        {/* Landing Percentage */}
-                        <View style={styles.statsCategory}>
-                          <Text style={styles.statsCategoryLabel}>
-                            Landing %
-                          </Text>
-                          <View style={styles.divergingBarContainer}>
-                            <View
-                              style={[
-                                styles.divergingBarLeft,
-                                {
-                                  flex: p1LandingFlex,
-                                },
-                              ]}
-                            >
-                              <LinearGradient
-                                colors={player1ColorObj?.colors || ["#2196F3", "#1976D2"]}
-                                start={{ x: 0, y: 0.5 }}
-                                end={{ x: 1, y: 0.5 }}
+                          {/* Darts Landed */}
+                          <View style={styles.statsCategory}>
+                            <Text style={styles.statsCategoryLabel}>
+                              Darts Landed
+                            </Text>
+                            <View style={styles.divergingBarContainer}>
+                              <View
                                 style={[
-                                  styles.divergingBarFill,
+                                  styles.divergingBarLeft,
                                   {
-                                    borderRadius: 4,
-                                    width: "95%",
+                                    flex: p1DartsLandedFlex,
                                   },
                                 ]}
                               >
-                                <Text
+                                <LinearGradient
+                                  colors={
+                                    player1ColorObj?.colors || [
+                                      "#2196F3",
+                                      "#1976D2",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
                                   style={[
-                                    styles.divergingBarText,
+                                    styles.divergingBarFill,
                                     {
-                                      color: getContrastingTextColor(
-                                        player1ColorObj?.colors?.[0] || "#2196F3",
-                                      ),
+                                      borderRadius: 4,
+                                      width: "95%",
                                     },
                                   ]}
                                 >
-                                  {p1LandingPercent.toFixed(0)}%
-                                </Text>
-                              </LinearGradient>
-                            </View>
-                            <View style={styles.divergingBarCenter} />
-                            <View
-                              style={[
-                                styles.divergingBarRight,
-                                {
-                                  flex: p2LandingFlex,
-                                },
-                              ]}
-                            >
-                              <LinearGradient
-                                colors={player2ColorObj?.colors || ["#4CAF50", "#388E3C"]}
-                                start={{ x: 0, y: 0.5 }}
-                                end={{ x: 1, y: 0.5 }}
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player1ColorObj?.colors?.[0] ||
+                                            "#2196F3",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p1DartsLanded}
+                                  </Text>
+                                </LinearGradient>
+                              </View>
+                              <View style={styles.divergingBarCenter} />
+                              <View
                                 style={[
-                                  styles.divergingBarFill,
+                                  styles.divergingBarRight,
                                   {
-                                    borderRadius: 4,
-                                    width: "95%",
+                                    flex: p2DartsLandedFlex,
                                   },
                                 ]}
                               >
-                                <Text
+                                <LinearGradient
+                                  colors={
+                                    player2ColorObj?.colors || [
+                                      "#4CAF50",
+                                      "#388E3C",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
                                   style={[
-                                    styles.divergingBarText,
+                                    styles.divergingBarFill,
                                     {
-                                      color: getContrastingTextColor(
-                                        player2ColorObj?.colors?.[0] || "#4CAF50",
-                                      ),
+                                      borderRadius: 4,
+                                      width: "95%",
                                     },
                                   ]}
                                 >
-                                  {p2LandingPercent.toFixed(0)}%
-                                </Text>
-                              </LinearGradient>
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player2ColorObj?.colors?.[0] ||
+                                            "#4CAF50",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p2DartsLanded}
+                                  </Text>
+                                </LinearGradient>
+                              </View>
                             </View>
                           </View>
-                        </View>
 
-                        {/* Rounds Won / Win % */}
-                        <View style={styles.statsCategory}>
-                          <Text style={styles.statsCategoryLabel}>
-                            Rounds Won / Win %
-                          </Text>
-                          <View style={styles.divergingBarContainer}>
-                            <View
-                              style={[
-                                styles.divergingBarLeft,
-                                {
-                                  flex: p1RoundsFlex,
-                                },
-                              ]}
-                            >
-                              <LinearGradient
-                                colors={player1ColorObj?.colors || ["#2196F3", "#1976D2"]}
-                                start={{ x: 0, y: 0.5 }}
-                                end={{ x: 1, y: 0.5 }}
+                          {/* Average Darts Per Round */}
+                          <View style={styles.statsCategory}>
+                            <Text style={styles.statsCategoryLabel}>
+                              Avg Darts/Round
+                            </Text>
+                            <View style={styles.divergingBarContainer}>
+                              <View
                                 style={[
-                                  styles.divergingBarFill,
+                                  styles.divergingBarLeft,
                                   {
-                                    borderRadius: 4,
-                                    width: "95%",
+                                    flex: p1AvgDartsFlex,
                                   },
                                 ]}
                               >
-                                <Text
+                                <LinearGradient
+                                  colors={
+                                    player1ColorObj?.colors || [
+                                      "#2196F3",
+                                      "#1976D2",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
                                   style={[
-                                    styles.divergingBarText,
+                                    styles.divergingBarFill,
                                     {
-                                      color: getContrastingTextColor(
-                                        player1ColorObj?.colors?.[0] || "#2196F3",
-                                      ),
+                                      borderRadius: 4,
+                                      width: "95%",
                                     },
                                   ]}
                                 >
-                                  {p1RoundsWon} / {((p1RoundsWon / totalRounds) * 100).toFixed(0)}%
-                                </Text>
-                              </LinearGradient>
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player1ColorObj?.colors?.[0] ||
+                                            "#2196F3",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p1AvgDarts.toFixed(1)}
+                                  </Text>
+                                </LinearGradient>
+                              </View>
+                              <View style={styles.divergingBarCenter} />
+                              <View
+                                style={[
+                                  styles.divergingBarRight,
+                                  {
+                                    flex: p2AvgDartsFlex,
+                                  },
+                                ]}
+                              >
+                                <LinearGradient
+                                  colors={
+                                    player2ColorObj?.colors || [
+                                      "#4CAF50",
+                                      "#388E3C",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
+                                  style={[
+                                    styles.divergingBarFill,
+                                    {
+                                      borderRadius: 4,
+                                      width: "95%",
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player2ColorObj?.colors?.[0] ||
+                                            "#4CAF50",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p2AvgDarts.toFixed(1)}
+                                  </Text>
+                                </LinearGradient>
+                              </View>
                             </View>
-                            <View style={styles.divergingBarCenter} />
-                            <View
-                              style={[
-                                styles.divergingBarRight,
-                                {
-                                  flex: p2RoundsFlex,
-                                },
-                              ]}
-                            >
-                              <LinearGradient
-                                colors={player2ColorObj?.colors || ["#4CAF50", "#388E3C"]}
-                                start={{ x: 0, y: 0.5 }}
-                                end={{ x: 1, y: 0.5 }}
+                          </View>
+
+                          {/* Darts Missed */}
+                          <View style={styles.statsCategory}>
+                            <Text style={styles.statsCategoryLabel}>
+                              Darts Missed
+                            </Text>
+                            <View style={styles.divergingBarContainer}>
+                              <View
                                 style={[
-                                  styles.divergingBarFill,
+                                  styles.divergingBarLeft,
                                   {
-                                    borderRadius: 4,
-                                    width: "95%",
+                                    flex: p1DartsMissedFlex,
                                   },
                                 ]}
                               >
-                                <Text
+                                <LinearGradient
+                                  colors={
+                                    player1ColorObj?.colors || [
+                                      "#2196F3",
+                                      "#1976D2",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
                                   style={[
-                                    styles.divergingBarText,
+                                    styles.divergingBarFill,
                                     {
-                                      color: getContrastingTextColor(
-                                        player2ColorObj?.colors?.[0] || "#4CAF50",
-                                      ),
+                                      borderRadius: 4,
+                                      width: "95%",
                                     },
                                   ]}
                                 >
-                                  {p2RoundsWon} / {((p2RoundsWon / totalRounds) * 100).toFixed(0)}%
-                                </Text>
-                              </LinearGradient>
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player1ColorObj?.colors?.[0] ||
+                                            "#2196F3",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p1DartsMissed}
+                                  </Text>
+                                </LinearGradient>
+                              </View>
+                              <View style={styles.divergingBarCenter} />
+                              <View
+                                style={[
+                                  styles.divergingBarRight,
+                                  {
+                                    flex: p2DartsMissedFlex,
+                                  },
+                                ]}
+                              >
+                                <LinearGradient
+                                  colors={
+                                    player2ColorObj?.colors || [
+                                      "#4CAF50",
+                                      "#388E3C",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
+                                  style={[
+                                    styles.divergingBarFill,
+                                    {
+                                      borderRadius: 4,
+                                      width: "95%",
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player2ColorObj?.colors?.[0] ||
+                                            "#4CAF50",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p2DartsMissed}
+                                  </Text>
+                                </LinearGradient>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Landing Percentage */}
+                          <View style={styles.statsCategory}>
+                            <Text style={styles.statsCategoryLabel}>
+                              Landing %
+                            </Text>
+                            <View style={styles.divergingBarContainer}>
+                              <View
+                                style={[
+                                  styles.divergingBarLeft,
+                                  {
+                                    flex: p1LandingFlex,
+                                  },
+                                ]}
+                              >
+                                <LinearGradient
+                                  colors={
+                                    player1ColorObj?.colors || [
+                                      "#2196F3",
+                                      "#1976D2",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
+                                  style={[
+                                    styles.divergingBarFill,
+                                    {
+                                      borderRadius: 4,
+                                      width: "95%",
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player1ColorObj?.colors?.[0] ||
+                                            "#2196F3",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p1LandingPercent.toFixed(0)}%
+                                  </Text>
+                                </LinearGradient>
+                              </View>
+                              <View style={styles.divergingBarCenter} />
+                              <View
+                                style={[
+                                  styles.divergingBarRight,
+                                  {
+                                    flex: p2LandingFlex,
+                                  },
+                                ]}
+                              >
+                                <LinearGradient
+                                  colors={
+                                    player2ColorObj?.colors || [
+                                      "#4CAF50",
+                                      "#388E3C",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
+                                  style={[
+                                    styles.divergingBarFill,
+                                    {
+                                      borderRadius: 4,
+                                      width: "95%",
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player2ColorObj?.colors?.[0] ||
+                                            "#4CAF50",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p2LandingPercent.toFixed(0)}%
+                                  </Text>
+                                </LinearGradient>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Rounds Won / Win % */}
+                          <View style={styles.statsCategory}>
+                            <Text style={styles.statsCategoryLabel}>
+                              Rounds Won / Win %
+                            </Text>
+                            <View style={styles.divergingBarContainer}>
+                              <View
+                                style={[
+                                  styles.divergingBarLeft,
+                                  {
+                                    flex: p1RoundsFlex,
+                                  },
+                                ]}
+                              >
+                                <LinearGradient
+                                  colors={
+                                    player1ColorObj?.colors || [
+                                      "#2196F3",
+                                      "#1976D2",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
+                                  style={[
+                                    styles.divergingBarFill,
+                                    {
+                                      borderRadius: 4,
+                                      width: "95%",
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player1ColorObj?.colors?.[0] ||
+                                            "#2196F3",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p1RoundsWon} /{" "}
+                                    {(
+                                      (p1RoundsWon / totalRounds) *
+                                      100
+                                    ).toFixed(0)}
+                                    %
+                                  </Text>
+                                </LinearGradient>
+                              </View>
+                              <View style={styles.divergingBarCenter} />
+                              <View
+                                style={[
+                                  styles.divergingBarRight,
+                                  {
+                                    flex: p2RoundsFlex,
+                                  },
+                                ]}
+                              >
+                                <LinearGradient
+                                  colors={
+                                    player2ColorObj?.colors || [
+                                      "#4CAF50",
+                                      "#388E3C",
+                                    ]
+                                  }
+                                  start={{ x: 0, y: 0.5 }}
+                                  end={{ x: 1, y: 0.5 }}
+                                  style={[
+                                    styles.divergingBarFill,
+                                    {
+                                      borderRadius: 4,
+                                      width: "95%",
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.divergingBarText,
+                                      {
+                                        color: getContrastingTextColor(
+                                          player2ColorObj?.colors?.[0] ||
+                                            "#4CAF50",
+                                        ),
+                                      },
+                                    ]}
+                                  >
+                                    {p2RoundsWon} /{" "}
+                                    {(
+                                      (p2RoundsWon / totalRounds) *
+                                      100
+                                    ).toFixed(0)}
+                                    %
+                                  </Text>
+                                </LinearGradient>
+                              </View>
                             </View>
                           </View>
                         </View>
-                      </View>
-                    );
+                      );
                     } catch (error) {
-                      console.error("Error rendering comparative stats:", error);
+                      console.error(
+                        "Error rendering comparative stats:",
+                        error,
+                      );
                       console.error("roundHistory:", roundHistory);
                       console.error("player1Stats:", player1Stats);
                       console.error("player2Stats:", player2Stats);
                       return (
-                        <View style={{padding: 16, backgroundColor: "#ffebee"}}>
-                          <Text style={{color: "#c62828", fontWeight: "bold"}}>
+                        <View
+                          style={{ padding: 16, backgroundColor: "#ffebee" }}
+                        >
+                          <Text
+                            style={{ color: "#c62828", fontWeight: "bold" }}
+                          >
                             Error rendering stats
                           </Text>
-                          <Text style={{color: "#d32f2f", fontSize: 12}}>
+                          <Text style={{ color: "#d32f2f", fontSize: 12 }}>
                             {error.message}
                           </Text>
                         </View>
