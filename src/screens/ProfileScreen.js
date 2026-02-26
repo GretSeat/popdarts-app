@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -39,6 +40,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-chart-kit";
 import { POPDARTS_COLORS } from "../constants/colors";
 import { supabase } from "../lib/supabase";
+import {
+  getRankBadge,
+  normalizeRankName,
+  isEliteRank,
+} from "../utils/rankBadgeMapper";
 
 /**
  * Profile screen - User profile, rankings, practice, and settings
@@ -273,6 +279,11 @@ export default function ProfileScreen() {
     { rank: 18, name: "Jaden W", mmr: 1860, tier: "Elite" },
     { rank: 19, name: "Anthony B", mmr: 1856, tier: "Elite" },
     { rank: 20, name: "Jake N", mmr: 1852, tier: "Elite" },
+    { rank: 21, name: "Jeff", mmr: 1840, tier: "Elite" },
+    { rank: 22, name: "Guy", mmr: 1830, tier: "Elite" },
+    { rank: 23, name: "Man", mmr: 1820, tier: "Elite" },
+    { rank: 24, name: "Dude", mmr: 1810, tier: "Elite" },
+    { rank: 25, name: "Sniper", mmr: 1801, tier: "Elite" },
   ];
 
   // Mock seasonal badges (achieved ranks from previous seasons)
@@ -583,16 +594,12 @@ export default function ProfileScreen() {
           <View style={styles.rankingPreviewContainer}>
             <View style={styles.currentRankCard}>
               <Text style={styles.currentRankLabel}>Current Rank</Text>
-              <View
-                style={[
-                  styles.rankBadge,
-                  { backgroundColor: mockRankingData.divisionColor },
-                ]}
-              >
-                <Text style={styles.rankBadgeText}>
-                  {mockRankingData.currentRank}
-                </Text>
-              </View>
+              <Image
+                source={getRankBadge(
+                  normalizeRankName(mockRankingData.currentRank),
+                )}
+                style={styles.rankBadgeImage}
+              />
               <Text style={styles.mmrText}>{mockRankingData.mmr} MMR</Text>
               <Text style={styles.globalRankText}>
                 #{mockRankingData.globalRank} of {mockRankingData.totalPlayers}{" "}
@@ -623,7 +630,7 @@ export default function ProfileScreen() {
               Global Leaderboard
             </Text>
             <Chip mode="outlined" compact>
-              Top 20
+              Top 25
             </Chip>
           </View>
           <View style={styles.leaderboardContainer}>
@@ -655,17 +662,12 @@ export default function ProfileScreen() {
                   {player.name}
                 </Text>
                 <Text style={styles.leaderboardMMR}>{player.mmr}</Text>
-                <View
-                  style={[
-                    styles.leaderboardTierBadge,
-                    {
-                      backgroundColor:
-                        player.tier === "Elite" ? "#FFD60A" : "#9D4EDD",
-                    },
-                  ]}
-                >
-                  <Text style={styles.leaderboardTierText}>{player.tier}</Text>
-                </View>
+                {player.tier === "Elite" && (
+                  <Image
+                    source={getRankBadge("Elite")}
+                    style={styles.leaderboardEliteBadge}
+                  />
+                )}
               </View>
             ))}
             {mockRankingData.globalRank > 10 && (
@@ -686,16 +688,12 @@ export default function ProfileScreen() {
                   {displayName}
                 </Text>
                 <Text style={styles.leaderboardMMR}>{mockRankingData.mmr}</Text>
-                <View
-                  style={[
-                    styles.leaderboardTierBadge,
-                    { backgroundColor: mockRankingData.divisionColor },
-                  ]}
-                >
-                  <Text style={styles.leaderboardTierText}>
-                    {mockRankingData.currentRank}
-                  </Text>
-                </View>
+                <Image
+                  source={getRankBadge(
+                    normalizeRankName(mockRankingData.currentRank),
+                  )}
+                  style={styles.leaderboardCurrentRankBadge}
+                />
               </View>
             )}
           </View>
@@ -721,14 +719,10 @@ export default function ProfileScreen() {
           <View style={styles.seasonalBadgesContainer}>
             {mockSeasonalBadges.map((badge) => (
               <View key={badge.season} style={styles.seasonalBadgeCard}>
-                <View
-                  style={[
-                    styles.seasonalBadge,
-                    { backgroundColor: badge.color },
-                  ]}
-                >
-                  <Text style={styles.seasonalBadgeRank}>{badge.rank}</Text>
-                </View>
+                <Image
+                  source={getRankBadge(normalizeRankName(badge.rank))}
+                  style={styles.seasonalBadgeImage}
+                />
                 <Text style={styles.seasonalBadgeSeason}>
                   Season {badge.season}
                 </Text>
@@ -1838,6 +1832,28 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "#fff",
+  },
+  rankBadgeImage: {
+    width: 120,
+    height: 120,
+    resizeMode: "contain",
+    marginBottom: 8,
+  },
+  seasonalBadgeImage: {
+    width: 70,
+    height: 70,
+    resizeMode: "contain",
+    marginBottom: 6,
+  },
+  leaderboardEliteBadge: {
+    width: 40,
+    height: 40,
+    resizeMode: "contain",
+  },
+  leaderboardCurrentRankBadge: {
+    width: 36,
+    height: 36,
+    resizeMode: "contain",
   },
   mmrText: {
     fontSize: 20,
