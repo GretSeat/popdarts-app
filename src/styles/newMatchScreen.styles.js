@@ -2126,7 +2126,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   roundNumberColumn: {
-    flex: 0.6,
+    flex: 1,
   },
   playerDartsColumn: {
     flex: 1,
@@ -2242,8 +2242,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginBottom: 16,
     paddingBottom: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: "#4CAF50",
+    borderBottomWidth: 1,
+    borderBottomColor: "#555",
+    display: "none",
   },
   statsPlayerName: {
     fontSize: 14,
@@ -2284,6 +2285,37 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#FFFFFF",
     textAlign: "center",
+  },
+  divergingBarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 40,
+    marginVertical: 4,
+  },
+  divergingBarLeft: {
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  divergingBarCenter: {
+    width: 2,
+    height: 32,
+    backgroundColor: "#555",
+    marginHorizontal: 4,
+  },
+  divergingBarRight: {
+    justifyContent: "flex-start",
+    alignItems: "center",
+  },
+  divergingBarFill: {
+    height: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  divergingBarText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginHorizontal: 4,
   },
   statRowSimple: {
     flexDirection: "row",

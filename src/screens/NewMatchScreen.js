@@ -31,6 +31,7 @@ import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 import { POPDARTS_COLORS } from "../constants/colors";
 import styles from "../styles/newMatchScreen.styles";
 import PartyVanillaSprinkles from "../components/PartyVanillaSprinkles";
+import ScoringProgressChart from "../components/ScoringProgressChart";
 
 // Specialty shots that can be tracked in a round
 const SPECIALTY_SHOTS = [
@@ -576,16 +577,133 @@ export default function NewMatchScreen({ navigation, route }) {
 
     setError("");
 
-    // Scoring: Each dart = 1 point, but if closest, ONE dart is worth 3 points instead of 1
-    // So closest bonus is +2 points (making one dart worth 3 instead of 1)
-    let p1Points = p1Darts;
-    let p2Points = p2Darts;
+    // Helper function: Calculate the base value of a dart
+    const getDartValue = (dart, playerNum, isFirstLanded) => {
+      if (dart.specialtyShot === "lippy") {
+        return closestPlayer === playerNum &&
+          !p1DartStates.some(
+            (d) =>
+              d.specialtyShot === "t-nobber" || d.specialtyShot === "inch-worm",
+          ) &&
+          !p2DartStates.some(
+            (d) =>
+              d.specialtyShot === "t-nobber" || d.specialtyShot === "inch-worm",
+          )
+          ? 4
+          : 2;
+      } else if (dart.specialtyShot === "tower") {
+        return 5;
+      } else if (dart.specialtyShot === "fender-bender") {
+        return 2;
+      } else if (dart.specialtyShot === "t-nobber") {
+        return 10;
+      } else if (dart.specialtyShot === "inch-worm") {
+        return 11;
+      } else if (dart.specialtyShot === "triple-nobber") {
+        return 20;
+      } else if (dart.specialtyShot === "wiggle-nobber") {
+        // Wiggle Nobber: will be handled separately (doubles target)
+        return 0;
+      } else {
+        // Regular dart: 3pts if closest player's first landed, otherwise 1pt
+        return closestPlayer === playerNum &&
+          isFirstLanded &&
+          !p1DartStates.some(
+            (d) =>
+              d.specialtyShot === "t-nobber" || d.specialtyShot === "inch-worm",
+          ) &&
+          !p2DartStates.some(
+            (d) =>
+              d.specialtyShot === "t-nobber" || d.specialtyShot === "inch-worm",
+          )
+          ? 3
+          : 1;
+      }
+    };
 
-    if (closestPlayer === 1) {
-      p1Points += 2; // One dart becomes 3pts instead of 1pt
-    } else if (closestPlayer === 2) {
-      p2Points += 2; // One dart becomes 3pts instead of 1pt
+    // Calculate points for each player considering specialty shots
+    let p1Points = 0;
+    let p2Points = 0;
+    let p1FirstLandedIndex = -1;
+    let p2FirstLandedIndex = -1;
+
+    // Find first landed dart for each player
+    for (let i = 0; i < p1DartStates.length; i++) {
+      if (p1DartStates[i].status === "landed") {
+        p1FirstLandedIndex = i;
+        break;
+      }
     }
+    for (let i = 0; i < p2DartStates.length; i++) {
+      if (p2DartStates[i].status === "landed") {
+        p2FirstLandedIndex = i;
+        break;
+      }
+    }
+
+    // Calculate Player 1 points
+    p1DartStates.forEach((dart, index) => {
+      if (dart.status === "landed") {
+        if (dart.specialtyShot === "wiggle-nobber") {
+          // Wiggle Nobber: double the target dart's value
+          if (
+            dart.landingOnDart?.playerNum &&
+            dart.landingOnDart?.dartIndex !== undefined
+          ) {
+            const targetStates =
+              dart.landingOnDart.playerNum === 1 ? p1DartStates : p2DartStates;
+            const targetDart = targetStates[dart.landingOnDart.dartIndex];
+            const isTargetFirstLanded =
+              dart.landingOnDart.playerNum === 1
+                ? index === p1FirstLandedIndex
+                : dart.landingOnDart.dartIndex === p2FirstLandedIndex;
+            const targetValue = getDartValue(
+              targetDart,
+              dart.landingOnDart.playerNum,
+              isTargetFirstLanded,
+            );
+            p1Points += targetValue * 2;
+          }
+        } else {
+          const isFirstLanded = index === p1FirstLandedIndex;
+          p1Points += getDartValue(dart, 1, isFirstLanded);
+        }
+      } else if (dart.status === "missed") {
+        p1Points += 0;
+      }
+    });
+
+    // Calculate Player 2 points
+    p2DartStates.forEach((dart, index) => {
+      if (dart.status === "landed") {
+        if (dart.specialtyShot === "wiggle-nobber") {
+          // Wiggle Nobber: double the target dart's value
+          if (
+            dart.landingOnDart?.playerNum &&
+            dart.landingOnDart?.dartIndex !== undefined
+          ) {
+            const targetStates =
+              dart.landingOnDart.playerNum === 1 ? p1DartStates : p2DartStates;
+            const targetDart = targetStates[dart.landingOnDart.dartIndex];
+            const isTargetFirstLanded =
+              dart.landingOnDart.playerNum === 1
+                ? dart.landingOnDart.dartIndex === p1FirstLandedIndex
+                : index === p2FirstLandedIndex;
+            const targetValue = getDartValue(
+              targetDart,
+              dart.landingOnDart.playerNum,
+              isTargetFirstLanded,
+            );
+            p2Points += targetValue * 2;
+          }
+        } else {
+          const isFirstLanded = index === p2FirstLandedIndex;
+          p2Points += getDartValue(dart, 2, isFirstLanded);
+        }
+      } else if (dart.status === "missed") {
+        p2Points += 0;
+      }
+    });
 
     // Calculate net score (cancellation)
     const netScore = Math.abs(p1Points - p2Points);
@@ -876,80 +994,108 @@ export default function NewMatchScreen({ navigation, route }) {
           d.specialtyShot === "t-nobber" || d.specialtyShot === "inch-worm",
       );
 
-    // Check if Lippies are present
-    const p1HasLippy = p1DartStates.some((d) => d.specialtyShot === "lippy");
-    const p2HasLippy = p2DartStates.some((d) => d.specialtyShot === "lippy");
-    const lippiesPresent = p1HasLippy || p2HasLippy;
+    // Helper function: Calculate the base value of a dart
+    const getDartValue = (dart, playerNum, isFirstLanded) => {
+      if (dart.specialtyShot === "lippy") {
+        return closestPlayer === playerNum && !hasT_Nobber ? 4 : 2;
+      } else if (dart.specialtyShot === "tower") {
+        return 5;
+      } else if (dart.specialtyShot === "fender-bender") {
+        return 2;
+      } else if (dart.specialtyShot === "t-nobber") {
+        return 10;
+      } else if (dart.specialtyShot === "inch-worm") {
+        return 11;
+      } else if (dart.specialtyShot === "triple-nobber") {
+        return 20;
+      } else if (dart.specialtyShot === "wiggle-nobber") {
+        // Wiggle Nobber: will be handled separately (doubles target)
+        return 0;
+      } else {
+        // Regular dart: 3pts if closest player's first landed, otherwise 1pt
+        return closestPlayer === playerNum && isFirstLanded && !hasT_Nobber
+          ? 3
+          : 1;
+      }
+    };
 
-    // Score calculation - matches the APPLY logic exactly
-    let p1ClosestHandled = false;
-    let p2ClosestHandled = false;
+    // Find first landed dart for each player
+    let p1FirstLandedIndex = -1;
+    let p2FirstLandedIndex = -1;
+    for (let i = 0; i < p1DartStates.length; i++) {
+      if (p1DartStates[i].status === "landed") {
+        p1FirstLandedIndex = i;
+        break;
+      }
+    }
+    for (let i = 0; i < p2DartStates.length; i++) {
+      if (p2DartStates[i].status === "landed") {
+        p2FirstLandedIndex = i;
+        break;
+      }
+    }
 
-    p1DartStates.forEach((dart) => {
+    // Score calculation for Player 1
+    p1DartStates.forEach((dart, index) => {
       if (dart.status === "landed") {
-        let points = 1;
-
-        // Apply specialty shot values
-        if (dart.specialtyShot === "lippy") {
-          points = closestPlayer === 1 && !hasT_Nobber ? 4 : 2;
-        } else if (dart.specialtyShot === "tower") {
-          points = 5;
-        } else if (dart.specialtyShot === "fender-bender") {
-          points = 2;
-        } else if (dart.specialtyShot === "t-nobber") {
-          points = 10;
-        } else if (dart.specialtyShot === "inch-worm") {
-          points = 11;
-        } else if (dart.specialtyShot === "triple-nobber") {
-          points = 20;
+        if (dart.specialtyShot === "wiggle-nobber") {
+          // Wiggle Nobber: double the target dart's value
+          if (
+            dart.landingOnDart?.playerNum &&
+            dart.landingOnDart?.dartIndex !== undefined
+          ) {
+            const targetStates =
+              dart.landingOnDart.playerNum === 1 ? p1DartStates : p2DartStates;
+            const targetDart = targetStates[dart.landingOnDart.dartIndex];
+            const isTargetFirstLanded =
+              dart.landingOnDart.playerNum === 1
+                ? dart.landingOnDart.dartIndex === p1FirstLandedIndex
+                : dart.landingOnDart.dartIndex === p2FirstLandedIndex;
+            const targetValue = getDartValue(
+              targetDart,
+              dart.landingOnDart.playerNum,
+              isTargetFirstLanded,
+            );
+            newP1Score += targetValue * 2;
+          }
+        } else {
+          const isFirstLanded = index === p1FirstLandedIndex;
+          newP1Score += getDartValue(dart, 1, isFirstLanded);
         }
-
-        // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
-        if (
-          closestPlayer === 1 &&
-          !p1ClosestHandled &&
-          !hasT_Nobber &&
-          !lippiesPresent
-        ) {
-          points += 2;
-          p1ClosestHandled = true;
-        }
-
-        newP1Score += points;
+      } else if (dart.status === "missed") {
+        newP1Score += 0;
       }
     });
 
-    p2DartStates.forEach((dart) => {
+    // Score calculation for Player 2
+    p2DartStates.forEach((dart, index) => {
       if (dart.status === "landed") {
-        let points = 1;
-
-        // Apply specialty shot values
-        if (dart.specialtyShot === "lippy") {
-          points = closestPlayer === 2 && !hasT_Nobber ? 4 : 2;
-        } else if (dart.specialtyShot === "tower") {
-          points = 5;
-        } else if (dart.specialtyShot === "fender-bender") {
-          points = 2;
-        } else if (dart.specialtyShot === "t-nobber") {
-          points = 10;
-        } else if (dart.specialtyShot === "inch-worm") {
-          points = 11;
-        } else if (dart.specialtyShot === "triple-nobber") {
-          points = 20;
+        if (dart.specialtyShot === "wiggle-nobber") {
+          // Wiggle Nobber: double the target dart's value
+          if (
+            dart.landingOnDart?.playerNum &&
+            dart.landingOnDart?.dartIndex !== undefined
+          ) {
+            const targetStates =
+              dart.landingOnDart.playerNum === 1 ? p1DartStates : p2DartStates;
+            const targetDart = targetStates[dart.landingOnDart.dartIndex];
+            const isTargetFirstLanded =
+              dart.landingOnDart.playerNum === 1
+                ? dart.landingOnDart.dartIndex === p1FirstLandedIndex
+                : dart.landingOnDart.dartIndex === p2FirstLandedIndex;
+            const targetValue = getDartValue(
+              targetDart,
+              dart.landingOnDart.playerNum,
+              isTargetFirstLanded,
+            );
+            newP2Score += targetValue * 2;
+          }
+        } else {
+          const isFirstLanded = index === p2FirstLandedIndex;
+          newP2Score += getDartValue(dart, 2, isFirstLanded);
         }
-
-        // Add closest bonus to first dart only (if no T-Nobber and no Lippies)
-        if (
-          closestPlayer === 2 &&
-          !p2ClosestHandled &&
-          !hasT_Nobber &&
-          !lippiesPresent
-        ) {
-          points += 2;
-          p2ClosestHandled = true;
-        }
-
-        newP2Score += points;
+      } else if (dart.status === "missed") {
+        newP2Score += 0;
       }
     });
 
@@ -4713,6 +4859,20 @@ export default function NewMatchScreen({ navigation, route }) {
                                       : p2DartStates;
                                   const targetDart =
                                     targetStates[dart.landingOnDart.dartIndex];
+
+                                  // Find first landed dart of target player
+                                  let targetFirstLandedIndex = -1;
+                                  for (
+                                    let i = 0;
+                                    i < targetStates.length;
+                                    i++
+                                  ) {
+                                    if (targetStates[i].status === "landed") {
+                                      targetFirstLandedIndex = i;
+                                      break;
+                                    }
+                                  }
+
                                   let targetValue = 1;
                                   if (targetDart?.specialtyShot === "lippy") {
                                     targetValue =
@@ -4744,9 +4904,14 @@ export default function NewMatchScreen({ navigation, route }) {
                                   ) {
                                     targetValue = 20;
                                   } else {
+                                    // Regular dart: only first landed gets 3pt
+                                    const isTargetFirstLanded =
+                                      dart.landingOnDart.dartIndex ===
+                                      targetFirstLandedIndex;
                                     targetValue =
                                       closestPlayer ===
                                         dart.landingOnDart.playerNum &&
+                                      isTargetFirstLanded &&
                                       !hasT_Nobber
                                         ? 3
                                         : 1;
@@ -4987,6 +5152,20 @@ export default function NewMatchScreen({ navigation, route }) {
                                       : p2DartStates;
                                   const targetDart =
                                     targetStates[dart.landingOnDart.dartIndex];
+
+                                  // Find first landed dart of target player
+                                  let targetFirstLandedIndex = -1;
+                                  for (
+                                    let i = 0;
+                                    i < targetStates.length;
+                                    i++
+                                  ) {
+                                    if (targetStates[i].status === "landed") {
+                                      targetFirstLandedIndex = i;
+                                      break;
+                                    }
+                                  }
+
                                   let targetValue = 1;
                                   if (targetDart?.specialtyShot === "lippy") {
                                     targetValue =
@@ -5018,9 +5197,14 @@ export default function NewMatchScreen({ navigation, route }) {
                                   ) {
                                     targetValue = 20;
                                   } else {
+                                    // Regular dart: only first landed gets 3pt
+                                    const isTargetFirstLanded =
+                                      dart.landingOnDart.dartIndex ===
+                                      targetFirstLandedIndex;
                                     targetValue =
                                       closestPlayer ===
                                         dart.landingOnDart.playerNum &&
+                                      isTargetFirstLanded &&
                                       !hasT_Nobber
                                         ? 3
                                         : 1;
@@ -5312,9 +5496,6 @@ export default function NewMatchScreen({ navigation, route }) {
                     <View style={styles.quickScoreCalculationSection}>
                       <Text style={styles.quickScoreCalculationText}>
                         {(() => {
-                          let p1Score = 0;
-                          let p2Score = 0;
-
                           // Check if any dart is a T-Nobber or Inch Worm (disables closest bonus)
                           const hasT_Nobber =
                             p1DartStates.some(
@@ -5329,6 +5510,25 @@ export default function NewMatchScreen({ navigation, route }) {
                             );
 
                           // Calculate score for player 1
+                          let p1Score = 0;
+                          let p2Score = 0;
+                          let p1FirstLandedIdx = -1;
+                          let p2FirstLandedIdx = -1;
+
+                          // Find first landed dart for each player
+                          for (let i = 0; i < p1DartStates.length; i++) {
+                            if (p1DartStates[i].status === "landed") {
+                              p1FirstLandedIdx = i;
+                              break;
+                            }
+                          }
+                          for (let i = 0; i < p2DartStates.length; i++) {
+                            if (p2DartStates[i].status === "landed") {
+                              p2FirstLandedIdx = i;
+                              break;
+                            }
+                          }
+
                           p1DartStates.forEach((dart, dartIndex) => {
                             if (dart.status === "landed") {
                               let points = 1;
@@ -5344,6 +5544,12 @@ export default function NewMatchScreen({ navigation, route }) {
                                     : p2DartStates;
                                 const targetDart =
                                   targetStates[dart.landingOnDart.dartIndex];
+                                const isTargetFirstLanded =
+                                  dart.landingOnDart.playerNum === 1
+                                    ? dart.landingOnDart.dartIndex ===
+                                      p1FirstLandedIdx
+                                    : dart.landingOnDart.dartIndex ===
+                                      p2FirstLandedIdx;
                                 let targetValue = 1;
                                 if (targetDart?.specialtyShot === "lippy") {
                                   targetValue =
@@ -5373,9 +5579,11 @@ export default function NewMatchScreen({ navigation, route }) {
                                 ) {
                                   targetValue = 20;
                                 } else {
+                                  // Regular dart: only first landed gets 3pt
                                   targetValue =
                                     closestPlayer ===
                                       dart.landingOnDart.playerNum &&
+                                    isTargetFirstLanded &&
                                     !hasT_Nobber
                                       ? 3
                                       : 1;
@@ -5399,6 +5607,14 @@ export default function NewMatchScreen({ navigation, route }) {
                                 dart.specialtyShot === "triple-nobber"
                               ) {
                                 points = 20;
+                              } else {
+                                // Regular dart: 3pts if closest and first landed
+                                points =
+                                  closestPlayer === 1 &&
+                                  dartIndex === p1FirstLandedIdx &&
+                                  !hasT_Nobber
+                                    ? 3
+                                    : 1;
                               }
                               p1Score += points;
                             }
@@ -5420,6 +5636,12 @@ export default function NewMatchScreen({ navigation, route }) {
                                     : p2DartStates;
                                 const targetDart =
                                   targetStates[dart.landingOnDart.dartIndex];
+                                const isTargetFirstLanded =
+                                  dart.landingOnDart.playerNum === 1
+                                    ? dart.landingOnDart.dartIndex ===
+                                      p1FirstLandedIdx
+                                    : dart.landingOnDart.dartIndex ===
+                                      p2FirstLandedIdx;
                                 let targetValue = 1;
                                 if (targetDart?.specialtyShot === "lippy") {
                                   targetValue =
@@ -5449,9 +5671,11 @@ export default function NewMatchScreen({ navigation, route }) {
                                 ) {
                                   targetValue = 20;
                                 } else {
+                                  // Regular dart: only first landed gets 3pt
                                   targetValue =
                                     closestPlayer ===
                                       dart.landingOnDart.playerNum &&
+                                    isTargetFirstLanded &&
                                     !hasT_Nobber
                                       ? 3
                                       : 1;
@@ -5475,6 +5699,14 @@ export default function NewMatchScreen({ navigation, route }) {
                                 dart.specialtyShot === "triple-nobber"
                               ) {
                                 points = 20;
+                              } else {
+                                // Regular dart: 3pts if closest and first landed
+                                points =
+                                  closestPlayer === 2 &&
+                                  dartIndex === p2FirstLandedIdx &&
+                                  !hasT_Nobber
+                                    ? 3
+                                    : 1;
                               }
                               p2Score += points;
                             }
@@ -5488,14 +5720,6 @@ export default function NewMatchScreen({ navigation, route }) {
                             (d) => d.specialtyShot === "lippy",
                           );
                           const lippiesPresent = p1HasLippy || p2HasLippy;
-
-                          if (!hasT_Nobber && !lippiesPresent) {
-                            if (closestPlayer === 1 && p1Score > 0) {
-                              p1Score += 2;
-                            } else if (closestPlayer === 2 && p2Score > 0) {
-                              p2Score += 2;
-                            }
-                          }
 
                           // Calculate net score
                           const netPoints = Math.abs(p1Score - p2Score);
@@ -6061,6 +6285,21 @@ export default function NewMatchScreen({ navigation, route }) {
                     {player1Score} - {player2Score}
                   </Text>
                 </LinearGradient>
+
+                {/* Scoring Progression Chart */}
+                {roundHistory && roundHistory.length > 0 && (
+                  <ScoringProgressChart
+                    roundHistory={roundHistory}
+                    player1Name={player1Name || "Player 1"}
+                    player2Name={player2Name || "Player 2"}
+                    player1Color={
+                      player1ColorObj || { colors: ["#2196F3", "#1976D2"] }
+                    }
+                    player2Color={
+                      player2ColorObj || { colors: ["#4CAF50", "#388E3C"] }
+                    }
+                  />
+                )}
 
                 {/* Comparative Stats Section */}
                 {roundHistory &&
@@ -6793,8 +7032,12 @@ export default function NewMatchScreen({ navigation, route }) {
                   targetValue = 20;
                 } else {
                   const isClosest = closestPlayer === 1;
+                  const isFirstLandedFromClosest = !p1DartStates.some(
+                    (d, i) => i < index && d.status === "landed",
+                  );
                   targetValue =
                     isClosest &&
+                    isFirstLandedFromClosest &&
                     !p1DartStates.some(
                       (d) =>
                         d.specialtyShot === "t-nobber" ||
@@ -6874,8 +7117,12 @@ export default function NewMatchScreen({ navigation, route }) {
                   targetValue = 20;
                 } else {
                   const isClosest = closestPlayer === 2;
+                  const isFirstLandedFromClosest = !p2DartStates.some(
+                    (d, i) => i < index && d.status === "landed",
+                  );
                   targetValue =
                     isClosest &&
+                    isFirstLandedFromClosest &&
                     !p1DartStates.some(
                       (d) =>
                         d.specialtyShot === "t-nobber" ||
