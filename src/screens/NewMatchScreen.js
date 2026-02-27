@@ -274,6 +274,50 @@ export default function NewMatchScreen({ navigation, route }) {
     return closestPlayer;
   };
 
+  /**
+   * Get which player is on the left side based on playerSides
+   * Used for organizing display in match summaries
+   * @returns {number} Player number (1 or 2) on the left side, or null if not determined
+   */
+  const getLeftSidePlayer = () => {
+    if (playerSides[1] === "left") return 1;
+    if (playerSides[2] === "left") return 2;
+    return null;
+  };
+
+  /**
+   * Get which player is on the right side based on playerSides
+   * Used for organizing display in match summaries
+   * @returns {number} Player number (1 or 2) on the right side, or null if not determined
+   */
+  const getRightSidePlayer = () => {
+    if (playerSides[1] === "right") return 1;
+    if (playerSides[2] === "right") return 2;
+    return null;
+  };
+
+  /**
+   * Get player info (name, score, stats, color) based on player number
+   * @param {number} playerNum - 1 or 2
+   * @returns {object} Player info object with name, score, stats, color
+   */
+  const getPlayerInfo = (playerNum) => {
+    if (playerNum === 1) {
+      return {
+        name: player1Name,
+        score: player1Score,
+        stats: player1Stats,
+        colorObj: player1ColorObj,
+      };
+    }
+    return {
+      name: player2Name,
+      score: player2Score,
+      stats: player2Stats,
+      colorObj: player2ColorObj,
+    };
+  };
+
   // Hide tab bar when in active gameplay (1v1 match or viewing bracket), show it during setup/lobby
   useEffect(() => {
     const isInActiveGameplay = matchStarted || showBracket;
@@ -753,6 +797,7 @@ export default function NewMatchScreen({ navigation, route }) {
       netScore,
       winner: roundWinner,
       roundNumber: currentRound,
+      playerSides: { ...playerSides }, // Store player side preferences with round data
     };
 
     console.log("submitSimplifiedRound: Creating summary", summary);
@@ -1148,6 +1193,7 @@ export default function NewMatchScreen({ navigation, route }) {
       roundWinner,
       p1DartStates: [...p1DartStates],
       p2DartStates: [...p2DartStates],
+      playerSides: { ...playerSides }, // Preserve/update side preferences with edited round
     };
 
     const updatedHistory = [...roundHistory];
@@ -4654,36 +4700,114 @@ export default function NewMatchScreen({ navigation, route }) {
 
               {/* Round Results */}
               <View style={styles.roundSummaryContent}>
-                {/* Player 1 Stats */}
-                <View style={styles.roundPlayerStats}>
-                  <Text style={styles.roundPlayerName}>{player1Name}</Text>
-                  <Text style={styles.roundDarts}>
-                    {pendingRoundData?.p1Darts} dart
-                    {pendingRoundData?.p1Darts !== 1 ? "s" : ""}
-                  </Text>
-                  <Text style={styles.roundPoints}>
-                    {pendingRoundData?.p1Points} point
-                    {pendingRoundData?.p1Points !== 1 ? "s" : ""}
-                  </Text>
-                </View>
+                {/* Determine display order based on sides stored in this round's data */}
+                {(() => {
+                  // Use the side preferences stored in the round data, not component state
+                  const roundPlayerSides =
+                    pendingRoundData?.playerSides || playerSides;
 
-                {/* VS Divider */}
-                <View style={styles.roundVsDivider}>
-                  <Text style={styles.roundVsText}>VS</Text>
-                </View>
+                  const leftSidePlayer =
+                    roundPlayerSides?.[1] === "left"
+                      ? 1
+                      : roundPlayerSides?.[2] === "left"
+                        ? 2
+                        : null;
+                  const rightSidePlayer =
+                    roundPlayerSides?.[1] === "right"
+                      ? 1
+                      : roundPlayerSides?.[2] === "right"
+                        ? 2
+                        : null;
 
-                {/* Player 2 Stats */}
-                <View style={styles.roundPlayerStats}>
-                  <Text style={styles.roundPlayerName}>{player2Name}</Text>
-                  <Text style={styles.roundDarts}>
-                    {pendingRoundData?.p2Darts} dart
-                    {pendingRoundData?.p2Darts !== 1 ? "s" : ""}
-                  </Text>
-                  <Text style={styles.roundPoints}>
-                    {pendingRoundData?.p2Points} point
-                    {pendingRoundData?.p2Points !== 1 ? "s" : ""}
-                  </Text>
-                </View>
+                  const displayLeftPlayerNum =
+                    leftSidePlayer !== null ? leftSidePlayer : 1;
+                  const displayRightPlayerNum =
+                    rightSidePlayer !== null ? rightSidePlayer : 2;
+
+                  const leftPlayerData =
+                    displayLeftPlayerNum === 1
+                      ? {
+                          name: player1Name,
+                          darts: pendingRoundData?.p1Darts,
+                          points: pendingRoundData?.p1Points,
+                        }
+                      : {
+                          name: player2Name,
+                          darts: pendingRoundData?.p2Darts,
+                          points: pendingRoundData?.p2Points,
+                        };
+
+                  const rightPlayerData =
+                    displayRightPlayerNum === 1
+                      ? {
+                          name: player1Name,
+                          darts: pendingRoundData?.p1Darts,
+                          points: pendingRoundData?.p1Points,
+                        }
+                      : {
+                          name: player2Name,
+                          darts: pendingRoundData?.p2Darts,
+                          points: pendingRoundData?.p2Points,
+                        };
+
+                  return (
+                    <>
+                      {/* Left Player Stats */}
+                      <View style={styles.roundPlayerStats}>
+                        <Text style={styles.roundPlayerName}>
+                          {leftPlayerData.name}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#999",
+                            marginBottom: 6,
+                          }}
+                        >
+                          ← Left Side
+                        </Text>
+                        <Text style={styles.roundDarts}>
+                          {leftPlayerData.darts} dart
+                          {leftPlayerData.darts !== 1 ? "s" : ""}
+                        </Text>
+                        <Text style={styles.roundPoints}>
+                          {leftPlayerData.points} point
+                          {leftPlayerData.points !== 1 ? "s" : ""}
+                        </Text>
+                      </View>
+
+                      {/* VS Divider */}
+                      <View style={styles.roundVsDivider}>
+                        <Text style={styles.roundVsText}>VS</Text>
+                      </View>
+
+                      {/* Right Player Stats */}
+                      <View style={styles.roundPlayerStats}>
+                        <Text style={styles.roundPlayerName}>
+                          {rightPlayerData.name}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#999",
+                            marginBottom: 6,
+                            textAlign: "right",
+                          }}
+                        >
+                          Right Side →
+                        </Text>
+                        <Text style={styles.roundDarts}>
+                          {rightPlayerData.darts} dart
+                          {rightPlayerData.darts !== 1 ? "s" : ""}
+                        </Text>
+                        <Text style={styles.roundPoints}>
+                          {rightPlayerData.points} point
+                          {rightPlayerData.points !== 1 ? "s" : ""}
+                        </Text>
+                      </View>
+                    </>
+                  );
+                })()}
               </View>
 
               {/* Round Winner */}
@@ -6438,16 +6562,142 @@ export default function NewMatchScreen({ navigation, route }) {
                           ? p2DartsMissed / totalDartsMissed
                           : 0.5;
 
+                      // Determine display order based on player sides
+                      // Left side player's data goes on the left, right side player's data goes on the right
+                      const leftSidePlayer = getLeftSidePlayer();
+                      const rightSidePlayer = getRightSidePlayer();
+
+                      // Default to Player 1 left, Player 2 right if sides not set
+                      const displayLeftPlayerNum =
+                        leftSidePlayer !== null ? leftSidePlayer : 1;
+                      const displayRightPlayerNum =
+                        rightSidePlayer !== null ? rightSidePlayer : 2;
+
+                      // Get all stats for left and right players
+                      const leftPlayerInfo =
+                        getPlayerInfo(displayLeftPlayerNum);
+                      const rightPlayerInfo = getPlayerInfo(
+                        displayRightPlayerNum,
+                      );
+
+                      // Reorder stats based on display order
+                      const leftDartsLanded =
+                        displayLeftPlayerNum === 1
+                          ? p1DartsLanded
+                          : p2DartsLanded;
+                      const rightDartsLanded =
+                        displayLeftPlayerNum === 1
+                          ? p2DartsLanded
+                          : p1DartsLanded;
+                      const leftDartsLandedFlex =
+                        displayLeftPlayerNum === 1
+                          ? p1DartsLandedFlex
+                          : p2DartsLandedFlex;
+                      const rightDartsLandedFlex =
+                        displayLeftPlayerNum === 1
+                          ? p2DartsLandedFlex
+                          : p1DartsLandedFlex;
+
+                      const leftDartsMissed =
+                        displayLeftPlayerNum === 1
+                          ? p1DartsMissed
+                          : p2DartsMissed;
+                      const rightDartsMissed =
+                        displayLeftPlayerNum === 1
+                          ? p2DartsMissed
+                          : p1DartsMissed;
+                      const leftDartsMissedFlex =
+                        displayLeftPlayerNum === 1
+                          ? p1DartsMissedFlex
+                          : p2DartsMissedFlex;
+                      const rightDartsMissedFlex =
+                        displayLeftPlayerNum === 1
+                          ? p2DartsMissedFlex
+                          : p1DartsMissedFlex;
+
+                      const leftAvgDarts =
+                        displayLeftPlayerNum === 1 ? p1AvgDarts : p2AvgDarts;
+                      const rightAvgDarts =
+                        displayLeftPlayerNum === 1 ? p2AvgDarts : p1AvgDarts;
+                      const leftAvgDartsFlex =
+                        displayLeftPlayerNum === 1
+                          ? p1AvgDartsFlex
+                          : p2AvgDartsFlex;
+                      const rightAvgDartsFlex =
+                        displayLeftPlayerNum === 1
+                          ? p2AvgDartsFlex
+                          : p1AvgDartsFlex;
+
+                      const leftRoundsWon =
+                        displayLeftPlayerNum === 1 ? p1RoundsWon : p2RoundsWon;
+                      const rightRoundsWon =
+                        displayLeftPlayerNum === 1 ? p2RoundsWon : p1RoundsWon;
+                      const leftRoundsFlex =
+                        displayLeftPlayerNum === 1
+                          ? p1RoundsFlex
+                          : p2RoundsFlex;
+                      const rightRoundsFlex =
+                        displayLeftPlayerNum === 1
+                          ? p2RoundsFlex
+                          : p1RoundsFlex;
+
+                      // Landing percentages for reordered players
+                      const leftLandingPercent =
+                        displayLeftPlayerNum === 1
+                          ? p1LandingPercent
+                          : p2LandingPercent;
+                      const rightLandingPercent =
+                        displayLeftPlayerNum === 1
+                          ? p2LandingPercent
+                          : p1LandingPercent;
+                      const leftLandingFlex =
+                        displayLeftPlayerNum === 1
+                          ? p1LandingFlex
+                          : p2LandingFlex;
+                      const rightLandingFlex =
+                        displayLeftPlayerNum === 1
+                          ? p2LandingFlex
+                          : p1LandingFlex;
+
                       return (
                         <View style={styles.comparativeStatsSection}>
-                          {/* Player Names Header */}
-                          <View style={styles.statsHeaderRow}>
-                            <Text style={styles.statsPlayerName}>
-                              {player1Name || "Player 1"}
-                            </Text>
-                            <Text style={styles.statsPlayerName}>
-                              {player2Name || "Player 2"}
-                            </Text>
+                          {/* Player Names Header - Organized by Side */}
+                          <View
+                            style={[
+                              styles.statsHeaderRow,
+                              {
+                                marginBottom: 8,
+                              },
+                            ]}
+                          >
+                            <View>
+                              <Text style={styles.statsPlayerName}>
+                                {leftPlayerInfo.name || "Player 1"}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: "#999",
+                                  marginTop: 2,
+                                }}
+                              >
+                                ← Left Side
+                              </Text>
+                            </View>
+                            <View style={{ alignItems: "flex-end" }}>
+                              <Text style={styles.statsPlayerName}>
+                                {rightPlayerInfo.name || "Player 2"}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: "#999",
+                                  marginTop: 2,
+                                }}
+                              >
+                                Right Side →
+                              </Text>
+                            </View>
                           </View>
 
                           {/* Darts Landed */}
@@ -6460,13 +6710,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarLeft,
                                   {
-                                    flex: p1DartsLandedFlex,
+                                    flex: leftDartsLandedFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player1ColorObj?.colors || [
+                                    leftPlayerInfo.colorObj?.colors || [
                                       "#2196F3",
                                       "#1976D2",
                                     ]
@@ -6486,13 +6736,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player1ColorObj?.colors?.[0] ||
-                                            "#2196F3",
+                                          leftPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#2196F3",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p1DartsLanded}
+                                    {leftDartsLanded}
                                   </Text>
                                 </LinearGradient>
                               </View>
@@ -6501,13 +6751,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarRight,
                                   {
-                                    flex: p2DartsLandedFlex,
+                                    flex: rightDartsLandedFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player2ColorObj?.colors || [
+                                    rightPlayerInfo.colorObj?.colors || [
                                       "#4CAF50",
                                       "#388E3C",
                                     ]
@@ -6527,13 +6777,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player2ColorObj?.colors?.[0] ||
-                                            "#4CAF50",
+                                          rightPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#4CAF50",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p2DartsLanded}
+                                    {rightDartsLanded}
                                   </Text>
                                 </LinearGradient>
                               </View>
@@ -6550,13 +6800,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarLeft,
                                   {
-                                    flex: p1AvgDartsFlex,
+                                    flex: leftAvgDartsFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player1ColorObj?.colors || [
+                                    leftPlayerInfo.colorObj?.colors || [
                                       "#2196F3",
                                       "#1976D2",
                                     ]
@@ -6576,13 +6826,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player1ColorObj?.colors?.[0] ||
-                                            "#2196F3",
+                                          leftPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#2196F3",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p1AvgDarts.toFixed(1)}
+                                    {leftAvgDarts.toFixed(1)}
                                   </Text>
                                 </LinearGradient>
                               </View>
@@ -6591,13 +6841,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarRight,
                                   {
-                                    flex: p2AvgDartsFlex,
+                                    flex: rightAvgDartsFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player2ColorObj?.colors || [
+                                    rightPlayerInfo.colorObj?.colors || [
                                       "#4CAF50",
                                       "#388E3C",
                                     ]
@@ -6617,13 +6867,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player2ColorObj?.colors?.[0] ||
-                                            "#4CAF50",
+                                          rightPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#4CAF50",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p2AvgDarts.toFixed(1)}
+                                    {rightAvgDarts.toFixed(1)}
                                   </Text>
                                 </LinearGradient>
                               </View>
@@ -6640,13 +6890,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarLeft,
                                   {
-                                    flex: p1DartsMissedFlex,
+                                    flex: leftDartsMissedFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player1ColorObj?.colors || [
+                                    leftPlayerInfo.colorObj?.colors || [
                                       "#2196F3",
                                       "#1976D2",
                                     ]
@@ -6666,13 +6916,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player1ColorObj?.colors?.[0] ||
-                                            "#2196F3",
+                                          leftPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#2196F3",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p1DartsMissed}
+                                    {leftDartsMissed}
                                   </Text>
                                 </LinearGradient>
                               </View>
@@ -6681,13 +6931,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarRight,
                                   {
-                                    flex: p2DartsMissedFlex,
+                                    flex: rightDartsMissedFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player2ColorObj?.colors || [
+                                    rightPlayerInfo.colorObj?.colors || [
                                       "#4CAF50",
                                       "#388E3C",
                                     ]
@@ -6707,13 +6957,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player2ColorObj?.colors?.[0] ||
-                                            "#4CAF50",
+                                          rightPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#4CAF50",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p2DartsMissed}
+                                    {rightDartsMissed}
                                   </Text>
                                 </LinearGradient>
                               </View>
@@ -6730,13 +6980,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarLeft,
                                   {
-                                    flex: p1LandingFlex,
+                                    flex: leftLandingFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player1ColorObj?.colors || [
+                                    leftPlayerInfo.colorObj?.colors || [
                                       "#2196F3",
                                       "#1976D2",
                                     ]
@@ -6756,13 +7006,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player1ColorObj?.colors?.[0] ||
-                                            "#2196F3",
+                                          leftPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#2196F3",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p1LandingPercent.toFixed(0)}%
+                                    {leftLandingPercent.toFixed(0)}%
                                   </Text>
                                 </LinearGradient>
                               </View>
@@ -6771,13 +7021,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarRight,
                                   {
-                                    flex: p2LandingFlex,
+                                    flex: rightLandingFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player2ColorObj?.colors || [
+                                    rightPlayerInfo.colorObj?.colors || [
                                       "#4CAF50",
                                       "#388E3C",
                                     ]
@@ -6797,13 +7047,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player2ColorObj?.colors?.[0] ||
-                                            "#4CAF50",
+                                          rightPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#4CAF50",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p2LandingPercent.toFixed(0)}%
+                                    {rightLandingPercent.toFixed(0)}%
                                   </Text>
                                 </LinearGradient>
                               </View>
@@ -6820,13 +7070,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarLeft,
                                   {
-                                    flex: p1RoundsFlex,
+                                    flex: leftRoundsFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player1ColorObj?.colors || [
+                                    leftPlayerInfo.colorObj?.colors || [
                                       "#2196F3",
                                       "#1976D2",
                                     ]
@@ -6846,15 +7096,15 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player1ColorObj?.colors?.[0] ||
-                                            "#2196F3",
+                                          leftPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#2196F3",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p1RoundsWon} /{" "}
+                                    {leftRoundsWon} /{" "}
                                     {(
-                                      (p1RoundsWon / totalRounds) *
+                                      (leftRoundsWon / totalRounds) *
                                       100
                                     ).toFixed(0)}
                                     %
@@ -6866,13 +7116,13 @@ export default function NewMatchScreen({ navigation, route }) {
                                 style={[
                                   styles.divergingBarRight,
                                   {
-                                    flex: p2RoundsFlex,
+                                    flex: rightRoundsFlex,
                                   },
                                 ]}
                               >
                                 <LinearGradient
                                   colors={
-                                    player2ColorObj?.colors || [
+                                    rightPlayerInfo.colorObj?.colors || [
                                       "#4CAF50",
                                       "#388E3C",
                                     ]
@@ -6892,15 +7142,15 @@ export default function NewMatchScreen({ navigation, route }) {
                                       styles.divergingBarText,
                                       {
                                         color: getContrastingTextColor(
-                                          player2ColorObj?.colors?.[0] ||
-                                            "#4CAF50",
+                                          rightPlayerInfo.colorObj
+                                            ?.colors?.[0] || "#4CAF50",
                                         ),
                                       },
                                     ]}
                                   >
-                                    {p2RoundsWon} /{" "}
+                                    {rightRoundsWon} /{" "}
                                     {(
-                                      (p2RoundsWon / totalRounds) *
+                                      (rightRoundsWon / totalRounds) *
                                       100
                                     ).toFixed(0)}
                                     %
@@ -6943,159 +7193,287 @@ export default function NewMatchScreen({ navigation, route }) {
                       Round Breakdown
                     </Text>
 
-                    {/* Column Headers */}
-                    <View style={styles.roundBreakdownHeader}>
-                      <Text
-                        style={[
-                          styles.roundBreakdownColumn,
-                          styles.roundNumberColumn,
-                          styles.roundBreakdownHeaderText,
-                        ]}
-                      >
-                        Round
-                      </Text>
-                      <Text
-                        style={[
-                          styles.roundBreakdownColumn,
-                          styles.playerDartsColumn,
-                          styles.roundBreakdownHeaderText,
-                        ]}
-                      >
-                        {player1Name || "Player 1"}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.roundBreakdownColumn,
-                          styles.playerDartsColumn,
-                          styles.roundBreakdownHeaderText,
-                        ]}
-                      >
-                        {player2Name || "Player 2"}
-                      </Text>
-                    </View>
+                    {/* Determine display order based on player sides */}
+                    {(() => {
+                      const leftSidePlayer = getLeftSidePlayer();
+                      const rightSidePlayer = getRightSidePlayer();
+                      const displayLeftPlayerNum =
+                        leftSidePlayer !== null ? leftSidePlayer : 1;
+                      const displayRightPlayerNum =
+                        rightSidePlayer !== null ? rightSidePlayer : 2;
 
-                    {/* Round Rows */}
-                    {roundHistory.map((round, index) => {
-                      const p1IsClosest = round.closestPlayer === 1;
-                      const p2IsClosest = round.closestPlayer === 2;
-                      const p1Specialty = Array.isArray(round.p1SpecialtyShots)
-                        ? round.p1SpecialtyShots
-                        : round.p1DartStates
-                          ? round.p1DartStates.filter((d) => d.specialtyShot)
-                          : [];
-                      const p2Specialty = Array.isArray(round.p2SpecialtyShots)
-                        ? round.p2SpecialtyShots
-                        : round.p2DartStates
-                          ? round.p2DartStates.filter((d) => d.specialtyShot)
-                          : [];
-
-                      // First thrower gradient box
-                      let roundBoxStyle = [styles.roundNumberText];
-                      let gradientColors = null;
-                      if (
-                        round.firstThrower === 1 &&
-                        player1ColorObj &&
-                        player1ColorObj.isGradient
-                      ) {
-                        gradientColors = player1ColorObj.colors;
-                      } else if (
-                        round.firstThrower === 2 &&
-                        player2ColorObj &&
-                        player2ColorObj.isGradient
-                      ) {
-                        gradientColors = player2ColorObj.colors;
-                      }
+                      const leftPlayerName =
+                        displayLeftPlayerNum === 1
+                          ? player1Name || "Player 1"
+                          : player2Name || "Player 2";
+                      const rightPlayerName =
+                        displayRightPlayerNum === 1
+                          ? player1Name || "Player 1"
+                          : player2Name || "Player 2";
 
                       return (
-                        <View key={index} style={styles.roundBreakdownRow}>
-                          <View
-                            style={[
-                              styles.roundBreakdownColumn,
-                              styles.roundNumberColumn,
-                              { position: "relative" },
-                            ]}
-                          >
-                            {gradientColors ? (
-                              <LinearGradient
-                                colors={gradientColors}
-                                start={{ x: 0, y: 0.5 }}
-                                end={{ x: 1, y: 0.5 }}
-                                style={{
-                                  position: "absolute",
-                                  left: 0,
-                                  top: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  borderRadius: 6,
-                                  zIndex: 0,
-                                }}
-                              />
-                            ) : null}
+                        <>
+                          {/* Column Headers */}
+                          <View style={styles.roundBreakdownHeader}>
                             <Text
                               style={[
-                                ...roundBoxStyle,
-                                {
-                                  zIndex: 1,
-                                  color: gradientColors
-                                    ? getContrastingTextColor(gradientColors[0])
-                                    : undefined,
-                                },
+                                styles.roundBreakdownColumn,
+                                styles.roundNumberColumn,
+                                styles.roundBreakdownHeaderText,
                               ]}
                             >
-                              {round.roundNumber}
+                              Round
+                            </Text>
+                            <Text
+                              style={[
+                                styles.roundBreakdownColumn,
+                                styles.playerDartsColumn,
+                                styles.roundBreakdownHeaderText,
+                              ]}
+                            >
+                              {leftPlayerName}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.roundBreakdownColumn,
+                                styles.playerDartsColumn,
+                                styles.roundBreakdownHeaderText,
+                              ]}
+                            >
+                              {rightPlayerName}
                             </Text>
                           </View>
-                          <View
-                            style={[
-                              styles.roundBreakdownColumn,
-                              styles.playerDartsColumn,
-                              p1IsClosest && styles.roundBreakdownClosest,
-                            ]}
-                          >
-                            <Text style={styles.roundDartsText}>
-                              {round.p1Points}
-                            </Text>
-                            {p1Specialty.length > 0 && (
-                              <Text style={styles.roundSpecialtyShotsText}>
-                                {p1Specialty
-                                  .map(
-                                    (s) =>
-                                      s.specialtyShot?.abbr ||
-                                      s.abbr ||
-                                      s.specialtyShot?.name ||
-                                      s.name,
+
+                          {/* Round Rows */}
+                          {roundHistory.map((round, index) => {
+                            // Determine which player is left/right based on this round's stored sides
+                            const roundPlayerSides =
+                              round.playerSides || playerSides;
+                            const roundLeftSidePlayer =
+                              roundPlayerSides?.[1] === "left"
+                                ? 1
+                                : roundPlayerSides?.[2] === "left"
+                                  ? 2
+                                  : null;
+                            const roundRightSidePlayer =
+                              roundPlayerSides?.[1] === "right"
+                                ? 1
+                                : roundPlayerSides?.[2] === "right"
+                                  ? 2
+                                  : null;
+
+                            const roundDisplayLeftPlayerNum =
+                              roundLeftSidePlayer !== null
+                                ? roundLeftSidePlayer
+                                : 1;
+                            const roundDisplayRightPlayerNum =
+                              roundRightSidePlayer !== null
+                                ? roundRightSidePlayer
+                                : 2;
+
+                            const p1IsClosest = round.closestPlayer === 1;
+                            const p2IsClosest = round.closestPlayer === 2;
+                            const p1Specialty = Array.isArray(
+                              round.p1SpecialtyShots,
+                            )
+                              ? round.p1SpecialtyShots
+                              : round.p1DartStates
+                                ? round.p1DartStates.filter(
+                                    (d) => d.specialtyShot,
                                   )
-                                  .join(", ")}
-                              </Text>
-                            )}
-                          </View>
-                          <View
-                            style={[
-                              styles.roundBreakdownColumn,
-                              styles.playerDartsColumn,
-                              p2IsClosest && styles.roundBreakdownClosest,
-                            ]}
-                          >
-                            <Text style={styles.roundDartsText}>
-                              {round.p2Points}
-                            </Text>
-                            {p2Specialty.length > 0 && (
-                              <Text style={styles.roundSpecialtyShotsText}>
-                                {p2Specialty
-                                  .map(
-                                    (s) =>
-                                      s.specialtyShot?.abbr ||
-                                      s.abbr ||
-                                      s.specialtyShot?.name ||
-                                      s.name,
+                                : [];
+                            const p2Specialty = Array.isArray(
+                              round.p2SpecialtyShots,
+                            )
+                              ? round.p2SpecialtyShots
+                              : round.p2DartStates
+                                ? round.p2DartStates.filter(
+                                    (d) => d.specialtyShot,
                                   )
-                                  .join(", ")}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
+                                : [];
+
+                            // Get left and right player darts/points based on display order
+                            const leftPlayerDarts =
+                              roundDisplayLeftPlayerNum === 1
+                                ? round.p1Darts
+                                : round.p2Darts;
+                            const leftPlayerPoints =
+                              roundDisplayLeftPlayerNum === 1
+                                ? round.p1Points
+                                : round.p2Points;
+                            const rightPlayerDarts =
+                              roundDisplayRightPlayerNum === 1
+                                ? round.p1Darts
+                                : round.p2Darts;
+                            const rightPlayerPoints =
+                              roundDisplayRightPlayerNum === 1
+                                ? round.p1Points
+                                : round.p2Points;
+
+                            const leftPlayerIsClosest =
+                              roundDisplayLeftPlayerNum === 1
+                                ? p1IsClosest
+                                : p2IsClosest;
+                            const rightPlayerIsClosest =
+                              roundDisplayRightPlayerNum === 1
+                                ? p1IsClosest
+                                : p2IsClosest;
+
+                            // First thrower gradient box
+                            let roundBoxStyle = [styles.roundNumberText];
+                            let gradientColors = null;
+                            if (
+                              round.firstThrower === 1 &&
+                              player1ColorObj &&
+                              player1ColorObj.isGradient
+                            ) {
+                              gradientColors = player1ColorObj.colors;
+                            } else if (
+                              round.firstThrower === 2 &&
+                              player2ColorObj &&
+                              player2ColorObj.isGradient
+                            ) {
+                              gradientColors = player2ColorObj.colors;
+                            }
+
+                            return (
+                              <View
+                                key={index}
+                                style={styles.roundBreakdownRow}
+                              >
+                                <View
+                                  style={[
+                                    styles.roundBreakdownColumn,
+                                    styles.roundNumberColumn,
+                                    { position: "relative" },
+                                  ]}
+                                >
+                                  {gradientColors ? (
+                                    <LinearGradient
+                                      colors={gradientColors}
+                                      start={{ x: 0, y: 0.5 }}
+                                      end={{ x: 1, y: 0.5 }}
+                                      style={{
+                                        position: "absolute",
+                                        left: 0,
+                                        top: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        borderRadius: 6,
+                                        zIndex: 0,
+                                      }}
+                                    />
+                                  ) : null}
+                                  <Text
+                                    style={[
+                                      ...roundBoxStyle,
+                                      {
+                                        zIndex: 1,
+                                        color: gradientColors
+                                          ? getContrastingTextColor(
+                                              gradientColors[0],
+                                            )
+                                          : undefined,
+                                      },
+                                    ]}
+                                  >
+                                    {round.roundNumber}
+                                  </Text>
+                                </View>
+                                <View
+                                  style={[
+                                    styles.roundBreakdownColumn,
+                                    styles.playerDartsColumn,
+                                    leftPlayerIsClosest &&
+                                      styles.roundBreakdownClosest,
+                                  ]}
+                                >
+                                  <Text style={styles.roundDartsText}>
+                                    {leftPlayerPoints}
+                                  </Text>
+                                  {roundDisplayLeftPlayerNum === 1 &&
+                                    p1Specialty.length > 0 && (
+                                      <Text
+                                        style={styles.roundSpecialtyShotsText}
+                                      >
+                                        {p1Specialty
+                                          .map(
+                                            (s) =>
+                                              s.specialtyShot?.abbr ||
+                                              s.abbr ||
+                                              s.specialtyShot?.name ||
+                                              s.name,
+                                          )
+                                          .join(", ")}
+                                      </Text>
+                                    )}
+                                  {roundDisplayLeftPlayerNum === 2 &&
+                                    p2Specialty.length > 0 && (
+                                      <Text
+                                        style={styles.roundSpecialtyShotsText}
+                                      >
+                                        {p2Specialty
+                                          .map(
+                                            (s) =>
+                                              s.specialtyShot?.abbr ||
+                                              s.abbr ||
+                                              s.specialtyShot?.name ||
+                                              s.name,
+                                          )
+                                          .join(", ")}
+                                      </Text>
+                                    )}
+                                </View>
+                                <View
+                                  style={[
+                                    styles.roundBreakdownColumn,
+                                    styles.playerDartsColumn,
+                                    rightPlayerIsClosest &&
+                                      styles.roundBreakdownClosest,
+                                  ]}
+                                >
+                                  <Text style={styles.roundDartsText}>
+                                    {rightPlayerPoints}
+                                  </Text>
+                                  {roundDisplayRightPlayerNum === 1 &&
+                                    p1Specialty.length > 0 && (
+                                      <Text
+                                        style={styles.roundSpecialtyShotsText}
+                                      >
+                                        {p1Specialty
+                                          .map(
+                                            (s) =>
+                                              s.specialtyShot?.abbr ||
+                                              s.abbr ||
+                                              s.specialtyShot?.name ||
+                                              s.name,
+                                          )
+                                          .join(", ")}
+                                      </Text>
+                                    )}
+                                  {roundDisplayRightPlayerNum === 2 &&
+                                    p2Specialty.length > 0 && (
+                                      <Text
+                                        style={styles.roundSpecialtyShotsText}
+                                      >
+                                        {p2Specialty
+                                          .map(
+                                            (s) =>
+                                              s.specialtyShot?.abbr ||
+                                              s.abbr ||
+                                              s.specialtyShot?.name ||
+                                              s.name,
+                                          )
+                                          .join(", ")}
+                                      </Text>
+                                    )}
+                                </View>
+                              </View>
+                            );
+                          })}
+                        </>
                       );
-                    })}
+                    })()}
                   </View>
                 )}
               </ScrollView>
