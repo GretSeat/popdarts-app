@@ -39,6 +39,7 @@ import ScreenContainer from "../components/ScreenContainer";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-chart-kit";
 import { POPDARTS_COLORS } from "../constants/colors";
+import { getGradientProps } from "../utils/colorRenderingUtils";
 import { supabase } from "../lib/supabase";
 import {
   getRankBadge,

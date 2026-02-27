@@ -10,17 +10,21 @@ import { Text, Button, IconButton } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { POPDARTS_COLORS } from "../constants/colors";
 import { PartyVanillaSprinkles } from "./PartyVanillaSprinkles";
+import { getGradientProps } from "../utils/colorRenderingUtils";
 
 /**
  * DartColorManager - Manage owned colors and set favorites
+ * IMPORTANT: All color ownership is now tracked by color NAME, not index!
+ * This ensures that if colors are reordered in the constant, ownership is preserved.
+ *
  * @param {boolean} visible - Modal visibility state
  * @param {function} onDismiss - Callback to close modal
- * @param {array} ownedColors - Array of owned color indices
- * @param {function} setOwnedColors - State setter for owned colors
- * @param {number} favoriteHomeColor - Index of favorite home color
- * @param {function} setFavoriteHomeColor - State setter for home favorite
- * @param {number} favoriteAwayColor - Index of favorite away color
- * @param {function} setFavoriteAwayColor - State setter for away favorite
+ * @param {array} ownedColors - Array of owned color NAMES (e.g., ["Pink", "Gray"])
+ * @param {function} setOwnedColors - State setter for owned color names
+ * @param {string} favoriteHomeColor - Name of favorite home color
+ * @param {function} setFavoriteHomeColor - State setter for home favorite color name
+ * @param {string} favoriteAwayColor - Name of favorite away color
+ * @param {function} setFavoriteAwayColor - State setter for away favorite color name
  */
 export default function DartColorManager({
   visible,
@@ -47,42 +51,45 @@ export default function DartColorManager({
   });
 
   /**
-   * Toggle ownership of a color
+   * Toggle ownership of a color by color name
    */
-  const toggleOwnership = (colorIndex) => {
-    if (ownedColors.includes(colorIndex)) {
+  const toggleOwnership = (colorObj) => {
+    const colorName = colorObj.name;
+    if (ownedColors.includes(colorName)) {
       // Remove from owned
-      setOwnedColors(ownedColors.filter((i) => i !== colorIndex));
+      setOwnedColors(ownedColors.filter((name) => name !== colorName));
       // If it was a favorite, clear that too
-      if (favoriteHomeColor === colorIndex) setFavoriteHomeColor(null);
-      if (favoriteAwayColor === colorIndex) setFavoriteAwayColor(null);
+      if (favoriteHomeColor === colorName) setFavoriteHomeColor(null);
+      if (favoriteAwayColor === colorName) setFavoriteAwayColor(null);
     } else {
       // Add to owned
-      setOwnedColors([...ownedColors, colorIndex]);
+      setOwnedColors([...ownedColors, colorName]);
     }
   };
 
   /**
-   * Set a color as home favorite
+   * Set a color as home favorite by color name
    */
-  const setHomeFavorite = (colorIndex) => {
+  const setHomeFavorite = (colorObj) => {
+    const colorName = colorObj.name;
     // Must own the color first
-    if (!ownedColors.includes(colorIndex)) {
-      setOwnedColors([...ownedColors, colorIndex]);
+    if (!ownedColors.includes(colorName)) {
+      setOwnedColors([...ownedColors, colorName]);
     }
-    setFavoriteHomeColor(colorIndex);
+    setFavoriteHomeColor(colorName);
     setMode("ownership");
   };
 
   /**
-   * Set a color as away favorite
+   * Set a color as away favorite by color name
    */
-  const setAwayFavorite = (colorIndex) => {
+  const setAwayFavorite = (colorObj) => {
+    const colorName = colorObj.name;
     // Must own the color first
-    if (!ownedColors.includes(colorIndex)) {
-      setOwnedColors([...ownedColors, colorIndex]);
+    if (!ownedColors.includes(colorName)) {
+      setOwnedColors([...ownedColors, colorName]);
     }
-    setFavoriteAwayColor(colorIndex);
+    setFavoriteAwayColor(colorName);
     setMode("ownership");
   };
 
@@ -125,9 +132,7 @@ export default function DartColorManager({
                   }}
                 >
                   <LinearGradient
-                    colors={POPDARTS_COLORS[favoriteHomeColor].colors}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                    {...getGradientProps(POPDARTS_COLORS[favoriteHomeColor])}
                     style={styles.modeButtonGradientBackground}
                     onLayout={(event) => {
                       const { width, height } = event.nativeEvent.layout;
@@ -175,9 +180,7 @@ export default function DartColorManager({
                   }}
                 >
                   <LinearGradient
-                    colors={POPDARTS_COLORS[favoriteAwayColor].colors}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                    {...getGradientProps(POPDARTS_COLORS[favoriteAwayColor])}
                     style={styles.modeButtonGradientBackground}
                     onLayout={(event) => {
                       const { width, height } = event.nativeEvent.layout;
@@ -249,8 +252,10 @@ export default function DartColorManager({
                 const color2 = POPDARTS_COLORS[colorIndex2];
 
                 // Check if both colors should be hidden in favorite modes
-                const isColor1Owned = ownedColors.includes(colorIndex1);
-                const isColor2Owned = ownedColors.includes(colorIndex2);
+                const isColor1Owned =
+                  color1 && ownedColors.includes(color1.name);
+                const isColor2Owned =
+                  color2 && ownedColors.includes(color2.name);
                 const shouldHideSet =
                   (mode === "home" || mode === "away") &&
                   !isColor1Owned &&
@@ -267,11 +272,11 @@ export default function DartColorManager({
                       <TouchableOpacity
                         onPress={() => {
                           if (mode === "ownership") {
-                            toggleOwnership(colorIndex1);
+                            toggleOwnership(color1);
                           } else if (mode === "home") {
-                            setHomeFavorite(colorIndex1);
+                            setHomeFavorite(color1);
                           } else if (mode === "away") {
-                            setAwayFavorite(colorIndex1);
+                            setAwayFavorite(color1);
                           }
                         }}
                         onLayout={(event) => {
@@ -283,20 +288,17 @@ export default function DartColorManager({
                           isColor1Owned &&
                             mode === "ownership" &&
                             styles.colorOwned,
-                          favoriteHomeColor === colorIndex1 &&
+                          favoriteHomeColor === color1.name &&
                             mode === "home" &&
                             styles.colorFavoriteHome,
-                          favoriteAwayColor === colorIndex1 &&
+                          favoriteAwayColor === color1.name &&
                             mode === "away" &&
                             styles.colorFavoriteAway,
                         ]}
                       >
                         {color1.isGradient ? (
                           <LinearGradient
-                            colors={color1.colors}
-                            start={{ x: 0, y: 0.5 }}
-                            end={{ x: 1, y: 0.5 }}
-                            locations={[0, 1]}
+                            {...getGradientProps(color1)}
                             style={styles.colorGradient}
                           />
                         ) : (
@@ -323,13 +325,13 @@ export default function DartColorManager({
                             </View>
                           </View>
                         )}
-                        {favoriteHomeColor === colorIndex1 && (
+                        {favoriteHomeColor === color1.name && (
                           <View style={styles.favoriteIndicatorHome}>
                             <Text style={styles.favoriteIcon}>⭐</Text>
                             <Text style={styles.favoriteText}>HOME</Text>
                           </View>
                         )}
-                        {favoriteAwayColor === colorIndex1 && (
+                        {favoriteAwayColor === color1.name && (
                           <View style={styles.favoriteIndicatorAway}>
                             <Text style={styles.favoriteIcon}>⭐</Text>
                             <Text style={styles.favoriteText}>AWAY</Text>
@@ -343,11 +345,11 @@ export default function DartColorManager({
                       <TouchableOpacity
                         onPress={() => {
                           if (mode === "ownership") {
-                            toggleOwnership(colorIndex2);
+                            toggleOwnership(color2);
                           } else if (mode === "home") {
-                            setHomeFavorite(colorIndex2);
+                            setHomeFavorite(color2);
                           } else if (mode === "away") {
-                            setAwayFavorite(colorIndex2);
+                            setAwayFavorite(color2);
                           }
                         }}
                         onLayout={(event) => {
@@ -359,20 +361,17 @@ export default function DartColorManager({
                           isColor2Owned &&
                             mode === "ownership" &&
                             styles.colorOwned,
-                          favoriteHomeColor === colorIndex2 &&
+                          favoriteHomeColor === color2.name &&
                             mode === "home" &&
                             styles.colorFavoriteHome,
-                          favoriteAwayColor === colorIndex2 &&
+                          favoriteAwayColor === color2.name &&
                             mode === "away" &&
                             styles.colorFavoriteAway,
                         ]}
                       >
                         {color2.isGradient ? (
                           <LinearGradient
-                            colors={color2.colors}
-                            start={{ x: 0, y: 0.5 }}
-                            end={{ x: 1, y: 0.5 }}
-                            locations={[0, 1]}
+                            {...getGradientProps(color2)}
                             style={styles.colorGradient}
                           />
                         ) : (
@@ -399,13 +398,13 @@ export default function DartColorManager({
                             </View>
                           </View>
                         )}
-                        {favoriteHomeColor === colorIndex2 && (
+                        {favoriteHomeColor === color2.name && (
                           <View style={styles.favoriteIndicatorHome}>
                             <Text style={styles.favoriteIcon}>⭐</Text>
                             <Text style={styles.favoriteText}>HOME</Text>
                           </View>
                         )}
-                        {favoriteAwayColor === colorIndex2 && (
+                        {favoriteAwayColor === color2.name && (
                           <View style={styles.favoriteIndicatorAway}>
                             <Text style={styles.favoriteIcon}>⭐</Text>
                             <Text style={styles.favoriteText}>AWAY</Text>

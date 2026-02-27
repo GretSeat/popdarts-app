@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Text, Button, IconButton } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
+import { getGradientProps } from "../utils/colorRenderingUtils";
 
 /**
  * Jersey designs available to players
@@ -262,9 +263,7 @@ export default function JerseyColorManager({
                     }}
                   >
                     <LinearGradient
-                      colors={jersey.colors}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
+                      {...getGradientProps(jersey)}
                       style={[
                         styles.jerseyGradientBackground,
                         isOwned && styles.ownedCardGradient,

@@ -6,53 +6,98 @@
  */
 
 export const POPDARTS_COLORS = [
-  // Grey & Pink Set
-  { name: "Grey", colors: ["#494949", "#D2D0D0"], isGradient: true },
-  { name: "Pink", colors: ["#FFAAD8", "#D2D0D0"], isGradient: true },
+  // Bleen & Yurple Set
+  { name: "Bleen", colors: ["#0000FF", "#67f00b"], isGradient: true },
+  { name: "Yurple", colors: ["#800080", "#f7f307"], isGradient: true },
 
-  // FRDi Set (Nick is black/blue, Cakes is yellow/black)
-  { name: "FRDI Nick", colors: ["#225879", "#020201"], isGradient: true },
-  { name: "FRDI Cakes", colors: ["#E7D13E", "#020201"], isGradient: true },
+  // Rizzle Set
+  {
+    name: "Rizzle Pink",
+    colors: ["#FE509D", "#52DFFB"],
+    gradientStops: [40, 100],
+    isGradient: true,
+  },
+  {
+    name: "Rizzle Black",
+    colors: ["#2C2C2C", "#52DFFB"],
+    gradientStops: [40, 100],
+    isGradient: true,
+  },
 
   // Fire & Ice Set
   { name: "Fire", colors: ["#F04B25", "#CCC029"], isGradient: true },
   { name: "Ice", colors: ["#282F85", "#BBC8D6"], isGradient: true },
 
-  // Rizzle Set
-  { name: "Rizzle Pink", colors: ["#FE509D", "#52DFFB"], isGradient: true },
-  { name: "Rizzle Black", colors: ["#2C2C2C", "#52DFFB"], isGradient: true },
-
-  // Bleen & Yurple Set
-  { name: "Bleen", colors: ["#0000FF", "#67f00b"], isGradient: true },
-  { name: "Yurple", colors: ["#800080", "#f7f307"], isGradient: true },
-
-  // USA Set
-  { name: "USA Stars", colors: ["#FFFFFF", "#0000FF"], isGradient: true },
-  { name: "USA Stripes", colors: ["#FFFFFF", "#FF0000"], isGradient: true },
-
-  // Retro Set
-  { name: "Retro Teal", colors: ["#FFFFFF", "#4ACCC7"], isGradient: true },
-  { name: "Retro Purple", colors: ["#FFFFFF", "#4605B0"], isGradient: true },
+  // Drizzle Set
+  {
+    name: "Drizzle Dawn",
+    colors: ["#44B6DD", "#081540"],
+    gradientStops: [0, 70, 100],
+    isGradient: true,
+  },
+  {
+    name: "Drizzle Dusk",
+    colors: ["#B5C600", "#081540", "#0B123B"],
+    gradientStops: [0, 60, 100],
+    isGradient: true,
+  },
 
   // Explore Set
-  { name: "Explore Ocean", colors: ["#F4AFA4", "#3D5672"], isGradient: true },
-  { name: "Explore Forest", colors: ["#ADC48E", "#3D5672"], isGradient: true },
-
-  // Drizzle Set
-  { name: "Drizzle Dawn", colors: ["#44B6DD", "#081540"], isGradient: true },
-  { name: "Drizzle Dusk", colors: ["#B5C600", "#081540"], isGradient: true },
+  { name: "Explore Ocean", colors: ["#F4AFA4", "#3D5672"], gradientStops: [20, 80], isGradient: true },
+  { name: "Explore Forest", colors: ["#ADC48E", "#3D5672"], gradientStops: [20, 80], isGradient: true },
 
   // Neon Set
-  { name: "Neon Green", colors: ["#2091C1", "#DB6E0F"], isGradient: true },
+  {
+    name: "Neon Orange",
+    colors: ["#2091C1", "#D3670C"],
+    gradientStops: [35, 60],
+    isGradient: true,
+  },
   { name: "Neon Pink", colors: ["#F0067E", "#46C924"], isGradient: true },
 
   // Halloween Set
   {
     name: "Halloween Pumpkin",
-    colors: ["#CD680C", "#4A0A96"],
+    colors: ["#954010", "#CD680C", "#4A0A96"],
+    gradientStops: [0, 20, 100],
     isGradient: true,
   },
-  { name: "Halloween Ghost", colors: ["#AAD225", "#4A0A96"], isGradient: true },
+  {
+    name: "Halloween Ghost",
+    colors: ["#24711A", "#AAD225", "#4A0A96"],
+    gradientStops: [0, 30, 70],
+    isGradient: true,
+  },
+
+  // FRDi Set (Nick is black/blue, Cakes is yellow/black)
+  {
+    name: "FRDI Nick",
+    colors: ["#225879", "#020201"],
+    gradientStops: [30, 70],
+    isGradient: true,
+  },
+  {
+    name: "FRDI Cakes",
+    colors: ["#E7D13E", "#020201"],
+    gradientStops: [30, 70],
+    isGradient: true,
+  },
+
+  // Retro Set
+  { name: "Retro Teal", colors: ["#E3E6E7", "#4ACCC7"], isGradient: true },
+  { name: "Retro Purple", colors: ["#E3E6E7", "#4605B0"], isGradient: true },
+
+  // USA Set
+  { name: "USA Stars", colors: ["#FFFFFF", "#0000FF"], isGradient: true },
+  { name: "USA Stripes", colors: ["#FFFFFF", "#FF0000"], isGradient: true },
+
+  // USA Board Set
+  { name: "USA Blue", colors: ["#1a2981"], isGradient: false },
+  { name: "USA Red", colors: ["#C90D33"], isGradient: false },
+
+  // Grey & Pink Set
+  { name: "Grey", colors: ["#494949", "#D2D0D0"], gradientStops: [30, 70],isGradient: true },
+  { name: "Pink", colors: ["#FFAAD8", "#D2D0D0"], gradientStops: [30, 70], isGradient: true },
 
   // Blue & Green Set
   { name: "Blue", colors: ["#429FC0"], isGradient: false },
@@ -135,8 +180,6 @@ export const POPDARTS_COLORS = [
       { top: "75%", left: "95%", color: "#b197fc", rotate: "120deg" },
     ],
   },
-
-  { name: "USA Blue", colors: ["#1a2981"], isGradient: false },
 ];
 
 /**
@@ -158,4 +201,15 @@ export const getPrimaryColor = (colorObj) => {
  */
 export const getSecondaryColor = (colorObj) => {
   return colorObj.colors[1] || null;
+};
+
+/**
+ * Helper function to get LinearGradient locations array for gradient stops
+ * Converts gradientStops percentages (0-100) to gradient locations (0-1)
+ * @param {array} gradientStops - Array of percentages (e.g., [0, 35, 100])
+ * @returns {array} Array of decimal values for LinearGradient locations prop
+ */
+export const getGradientLocations = (gradientStops) => {
+  if (!gradientStops) return [0, 1];
+  return gradientStops.map((stop) => stop / 100);
 };

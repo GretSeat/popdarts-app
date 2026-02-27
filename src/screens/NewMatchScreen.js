@@ -29,6 +29,8 @@ import Svg, { Path } from "react-native-svg";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlayerPreferences } from "../contexts/PlayerPreferencesContext";
 import { POPDARTS_COLORS } from "../constants/colors";
+import { getGradientProps } from "../utils/colorRenderingUtils";
+import ColorSelector from "../components/ColorSelector";
 import styles from "../styles/newMatchScreen.styles";
 import PartyVanillaSprinkles from "../components/PartyVanillaSprinkles";
 import ScoringProgressChart from "../components/ScoringProgressChart";
@@ -113,7 +115,6 @@ export default function NewMatchScreen({ navigation, route }) {
   const [matchStarted, setMatchStarted] = useState(false);
   const [error, setError] = useState("");
   const [scoreboardHeight, setScoreboardHeight] = useState(200); // Default scoreboard height for sprinkles
-  const [colorItemWidth, setColorItemWidth] = useState(220); // For color selection sprinkles
 
   // Color picker modal state
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
@@ -447,22 +448,26 @@ export default function NewMatchScreen({ navigation, route }) {
       setGameFormat("single"); // Single match, not tournament
       setMatchMode(gameFormat || "1v1");
 
-      // Set Player 1's color to favorite home color if available (using index)
-      const player1ColorIndex =
-        favoriteHomeColor !== null && typeof favoriteHomeColor === "number"
-          ? favoriteHomeColor
-          : 0;
-      const player1ColorObject = POPDARTS_COLORS[player1ColorIndex];
+      // Set Player 1's color to favorite home color if available
+      const player1ColorObject = favoriteHomeColor
+        ? POPDARTS_COLORS.find((c) => c.name === favoriteHomeColor) ||
+          POPDARTS_COLORS[0]
+        : POPDARTS_COLORS[0];
+
+      // Set Player 2's color to favorite away color if available
+      const player2ColorObject = favoriteAwayColor
+        ? POPDARTS_COLORS.find((c) => c.name === favoriteAwayColor) || null
+        : null;
 
       // Initialize player names
       setPlayer1Name(currentUserName);
       setPlayer2Name("");
 
-      // Set color objects - Player 1 has color, Player 2 starts with none
+      // Set color objects - Player 1 has home color, Player 2 defaults to away color
       setPlayer1ColorObj(player1ColorObject);
-      setPlayer2ColorObj(null);
+      setPlayer2ColorObj(player2ColorObject);
       setPlayer1Color(player1ColorObject.colors[0]);
-      setPlayer2Color("#CCCCCC"); // Gray default for unselected
+      setPlayer2Color(player2ColorObject?.colors[0] || "#CCCCCC"); // Gray default if no away color set
 
       // Initialize players array for 1v1 lobby (matching initializeLobby behavior)
       setPlayers([
@@ -474,7 +479,7 @@ export default function NewMatchScreen({ navigation, route }) {
         {
           id: 2,
           name: "",
-          color: null, // Player 2 starts with no color
+          color: player2ColorObject, // Player 2 defaults to away color
         },
       ]);
     }
@@ -1633,13 +1638,19 @@ export default function NewMatchScreen({ navigation, route }) {
     setMatchMode(mode);
     if (mode === "1v1") {
       // Set Player 1's color to favorite home color if available
-      const player1ColorIndex =
-        favoriteHomeColor !== null ? favoriteHomeColor : 0;
-      const player1ColorObject = POPDARTS_COLORS[player1ColorIndex];
+      const player1ColorObject = favoriteHomeColor
+        ? POPDARTS_COLORS.find((c) => c.name === favoriteHomeColor) ||
+          POPDARTS_COLORS[0]
+        : POPDARTS_COLORS[0];
+
+      // Set Player 2's color to favorite away color if available
+      const player2ColorObject = favoriteAwayColor
+        ? POPDARTS_COLORS.find((c) => c.name === favoriteAwayColor) || null
+        : null;
 
       setPlayers([
         { id: 1, name: currentUserName, color: player1ColorObject },
-        { id: 2, name: "", color: null }, // Player 2 starts with no color
+        { id: 2, name: "", color: player2ColorObject }, // Player 2 defaults to away color
       ]);
       setPlayer1Color(player1ColorObject.colors[0]);
       setPlayer2Color("#CCCCCC"); // Gray default for unselected
@@ -1835,9 +1846,7 @@ export default function NewMatchScreen({ navigation, route }) {
                     isCircular={true}
                   />
                   <LinearGradient
-                    colors={displayColorObj.colors}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    {...getGradientProps(displayColorObj)}
                     style={styles.coinFlipDisplay}
                   >
                     <TouchableOpacity
@@ -3659,9 +3668,11 @@ export default function NewMatchScreen({ navigation, route }) {
                       setSelectedPlayerIndex(index);
                       setSelectedTeamIndex(null);
 
-                      // Auto-select favorite color only for Player 1 (home)
+                      // Auto-select favorite colors
                       if (index === 0 && favoriteHomeColor !== null) {
-                        setSelectedColorIndex(favoriteHomeColor);
+                        setSelectedColorIndex(favoriteHomeColor); // Player 1 (home)
+                      } else if (index === 1 && favoriteAwayColor !== null) {
+                        setSelectedColorIndex(favoriteAwayColor); // Player 2 (away)
                       } else {
                         setSelectedColorIndex(null); // No auto-select for others
                       }
@@ -3799,166 +3810,61 @@ export default function NewMatchScreen({ navigation, route }) {
             </Button>
           )}
 
-          {/* Color Picker Modal */}
-          <Modal
+          {/* Color Picker Modal - Universal Color Selector */}
+          <ColorSelector
             visible={colorPickerVisible}
-            onDismiss={() => setColorPickerVisible(false)}
-            contentContainerStyle={styles.colorPickerModal}
-          >
-            <View style={styles.colorPickerContainer}>
-              <Text variant="headlineSmall" style={styles.colorPickerTitle}>
-                Select Your Dart Color
-              </Text>
-              <ScrollView style={styles.colorScrollView}>
-                <View style={styles.colorListVertical}>
-                  {/* Sort colors: owned first for Player 1, all colors visible for everyone */}
-                  {POPDARTS_COLORS.map((colorObj, originalIndex) => ({
-                    colorObj,
-                    originalIndex,
-                    isOwned: ownedColors.includes(originalIndex),
-                  }))
-                    .sort((a, b) => {
-                      // For Player 1, show owned colors first
-                      if (selectedPlayerIndex === 0) {
-                        if (a.isOwned && !b.isOwned) return -1;
-                        if (!a.isOwned && b.isOwned) return 1;
-                      }
-                      return 0;
-                    })
-                    .map(({ colorObj, originalIndex, isOwned }) => {
-                      const colorIndex = originalIndex;
-                      const isSelected = selectedColorIndex === colorIndex;
-                      const otherPlayerIndex =
-                        selectedPlayerIndex === 0 ? 1 : 0;
-                      const isOtherPlayerColor =
-                        selectedPlayerIndex !== null &&
-                        players[otherPlayerIndex]?.color?.name ===
-                          colorObj.name;
-
-                      // Only show green "owned" border for Player 1 (index 0)
-                      const showOwnedBorder =
-                        isOwned && selectedPlayerIndex === 0;
-
-                      return (
-                        <TouchableOpacity
-                          key={colorIndex}
-                          disabled={isOtherPlayerColor}
-                          onPress={() => setSelectedColorIndex(colorIndex)}
-                          onLayout={(event) => {
-                            const { width } = event.nativeEvent.layout;
-                            setColorItemWidth(width);
-                          }}
-                          style={[
-                            styles.colorItemLarge,
-                            showOwnedBorder &&
-                              !isSelected &&
-                              !isOtherPlayerColor &&
-                              styles.colorItemOwned,
-                            isSelected && styles.colorItemSelected,
-                            isOtherPlayerColor && styles.colorItemTaken,
-                          ]}
-                        >
-                          {/* Gradient or Solid Background */}
-                          {colorObj.isGradient ? (
-                            <LinearGradient
-                              colors={colorObj.colors}
-                              start={{ x: 0, y: 0.5 }}
-                              end={{ x: 1, y: 0.5 }}
-                              locations={[0, 1]}
-                              style={styles.colorItemGradient}
-                            />
-                          ) : (
-                            <View
-                              style={[
-                                styles.colorItemGradient,
-                                { backgroundColor: colorObj.colors[0] },
-                              ]}
-                            />
-                          )}
-
-                          {/* Party Vanilla Sprinkles Overlay */}
-                          <PartyVanillaSprinkles
-                            colorObj={colorObj}
-                            width={colorItemWidth}
-                            height={160}
-                          />
-
-                          {/* Vertical Color Name on Left - Always visible */}
-                          <View style={styles.colorNameVerticalContainer}>
-                            <Text style={styles.colorNameVertical}>
-                              {colorObj.name}
-                            </Text>
-                          </View>
-
-                          {/* Selection Checkmark - Only when selected */}
-                          {isSelected && (
-                            <View style={styles.selectionIndicator}>
-                              <View style={styles.checkmarkCircle}>
-                                <Text style={styles.checkmarkText}>✓</Text>
-                              </View>
-                            </View>
-                          )}
-
-                          {/* Other Player Selected Overlay */}
-                          {isOtherPlayerColor && (
-                            <View style={styles.otherPlayerOverlay}>
-                              <View style={styles.checkmarkCircle}>
-                                <Text style={styles.checkmarkText}>✓</Text>
-                              </View>
-                              <Text style={styles.takenText}>TAKEN</Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                </View>
-              </ScrollView>
-
-              {/* Continue Button */}
-              <Button
-                mode="contained"
-                onPress={() => {
-                  if (selectedColorIndex !== null) {
-                    const colorObj = POPDARTS_COLORS[selectedColorIndex];
-                    if (selectedPlayerIndex !== null) {
-                      const newPlayers = [...players];
-                      newPlayers[selectedPlayerIndex].color = colorObj;
-                      setPlayers(newPlayers);
-                      if (selectedPlayerIndex === 0) {
-                        setPlayer1Name(newPlayers[0].name);
-                        setPlayer1Color(colorObj.colors[0]);
-                        setPlayer1ColorObj(colorObj);
-                      }
-                      if (selectedPlayerIndex === 1) {
-                        setPlayer2Name(newPlayers[1].name);
-                        setPlayer2Color(colorObj.colors[0]);
-                        setPlayer2ColorObj(colorObj);
-                      }
-                    } else if (selectedTeamIndex !== null) {
-                      const newTeams = [...teams];
-                      newTeams[selectedTeamIndex].color = colorObj;
-                      setTeams(newTeams);
-                      if (selectedTeamIndex === 0) {
-                        setPlayer1Color(colorObj.colors[0]);
-                        setPlayer1ColorObj(colorObj);
-                      }
-                      if (selectedTeamIndex === 1) {
-                        setPlayer2Color(colorObj.colors[0]);
-                        setPlayer2ColorObj(colorObj);
-                      }
-                    }
-                    setColorPickerVisible(false);
-                    setSelectedColorIndex(null);
-                  }
-                }}
-                disabled={selectedColorIndex === null}
-                style={styles.continueButton}
-                buttonColor="#007AFF"
-              >
-                Continue
-              </Button>
-            </View>
-          </Modal>
+            onDismiss={() => {
+              setColorPickerVisible(false);
+              setSelectedColorIndex(null);
+            }}
+            onSelectColor={(colorObj, colorIndex) => {
+              if (selectedPlayerIndex !== null) {
+                const newPlayers = [...players];
+                newPlayers[selectedPlayerIndex].color = colorObj;
+                setPlayers(newPlayers);
+                if (selectedPlayerIndex === 0) {
+                  setPlayer1Name(newPlayers[0].name);
+                  setPlayer1Color(colorObj.colors[0]);
+                  setPlayer1ColorObj(colorObj);
+                }
+                if (selectedPlayerIndex === 1) {
+                  setPlayer2Name(newPlayers[1].name);
+                  setPlayer2Color(colorObj.colors[0]);
+                  setPlayer2ColorObj(colorObj);
+                }
+              } else if (selectedTeamIndex !== null) {
+                const newTeams = [...teams];
+                newTeams[selectedTeamIndex].color = colorObj;
+                setTeams(newTeams);
+                if (selectedTeamIndex === 0) {
+                  setPlayer1Color(colorObj.colors[0]);
+                  setPlayer1ColorObj(colorObj);
+                }
+                if (selectedTeamIndex === 1) {
+                  setPlayer2Color(colorObj.colors[0]);
+                  setPlayer2ColorObj(colorObj);
+                }
+              }
+              setColorPickerVisible(false);
+              setSelectedColorIndex(null);
+            }}
+            ownedColors={ownedColors}
+            takenColors={
+              selectedPlayerIndex !== null && selectedPlayerIndex !== undefined
+                ? players
+                    .filter((_, idx) => idx !== selectedPlayerIndex)
+                    .map((p) => p.color?.name)
+                    .filter((name) => name !== undefined && name !== null)
+                : selectedTeamIndex !== null && selectedTeamIndex !== undefined
+                  ? teams
+                      .filter((_, idx) => idx !== selectedTeamIndex)
+                      .map((t) => t.color?.name)
+                      .filter((name) => name !== undefined && name !== null)
+                  : []
+            }
+            title="Select Your Dart Color"
+            selectedName={selectedColorIndex}
+          />
 
           {/* Continue Button */}
 

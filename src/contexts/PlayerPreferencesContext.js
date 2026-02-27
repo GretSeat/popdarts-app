@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { POPDARTS_COLORS } from "../constants/colors";
 
 /**
  * PlayerPreferencesContext - Manages player's color, jersey, and gameplay preferences
- * - Owned colors (which darts they own)
- * - Favorite home color (auto-selected when Player 1)
- * - Favorite away color (auto-selected when Player 2)
+ * - Owned colors (which darts they own) - NOW STORED BY COLOR NAME, not index
+ * - Favorite home color (auto-selected when Player 1) - NOW STORED BY COLOR NAME
+ * - Favorite away color (auto-selected when Player 2) - NOW STORED BY COLOR NAME
  * - Owned jerseys (which jerseys they own)
  * - Favorite jersey (displayed on profile)
  * - Advanced closest tracking (3-tap dart entry for competitive)
@@ -24,9 +25,9 @@ export const usePlayerPreferences = () => {
 };
 
 export const PlayerPreferencesProvider = ({ children }) => {
-  const [ownedColors, setOwnedColors] = useState([]); // Array of color indices
-  const [favoriteHomeColor, setFavoriteHomeColor] = useState(null); // Color index
-  const [favoriteAwayColor, setFavoriteAwayColor] = useState(null); // Color index
+  const [ownedColors, setOwnedColors] = useState([]); // Array of color names (e.g., ["Pink", "Gray"])
+  const [favoriteHomeColor, setFavoriteHomeColor] = useState(null); // Color name
+  const [favoriteAwayColor, setFavoriteAwayColor] = useState(null); // Color name
   const [ownedJerseys, setOwnedJerseys] = useState([]); // Array of jersey IDs
   const [favoriteJersey, setFavoriteJersey] = useState(null); // Jersey ID
   const [advancedClosestTracking, setAdvancedClosestTracking] = useState(false); // Competitive setting
@@ -52,6 +53,24 @@ export const PlayerPreferencesProvider = ({ children }) => {
   }, []);
 
   /**
+   * Migrate legacy index-based color data to name-based
+   * @param {array} indexData - Array of color indices (old format)
+   * @returns {array} Array of color names (new format)
+   */
+  const migrateColorIndexesToNames = (indexData) => {
+    if (!Array.isArray(indexData)) return [];
+    return indexData
+      .map((index) => {
+        if (typeof index === "string") return index; // Already migrated
+        if (typeof index === "number" && POPDARTS_COLORS[index]) {
+          return POPDARTS_COLORS[index].name;
+        }
+        return null;
+      })
+      .filter((name) => name !== null);
+  };
+
+  /**
    * Load all preferences from storage
    */
   const loadPreferences = async () => {
@@ -74,9 +93,51 @@ export const PlayerPreferencesProvider = ({ children }) => {
         AsyncStorage.getItem(STORAGE_KEYS.SHOW_VICTORY_REMINDER),
       ]);
 
-      if (owned) setOwnedColors(JSON.parse(owned));
-      if (home) setFavoriteHomeColor(JSON.parse(home));
-      if (away) setFavoriteAwayColor(JSON.parse(away));
+      // Migrate owned colors from indices to names
+      if (owned) {
+        const parsedOwned = JSON.parse(owned);
+        const migratedOwned = migrateColorIndexesToNames(parsedOwned);
+        setOwnedColors(migratedOwned);
+        // Save migrated data back
+        if (migratedOwned.length > 0) {
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.OWNED_COLORS,
+            JSON.stringify(migratedOwned),
+          );
+        }
+      }
+
+      // Migrate favorites from indices to names
+      if (home) {
+        const parsedHome = JSON.parse(home);
+        const migratedHome =
+          typeof parsedHome === "number"
+            ? POPDARTS_COLORS[parsedHome]?.name || null
+            : parsedHome;
+        setFavoriteHomeColor(migratedHome);
+        if (migratedHome && typeof parsedHome === "number") {
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.FAVORITE_HOME,
+            JSON.stringify(migratedHome),
+          );
+        }
+      }
+
+      if (away) {
+        const parsedAway = JSON.parse(away);
+        const migratedAway =
+          typeof parsedAway === "number"
+            ? POPDARTS_COLORS[parsedAway]?.name || null
+            : parsedAway;
+        setFavoriteAwayColor(migratedAway);
+        if (migratedAway && typeof parsedAway === "number") {
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.FAVORITE_AWAY,
+            JSON.stringify(migratedAway),
+          );
+        }
+      }
+
       if (jerseys) setOwnedJerseys(JSON.parse(jerseys));
       if (jersey) setFavoriteJersey(JSON.parse(jersey));
       if (advancedTracking)
@@ -91,6 +152,7 @@ export const PlayerPreferencesProvider = ({ children }) => {
 
   /**
    * Save owned colors to storage
+   * @param {array} colors - Array of color names (e.g., ["Pink", "Gray"])
    */
   const saveOwnedColors = async (colors) => {
     try {
@@ -106,14 +168,15 @@ export const PlayerPreferencesProvider = ({ children }) => {
 
   /**
    * Save favorite home color to storage
+   * @param {string} colorName - Color name (e.g., "Pink")
    */
-  const saveFavoriteHomeColor = async (colorIndex) => {
+  const saveFavoriteHomeColor = async (colorName) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.FAVORITE_HOME,
-        JSON.stringify(colorIndex),
+        JSON.stringify(colorName),
       );
-      setFavoriteHomeColor(colorIndex);
+      setFavoriteHomeColor(colorName);
     } catch (error) {
       console.error("Error saving favorite home color:", error);
     }
@@ -121,14 +184,15 @@ export const PlayerPreferencesProvider = ({ children }) => {
 
   /**
    * Save favorite away color to storage
+   * @param {string} colorName - Color name (e.g., "Gray")
    */
-  const saveFavoriteAwayColor = async (colorIndex) => {
+  const saveFavoriteAwayColor = async (colorName) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.FAVORITE_AWAY,
-        JSON.stringify(colorIndex),
+        JSON.stringify(colorName),
       );
-      setFavoriteAwayColor(colorIndex);
+      setFavoriteAwayColor(colorName);
     } catch (error) {
       console.error("Error saving favorite away color:", error);
     }
